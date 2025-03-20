@@ -13,10 +13,6 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Server"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "Test"
 
 [[workflows.workflow.tasks]]
@@ -31,20 +27,9 @@ args = "Run ML Tests"
 task = "workflow.run"
 args = "Debug ML Tests"
 
-[[workflows.workflow]]
-name = "Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
 [[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd backend && node server.js"
-waitForPort = 5000
+task = "workflow.run"
+args = "WebServer"
 
 [[workflows.workflow]]
 name = "Test"
@@ -101,6 +86,21 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd backend/ml && python -m pytest tests/test_medical_image_analyzer.py -v"
+
+[[workflows.workflow]]
+name = "WebServer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node backend/server.js"
+waitForPort = 5000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]

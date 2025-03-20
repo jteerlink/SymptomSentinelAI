@@ -244,6 +244,12 @@ function handleRegistration() {
     
     // Helper function to update profile UI after login/registration
     function updateProfileUI(email, name = null) {
+        // Update the navigation menu Account link
+        const accountNavLink = document.getElementById('account-nav-link');
+        if (accountNavLink) {
+            accountNavLink.textContent = 'Manage Account';
+        }
+        
         // Update the profile page to show logged in state
         const profileIcon = document.querySelector('.profile-icon');
         const profileTitle = document.querySelector('.card-title.mt-3');
@@ -305,6 +311,12 @@ function handleRegistration() {
                         signInButton.textContent = 'Sign In / Register';
                         // Restore the original functionality
                         signInButton.addEventListener('click', handleRegistration);
+                    }
+                    
+                    // Reset the navigation menu Account link
+                    const accountNavLink = document.getElementById('account-nav-link');
+                    if (accountNavLink) {
+                        accountNavLink.textContent = 'Sign In / Register';
                     }
                     
                     // Reset account info

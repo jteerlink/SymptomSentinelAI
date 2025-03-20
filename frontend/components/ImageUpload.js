@@ -14,17 +14,7 @@ function renderUploadUI(container) {
     container.innerHTML = `
         <div class="upload-container">
             <div class="upload-instructions mb-4">
-                <h4>Upload an Image for Analysis</h4>
                 <p>Select the area you want to analyze, then take or upload a clear image for AI analysis.</p>
-                
-                <div class="alert alert-info">
-                    <strong>For best results:</strong>
-                    <ul class="mb-0">
-                        <li>Ensure good lighting</li>
-                        <li>Keep the camera steady</li>
-                        <li>Focus on the area of concern</li>
-                    </ul>
-                </div>
             </div>
             
             <div class="scan-type-selection mb-4">
@@ -32,17 +22,17 @@ function renderUploadUI(container) {
                 <div class="scan-options">
                     <div class="scan-option-card" id="throat-option">
                         <div class="scan-option-icon">
-                            <i class="fas fa-head-side-cough fa-3x"></i>
+                            <i class="fas fa-head-side-cough fa-2x"></i>
                         </div>
                         <h5 class="scan-option-label">Throat</h5>
-                        <p class="scan-option-description">Analyze throat conditions including strep throat, tonsillitis, or pharyngitis</p>
+                        <p class="scan-option-description">Strep throat, tonsillitis, pharyngitis</p>
                     </div>
                     <div class="scan-option-card" id="ear-option">
                         <div class="scan-option-icon">
-                            <i class="fas fa-deaf fa-3x"></i>
+                            <i class="fas fa-deaf fa-2x"></i>
                         </div>
                         <h5 class="scan-option-label">Ear</h5>
-                        <p class="scan-option-description">Analyze ear canal conditions including ear infections, earwax buildup, or external otitis</p>
+                        <p class="scan-option-description">Ear infections, earwax buildup, otitis</p>
                     </div>
                 </div>
             </div>
@@ -59,6 +49,15 @@ function renderUploadUI(container) {
                         <h5><i class="fas fa-deaf"></i> Ear Scan Selected</h5>
                         <p>Upload a clear image of your ear canal for analysis. Gently pull your ear up and back to better expose the ear canal.</p>
                     </div>
+                </div>
+                
+                <div class="alert alert-info mt-3">
+                    <strong>For best results:</strong>
+                    <ul class="mb-0">
+                        <li>Ensure good lighting</li>
+                        <li>Keep the camera steady</li>
+                        <li>Focus on the area of concern</li>
+                    </ul>
                 </div>
             </div>
             
@@ -156,6 +155,28 @@ function setupUploadEventListeners(container) {
     
     // Function to handle scan type selection
     function selectAnalysisType(type) {
+        // Check if the same type is already selected (toggle functionality)
+        if (selectedAnalysisType === type) {
+            // Reset selection and hide instructions and drop area
+            selectedAnalysisType = null;
+            throatOption.classList.remove('selected');
+            earOption.classList.remove('selected');
+            
+            // Hide with animation
+            analysisTypeInfo.classList.remove('show');
+            dropArea.classList.remove('show');
+            
+            // Hide elements after animation completes
+            setTimeout(() => {
+                analysisTypeInfo.style.display = 'none';
+                dropArea.style.display = 'none';
+                throatInstructions.style.display = 'none';
+                earInstructions.style.display = 'none';
+            }, 300);
+            
+            return;
+        }
+        
         // Update selected type
         selectedAnalysisType = type;
         

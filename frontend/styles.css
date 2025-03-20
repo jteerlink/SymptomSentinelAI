@@ -139,15 +139,19 @@ main {
 .scan-option-card {
     background-color: var(--input-bg);
     border: 2px solid var(--border-color);
-    border-radius: 12px;
-    padding: 25px;
-    width: 280px;
+    border-radius: 10px;
+    padding: 15px 10px;
+    width: 150px;
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
     box-shadow: 0 4px 6px var(--shadow-color);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 5px;
 }
 
 .scan-option-card:hover {
@@ -162,11 +166,20 @@ main {
     box-shadow: 0 6px 12px rgba(78, 115, 223, 0.2);
 }
 
+.scan-options {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
 .scan-option-icon {
     color: var(--primary-color);
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     transition: transform 0.3s ease;
     position: relative;
+    font-size: 2.2rem;
+    order: -1; /* Place icon at the top */
 }
 
 .scan-option-icon:after {
@@ -181,7 +194,7 @@ main {
     transition: opacity 0.3s ease;
 }
 
-.scan-option-card:hover .scan-option-icon:after {
+.scan-option-card:hover:not(.selected) .scan-option-icon:after {
     opacity: 1;
 }
 
@@ -192,13 +205,15 @@ main {
 .scan-option-label {
     font-weight: bold;
     color: var(--text-color);
-    margin-bottom: 10px;
+    margin-bottom: 5px;
+    font-size: 0.95rem;
 }
 
 .scan-option-description {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     color: var(--text-color);
     opacity: 0.9;
+    line-height: 1.2;
 }
 
 .scan-option-card::after {
@@ -740,14 +755,16 @@ main {
         margin: 10px;
     }
     
-    /* Make scan options stack on small screens */
+    /* Keep scan options side by side even on small screens */
     .scan-options {
-        flex-direction: column;
-        align-items: center;
+        flex-direction: row;
+        justify-content: center;
+        gap: 10px;
+        padding: 0 5px;
     }
     
     .scan-option-card {
-        width: 100%;
-        max-width: 280px;
+        width: 140px;
+        padding: 10px 5px;
     }
 }

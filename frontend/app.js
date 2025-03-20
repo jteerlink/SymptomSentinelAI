@@ -109,7 +109,13 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
             options.body = JSON.stringify(data);
         }
         
-        const response = await fetch(`/api/${endpoint}`, options);
+        // Use absolute URL instead of relative path for Replit environment
+        const baseUrl = window.location.hostname.includes('replit') 
+            ? window.location.origin
+            : '';
+        
+        const response = await fetch(`${baseUrl}/api/${endpoint}`, options);
+        console.log(`API request to: ${baseUrl}/api/${endpoint}`);
         
         if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);

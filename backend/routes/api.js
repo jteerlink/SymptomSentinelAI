@@ -14,6 +14,86 @@ router.get('/health', (req, res) => {
     });
 });
 
+// Sample analysis results for verification
+router.get('/sample-analysis', (req, res) => {
+    // Return sample analysis results from both types (throat and ear)
+    const sampleResults = {
+        throat: {
+            id: 'sample-throat-analysis',
+            type: 'throat',
+            timestamp: new Date().toISOString(),
+            conditions: [
+                {
+                    id: 'strep_throat',
+                    name: 'Strep Throat',
+                    confidence: 0.78,
+                    description: 'A bacterial infection that causes inflammation and pain in the throat.',
+                    symptoms: [
+                        'Throat pain that comes on quickly',
+                        'Red and swollen tonsils',
+                        'White patches on the tonsils',
+                        'Tiny red spots on the roof of the mouth',
+                        'Fever'
+                    ],
+                    isPotentiallySerious: true
+                },
+                {
+                    id: 'tonsillitis',
+                    name: 'Tonsillitis',
+                    confidence: 0.65,
+                    description: 'Inflammation of the tonsils, typically caused by viral or bacterial infection.',
+                    symptoms: [
+                        'Red, swollen tonsils',
+                        'White or yellow coating on tonsils',
+                        'Sore throat',
+                        'Painful swallowing',
+                        'Fever'
+                    ],
+                    isPotentiallySerious: false
+                }
+            ]
+        },
+        ear: {
+            id: 'sample-ear-analysis',
+            type: 'ear',
+            timestamp: new Date().toISOString(),
+            conditions: [
+                {
+                    id: 'otitis_media',
+                    name: 'Otitis Media',
+                    confidence: 0.82,
+                    description: 'Middle ear infection that causes inflammation and fluid buildup.',
+                    symptoms: [
+                        'Ear pain',
+                        'Fluid draining from ears',
+                        'Hearing difficulties',
+                        'Fever',
+                        'Irritability in children'
+                    ],
+                    isPotentiallySerious: false
+                },
+                {
+                    id: 'earwax_buildup',
+                    name: 'Earwax Buildup',
+                    confidence: 0.54,
+                    description: 'Excessive accumulation of cerumen (earwax) in the ear canal.',
+                    symptoms: [
+                        'Feeling of fullness in the ear',
+                        'Partial hearing loss',
+                        'Ringing in the ear (tinnitus)',
+                        'Itching in the ear',
+                        'Discharge from the ear'
+                    ],
+                    isPotentiallySerious: false
+                }
+            ]
+        }
+    };
+    
+    // Return data
+    res.status(200).json(sampleResults);
+});
+
 // Image Analysis Routes
 router.post('/analyze', imageAnalysisController.analyzeImage);
 router.post('/save-analysis', imageAnalysisController.saveAnalysis);

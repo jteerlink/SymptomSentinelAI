@@ -166,7 +166,14 @@ function setupUploadEventListeners(container) {
         
         try {
             // Send the image data to your backend API
-            const response = await fetch('/api/analyze', {
+            // Use absolute URL instead of relative path for Replit environment
+            const baseUrl = window.location.hostname.includes('replit') 
+                ? window.location.origin
+                : '';
+                
+            console.log(`Sending analysis request to: ${baseUrl}/api/analyze`);
+            
+            const response = await fetch(`${baseUrl}/api/analyze`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

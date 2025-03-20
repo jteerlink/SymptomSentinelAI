@@ -1,287 +1,252 @@
 import SwiftUI
 
+/// Feature tutorial overlay that can be displayed on top of app screens
 struct FeatureTutorialView: View {
-    let feature: FeatureTutorial
-    @State private var currentStep = 0
-    @State private var showingTutorial = true
-    @Environment(\.presentationMode) var presentationMode
+    // MARK: - Environment & State
+    
+    /// Tutorial service for state management
+    @ObservedObject private var tutorialService = TutorialService.shared
+    
+    /// The feature ID this tutorial is for
+    let featureId: String
+    
+    /// The steps in this tutorial
+    let steps: [TutorialStep]
+    
+    /// Current step in the tutorial
+    @State private var currentStepIndex = 0
+    
+    /// Animation states
+    @State private var isShowingOverlay = false
+    @State private var isAnimating = false
+    
+    /// Dismissal handling
+    var onComplete: () -> Void
+    
+    // MARK: - Initializer
+    
+    init(featureId: String, steps: [TutorialStep], onComplete: @escaping () -> Void = {}) {
+        self.featureId = featureId
+        self.steps = steps
+        self.onComplete = onComplete
+    }
+    
+    // MARK: - Body
     
     var body: some View {
         ZStack {
-            // Background to capture taps
+            // Semi-transparent background
             Color.black.opacity(0.75)
-                .edgesIgnoringSafeArea(.all)
-                .onTapGesture {
-                    nextStep()
-                }
+                .ignoresSafeArea()
+                .opacity(isShowingOverlay ? 1 : 0)
+                .animation(.easeInOut(duration: 0.3), value: isShowingOverlay)
             
             // Tutorial content
-            if currentStep < feature.steps.count {
-                let step = feature.steps[currentStep]
-                
-                VStack(spacing: 20) {
-                    // Step indicator
-                    if feature.steps.count > 1 {
-                        HStack(spacing: 8) {
-                            ForEach(0..<feature.steps.count, id: \.self) { index in
-                                Circle()
-                                    .fill(index == currentStep ? Color.white : Color.gray.opacity(0.5))
-                                    .frame(width: 8, height: 8)
-                            }
-                        }
-                        .padding(.top)
-                    }
-                    
-                    // Title and icon
-                    HStack {
-                        if !step.imageName.isEmpty {
-                            Image(systemName: step.imageName)
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 30, height: 30)
-                                .foregroundColor(.white)
-                        }
-                        
-                        Text(step.title)
-                            .font(.title3)
-                            .fontWeight(.bold)
-                            .foregroundColor(.white)
-                    }
-                    .padding(.top, feature.steps.count > 1 ? 0 : 16)
-                    
-                    // Description
-                    Text(step.description)
-                        .font(.body)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    
-                    // Image if provided
-                    if let imageName = step.screenshotName {
-                        Image(imageName)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-                            .frame(maxHeight: 200)
-                    }
-                    
-                    // Navigation buttons
-                    HStack {
-                        // Previous button (if not first step)
-                        if currentStep > 0 {
-                            Button(action: previousStep) {
-                                HStack {
-                                    Image(systemName: "chevron.left")
-                                    Text("Previous")
-                                }
-                                .foregroundColor(.white)
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 16)
-                                .background(Color.gray.opacity(0.3))
-                                .cornerRadius(8)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // Next/Done button
-                        Button(action: nextStep) {
-                            if currentStep == feature.steps.count - 1 {
-                                Text("Got it!")
-                                    .fontWeight(.semibold)
-                            } else {
-                                HStack {
-                                    Text("Next")
-                                    Image(systemName: "chevron.right")
-                                }
-                            }
-                        }
-                        .foregroundColor(.white)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
-                        .background(Color.blue)
-                        .cornerRadius(8)
-                    }
-                    .padding(.bottom)
-                }
-                .padding()
-                .background(Color(UIColor.systemBackground).opacity(0.2))
-                .cornerRadius(16)
-                .shadow(radius: 5)
-                .padding(.horizontal, 20)
-                .transition(AnyTransition.opacity.combined(with: .scale))
-                .animation(.easeInOut)
+            if !steps.isEmpty {
+                currentStep.makeView(
+                    isAnimating: isAnimating,
+                    onNext: advanceToNextStep,
+                    onSkip: completeTutorial
+                )
+                .padding(24)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemBackground))
+                        .shadow(radius: 10)
+                )
+                .padding(.horizontal, 24)
+                .opacity(isShowingOverlay ? 1 : 0)
+                .scaleEffect(isShowingOverlay ? 1 : 0.9)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isShowingOverlay)
             }
         }
-        .onDisappear {
-            // Save tutorial completion status
-            FeatureTutorialManager.shared.markTutorialAsCompleted(feature.id)
+        .onAppear {
+            // Start with a brief delay to ensure the underlying view is ready
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isShowingOverlay = true
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation {
+                        isAnimating = true
+                    }
+                }
+            }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("FeatureTutorial-\(featureId)")
     }
     
-    private func nextStep() {
-        if currentStep < feature.steps.count - 1 {
-            currentStep += 1
+    // MARK: - Computed Properties
+    
+    /// Get the current tutorial step
+    private var currentStep: TutorialStep {
+        guard currentStepIndex < steps.count else {
+            return steps.first ?? TutorialStep.placeholder
+        }
+        return steps[currentStepIndex]
+    }
+    
+    // MARK: - Methods
+    
+    /// Advance to the next step in the tutorial
+    private func advanceToNextStep() {
+        withAnimation {
+            isAnimating = false
+        }
+        
+        let nextIndex = currentStepIndex + 1
+        
+        if nextIndex < steps.count {
+            // Move to next step
+            withAnimation {
+                currentStepIndex = nextIndex
+            }
+            
+            // Restart animations for the new step
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation {
+                    isAnimating = true
+                }
+            }
         } else {
-            presentationMode.wrappedValue.dismiss()
+            // We've reached the end of the tutorial
+            completeTutorial()
         }
     }
     
-    private func previousStep() {
-        if currentStep > 0 {
-            currentStep -= 1
+    /// Complete the tutorial and dismiss
+    private func completeTutorial() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            isShowingOverlay = false
+            isAnimating = false
+        }
+        
+        // Give time for animation to finish before actually dismissing
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            onComplete()
         }
     }
 }
 
-// MARK: - Feature Tutorial Models
-
-struct FeatureTutorial: Identifiable {
+/// Model representing a single step in a feature tutorial
+struct TutorialStep {
+    /// Unique identifier for the step
     let id: String
+    
+    /// Title of the step
     let title: String
-    let steps: [TutorialStepInfo]
-}
-
-struct TutorialStepInfo: Identifiable {
-    let id = UUID()
-    let title: String
+    
+    /// Description text
     let description: String
-    let imageName: String
-    let screenshotName: String?
+    
+    /// Optional image name
+    let imageName: String?
+    
+    /// Optional reference to a UI element to highlight
+    let highlightElementId: String?
+    
+    /// Placeholder step used as a fallback
+    static let placeholder = TutorialStep(
+        id: "placeholder",
+        title: "Tutorial",
+        description: "This is a placeholder tutorial step.",
+        imageName: nil,
+        highlightElementId: nil
+    )
+    
+    /// Create the view for this tutorial step
+    /// - Parameters:
+    ///   - isAnimating: Whether animations should be playing
+    ///   - onNext: Action to perform when advancing to the next step
+    ///   - onSkip: Action to perform when skipping the tutorial
+    /// - Returns: A view representing this tutorial step
+    func makeView(isAnimating: Bool, onNext: @escaping () -> Void, onSkip: @escaping () -> Void) -> some View {
+        VStack(spacing: 24) {
+            // Title and description
+            VStack(alignment: .leading, spacing: 12) {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .offset(y: isAnimating ? 0 : -10)
+                    .opacity(isAnimating ? 1 : 0)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(0.1), value: isAnimating)
+                
+                Text(description)
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: isAnimating ? 0 : 10)
+                    .opacity(isAnimating ? 1 : 0)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.2), value: isAnimating)
+            }
+            
+            // Image if provided
+            if let imageName = imageName {
+                Image(systemName: imageName)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(height: 100)
+                    .foregroundColor(.blue)
+                    .padding(.vertical, 8)
+                    .scaleEffect(isAnimating ? 1 : 0.8)
+                    .opacity(isAnimating ? 1 : 0)
+                    .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.3), value: isAnimating)
+            }
+            
+            // Action buttons
+            HStack {
+                Button("Skip") {
+                    onSkip()
+                }
+                .foregroundColor(.gray)
+                .accessibilityIdentifier("SkipTutorialButton")
+                
+                Spacer()
+                
+                Button(action: onNext) {
+                    Text("Next")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(Capsule().fill(Color.blue))
+                }
+                .accessibilityIdentifier("NextTutorialStepButton")
+            }
+            .offset(y: isAnimating ? 0 : 20)
+            .opacity(isAnimating ? 1 : 0)
+            .animation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.4), value: isAnimating)
+        }
+        .padding(20)
+    }
 }
 
-// MARK: - Feature Tutorial Manager
-
-class FeatureTutorialManager {
-    static let shared = FeatureTutorialManager()
-    
-    private let completedTutorialsKey = "CompletedFeatureTutorials"
-    
-    private init() {}
-    
-    // Check if a tutorial has been completed
-    func isTutorialCompleted(_ tutorialId: String) -> Bool {
-        let completedTutorials = UserDefaults.standard.stringArray(forKey: completedTutorialsKey) ?? []
-        return completedTutorials.contains(tutorialId)
-    }
-    
-    // Mark a tutorial as completed
-    func markTutorialAsCompleted(_ tutorialId: String) {
-        var completedTutorials = UserDefaults.standard.stringArray(forKey: completedTutorialsKey) ?? []
-        
-        if !completedTutorials.contains(tutorialId) {
-            completedTutorials.append(tutorialId)
-            UserDefaults.standard.set(completedTutorials, forKey: completedTutorialsKey)
-        }
-    }
-    
-    // Reset a specific tutorial
-    func resetTutorial(_ tutorialId: String) {
-        var completedTutorials = UserDefaults.standard.stringArray(forKey: completedTutorialsKey) ?? []
-        
-        if let index = completedTutorials.firstIndex(of: tutorialId) {
-            completedTutorials.remove(at: index)
-            UserDefaults.standard.set(completedTutorials, forKey: completedTutorialsKey)
-        }
-    }
-    
-    // Reset all tutorials
-    func resetAllTutorials() {
-        UserDefaults.standard.removeObject(forKey: completedTutorialsKey)
-    }
-    
-    // Pre-defined feature tutorials
-    
-    // Analysis tutorial
-    static let analysisTutorial = FeatureTutorial(
-        id: "analysis_tutorial",
-        title: "How to Analyze Images",
-        steps: [
-            TutorialStepInfo(
-                title: "Choose Analysis Type",
-                description: "First, select whether you want to analyze a throat or ear image.",
-                imageName: "1.circle",
-                screenshotName: nil
-            ),
-            TutorialStepInfo(
-                title: "Capture an Image",
-                description: "Take a clear, well-lit photo, or select one from your photos.",
-                imageName: "2.circle",
-                screenshotName: nil
-            ),
-            TutorialStepInfo(
-                title: "Review Results",
-                description: "The AI will analyze your image and provide potential conditions with confidence scores.",
-                imageName: "3.circle",
-                screenshotName: nil
-            ),
-            TutorialStepInfo(
-                title: "Save and Track",
-                description: "Results are automatically saved to your history for future reference.",
-                imageName: "4.circle",
-                screenshotName: nil
-            )
-        ]
-    )
-    
-    // Educational content tutorial
-    static let educationTutorial = FeatureTutorial(
-        id: "education_tutorial",
-        title: "Using Educational Resources",
-        steps: [
-            TutorialStepInfo(
-                title: "Browse by Category",
-                description: "Filter articles by conditions, treatments, or prevention topics.",
-                imageName: "folder",
-                screenshotName: nil
-            ),
-            TutorialStepInfo(
-                title: "Premium Content",
-                description: "Premium subscribers have access to our entire educational library, indicated by star icons.",
-                imageName: "star.fill",
-                screenshotName: nil
-            ),
-            TutorialStepInfo(
-                title: "Save for Later",
-                description: "Bookmark important articles to read later, even offline.",
-                imageName: "bookmark.fill",
-                screenshotName: nil
-            )
-        ]
-    )
-    
-    // Subscription tutorial
-    static let subscriptionTutorial = FeatureTutorial(
-        id: "subscription_tutorial",
-        title: "Premium Subscription Benefits",
-        steps: [
-            TutorialStepInfo(
-                title: "Unlimited Analyses",
-                description: "Free users are limited to 2 analyses per month, while Premium users enjoy unlimited analyses.",
-                imageName: "infinity",
-                screenshotName: nil
-            ),
-            TutorialStepInfo(
-                title: "Full Educational Library",
-                description: "Access our comprehensive collection of medical articles and resources.",
-                imageName: "book.fill",
-                screenshotName: nil
-            ),
-            TutorialStepInfo(
-                title: "Premium Support",
-                description: "Get priority customer support and faster response times.",
-                imageName: "person.fill.checkmark",
-                screenshotName: nil
-            )
-        ]
-    )
-}
-
-// MARK: - Preview
+// MARK: - Previews
 
 struct FeatureTutorialView_Previews: PreviewProvider {
     static var previews: some View {
-        FeatureTutorialView(feature: FeatureTutorialManager.analysisTutorial)
+        ZStack {
+            Color.gray.opacity(0.3).ignoresSafeArea()
+            
+            FeatureTutorialView(
+                featureId: "imageUpload",
+                steps: [
+                    TutorialStep(
+                        id: "step1",
+                        title: "Upload an Image",
+                        description: "Take a clear photo of your throat or ear. Make sure you have good lighting for best results.",
+                        imageName: "camera.fill",
+                        highlightElementId: "uploadButton"
+                    ),
+                    TutorialStep(
+                        id: "step2",
+                        title: "Analyze Results",
+                        description: "Our AI will analyze your image and provide potential diagnoses with confidence levels.",
+                        imageName: "waveform.path.ecg",
+                        highlightElementId: "analyzeButton"
+                    )
+                ]
+            )
+        }
     }
 }

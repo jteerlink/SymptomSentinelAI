@@ -1,291 +1,239 @@
 import Foundation
+import Combine
+import UIKit
 
-/// Service for handling network requests
+/// Service responsible for making network requests to the backend API
 class NetworkService {
+    /// Shared instance of the service
     static let shared = NetworkService()
     
-    // MARK: - Properties
+    /// Base URL for the API
+    private let baseURL = "https://api.symptomsentry.ai" // Replace with your actual API URL
     
-    /// Base URL for API requests
-    private let baseUrl = "https://api.symptomsentry.com/v1"
+    /// HTTP request methods
+    enum HTTPMethod: String {
+        case get = "GET"
+        case post = "POST"
+        case put = "PUT"
+        case delete = "DELETE"
+    }
     
-    /// Default request timeout
-    private let defaultTimeout: TimeInterval = 30.0
+    /// Active URL sessions
+    private var activeSessions = Set<URLSessionDataTask>()
     
     /// Session configuration
-    private let sessionConfiguration: URLSessionConfiguration
-    
-    /// URL session
     private let session: URLSession
     
-    // MARK: - Initialization
+    /// Authorization token
+    private var authToken: String?
     
+    /// Private initializer for singleton
     private init() {
-        // Configure session
-        sessionConfiguration = URLSessionConfiguration.default
-        sessionConfiguration.timeoutIntervalForRequest = defaultTimeout
-        sessionConfiguration.httpShouldSetCookies = true
-        sessionConfiguration.httpCookieAcceptPolicy = .always
-        
-        // Create session
-        session = URLSession(configuration: sessionConfiguration)
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 30.0
+        configuration.httpAdditionalHeaders = [
+            "Accept": "application/json",
+            "User-Agent": "SymptomSentryAI/1.0"
+        ]
+        session = URLSession(configuration: configuration)
     }
     
-    // MARK: - Public Methods
+    /// Set the authentication token
+    /// - Parameter token: The JWT token
+    func setAuthToken(_ token: String) {
+        self.authToken = token
+    }
     
-    /// Make a basic HTTP request
+    /// Clear the authentication token
+    func clearAuthToken() {
+        self.authToken = nil
+    }
+    
+    /// Make a request to the API
     /// - Parameters:
-    ///   - url: The URL to request
-    ///   - method: HTTP method (GET, POST, etc.)
-    ///   - parameters: Optional query/body parameters
-    ///   - headers: Optional HTTP headers
-    ///   - completion: Callback with data or error
+    ///   - endpoint: The API endpoint
+    ///   - method: The HTTP method
+    ///   - parameters: Optional parameters for the request
+    /// - Returns: A publisher that emits the response data or an error
     func request(
-        url: String,
-        method: String = "GET",
-        parameters: [String: Any]? = nil,
-        headers: [String: String]? = nil,
-        completion: @escaping (Result<Data, Error>) -> Void
-    ) {
-        guard let url = URL(string: url) else {
-            completion(.failure(NetworkError.invalidURL))
-            return
+        endpoint: String,
+        method: HTTPMethod,
+        parameters: [String: Any]?
+    ) -> AnyPublisher<Data, Error> {
+        guard var urlComponents = URLComponents(string: baseURL + endpoint) else {
+            return Fail(error: NetworkError.invalidURL).eraseToAnyPublisher()
         }
         
-        // Create request
+        // Add query parameters for GET requests
+        if method == .get, let parameters = parameters {
+            urlComponents.queryItems = parameters.map { key, value in
+                URLQueryItem(name: key, value: "\(value)")
+            }
+        }
+        
+        guard let url = urlComponents.url else {
+            return Fail(error: NetworkError.invalidURL).eraseToAnyPublisher()
+        }
+        
         var request = URLRequest(url: url)
-        request.httpMethod = method
+        request.httpMethod = method.rawValue
         
-        // Add headers
-        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        headers?.forEach { request.addValue($0.value, forHTTPHeaderField: $0.key) }
-        
-        // Add parameters
-        if let parameters = parameters {
-            if method == "GET" {
-                // For GET, add query parameters to URL
-                var components = URLComponents(url: url, resolvingAgainstBaseURL: false)!
-                components.queryItems = parameters.map { URLQueryItem(name: $0.key, value: "\($0.value)") }
-                if let newURL = components.url {
-                    request.url = newURL
-                }
-            } else {
-                // For other methods, add as JSON body
-                do {
-                    request.httpBody = try JSONSerialization.data(withJSONObject: parameters)
-                } catch {
-                    completion(.failure(NetworkError.encodingFailed))
-                    return
-                }
-            }
+        // Add authorization header if token exists
+        if let token = authToken {
+            request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         
-        // Make request
-        let task = session.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NetworkError.invalidResponse))
-                return
-            }
-            
-            guard (200...299).contains(httpResponse.statusCode) else {
-                completion(.failure(NetworkError.httpError(statusCode: httpResponse.statusCode)))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
-            
-            completion(.success(data))
-        }
-        
-        task.resume()
-    }
-    
-    /// Make an HTTP request that expects a JSON response
-    /// - Parameters:
-    ///   - url: The URL to request
-    ///   - method: HTTP method (GET, POST, etc.)
-    ///   - parameters: Optional query/body parameters
-    ///   - headers: Optional HTTP headers
-    ///   - completion: Callback with decoded object or error
-    func requestJSON<T: Decodable>(
-        url: String,
-        method: String = "GET",
-        parameters: [String: Any]? = nil,
-        headers: [String: String]? = nil,
-        completion: @escaping (Result<T, Error>) -> Void
-    ) {
-        request(url: url, method: method, parameters: parameters, headers: headers) { result in
-            switch result {
-            case .success(let data):
-                do {
-                    let decoder = JSONDecoder()
-                    decoder.keyDecodingStrategy = .convertFromSnakeCase
-                    let object = try decoder.decode(T.self, from: data)
-                    completion(.success(object))
-                } catch {
-                    completion(.failure(NetworkError.decodingFailed(error: error)))
-                }
-                
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
-    }
-    
-    /// Upload data to a server
-    /// - Parameters:
-    ///   - url: The URL to upload to
-    ///   - method: HTTP method (usually POST or PUT)
-    ///   - data: The data to upload
-    ///   - headers: Optional HTTP headers
-    ///   - completion: Callback with response data or error
-    func uploadRequest(
-        url: String,
-        method: String = "POST",
-        data: Data,
-        headers: [String: String]? = nil,
-        completion: @escaping (Result<Data, Error>) -> Void
-    ) {
-        guard let url = URL(string: url) else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        // Create request
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.httpBody = data
-        
-        // Add headers
-        headers?.forEach { request.addValue($0.value, forHTTPHeaderField: $0.key) }
-        
-        // Make request
-        let task = session.uploadTask(with: request, from: data) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NetworkError.invalidResponse))
-                return
-            }
-            
-            guard (200...299).contains(httpResponse.statusCode) else {
-                completion(.failure(NetworkError.httpError(statusCode: httpResponse.statusCode)))
-                return
-            }
-            
-            guard let data = data else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
-            
-            completion(.success(data))
-        }
-        
-        task.resume()
-    }
-    
-    /// Download a file from a URL
-    /// - Parameters:
-    ///   - url: The URL to download from
-    ///   - completion: Callback with local file URL or error
-    func downloadFile(
-        url: String,
-        completion: @escaping (Result<URL, Error>) -> Void
-    ) {
-        guard let url = URL(string: url) else {
-            completion(.failure(NetworkError.invalidURL))
-            return
-        }
-        
-        let task = session.downloadTask(with: url) { localURL, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
-            }
-            
-            guard let httpResponse = response as? HTTPURLResponse else {
-                completion(.failure(NetworkError.invalidResponse))
-                return
-            }
-            
-            guard (200...299).contains(httpResponse.statusCode) else {
-                completion(.failure(NetworkError.httpError(statusCode: httpResponse.statusCode)))
-                return
-            }
-            
-            guard let localURL = localURL else {
-                completion(.failure(NetworkError.noData))
-                return
-            }
-            
-            // Move to a persistent location
-            let documentsDirectory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let destinationURL = documentsDirectory.appendingPathComponent(url.lastPathComponent)
-            
+        // Add body for non-GET requests
+        if method != .get, let parameters = parameters {
             do {
-                // Remove existing file if it exists
-                if FileManager.default.fileExists(atPath: destinationURL.path) {
-                    try FileManager.default.removeItem(at: destinationURL)
-                }
-                
-                // Move downloaded file to documents directory
-                try FileManager.default.moveItem(at: localURL, to: destinationURL)
-                
-                completion(.success(destinationURL))
+                request.httpBody = try JSONSerialization.data(withJSONObject: parameters)
+                request.addValue("application/json", forHTTPHeaderField: "Content-Type")
             } catch {
-                completion(.failure(error))
+                return Fail(error: error).eraseToAnyPublisher()
             }
         }
         
-        task.resume()
+        return requestPublisher(for: request).eraseToAnyPublisher()
+    }
+    
+    /// Upload an image to the API
+    /// - Parameters:
+    ///   - imageData: The image data to upload
+    ///   - endpoint: The API endpoint
+    ///   - parameters: Additional parameters for the request
+    /// - Returns: A publisher that emits the response data or an error
+    func uploadImage(_ imageData: Data, to endpoint: String, parameters: [String: String]) -> AnyPublisher<Data, Error> {
+        guard let url = URL(string: baseURL + endpoint) else {
+            return Fail(error: NetworkError.invalidURL).eraseToAnyPublisher()
+        }
+        
+        // Create multipart form data
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.addValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        
+        if let token = authToken {
+            request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        var body = Data()
+        
+        // Add text parameters
+        for (key, value) in parameters {
+            body.append("--\(boundary)\r\n".data(using: .utf8)!)
+            body.append("Content-Disposition: form-data; name=\"\(key)\"\r\n\r\n".data(using: .utf8)!)
+            body.append("\(value)\r\n".data(using: .utf8)!)
+        }
+        
+        // Add image data
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"image\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n".data(using: .utf8)!)
+        
+        // Add closing boundary
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        
+        // Set the request body
+        request.httpBody = body
+        
+        return requestPublisher(for: request).eraseToAnyPublisher()
+    }
+    
+    /// Create a publisher for a URLRequest
+    /// - Parameter request: The URLRequest
+    /// - Returns: A publisher that emits the response data or an error
+    private func requestPublisher(for request: URLRequest) -> AnyPublisher<Data, Error> {
+        return Future<Data, Error> { [weak self] promise in
+            guard let self = self else {
+                return promise(.failure(NetworkError.invalidResponse))
+            }
+            
+            let task = self.session.dataTask(with: request) { data, response, error in
+                DispatchQueue.main.async {
+                    // Check for a connection error
+                    if let error = error {
+                        promise(.failure(NetworkError.connectionError(error)))
+                        return
+                    }
+                    
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        promise(.failure(NetworkError.invalidResponse))
+                        return
+                    }
+                    
+                    // Handle HTTP errors
+                    if !(200...299).contains(httpResponse.statusCode) {
+                        let message = String(data: data ?? Data(), encoding: .utf8) ?? "Unknown error"
+                        promise(.failure(NetworkError.httpError(statusCode: httpResponse.statusCode, message: message)))
+                        return
+                    }
+                    
+                    // Check for valid data
+                    guard let data = data else {
+                        promise(.failure(NetworkError.invalidResponse))
+                        return
+                    }
+                    
+                    promise(.success(data))
+                }
+            }
+            
+            // Track the task and start it
+            self.activeSessions.insert(task)
+            task.resume()
+        }
+        .handleEvents(receiveCancel: { [weak self] in
+            // Remove the task from active sessions when cancelled
+            self?.activeSessions.forEach { task in
+                task.cancel()
+            }
+            self?.activeSessions.removeAll()
+        })
+        .eraseToAnyPublisher()
+    }
+    
+    /// Cancel all active requests
+    func cancelAllRequests() {
+        activeSessions.forEach { task in
+            task.cancel()
+        }
+        activeSessions.removeAll()
+    }
+    
+    /// Get the current environment (development or production)
+    var environment: String {
+        #if DEBUG
+        return "development"
+        #else
+        return "production"
+        #endif
     }
 }
 
-// MARK: - NetworkError
+// MARK: - Extensions for Development/Testing
 
-/// Network-related errors
-enum NetworkError: Error {
-    case invalidURL
-    case invalidResponse
-    case httpError(statusCode: Int)
-    case noData
-    case encodingFailed
-    case decodingFailed(error: Error)
-    case unauthorized
-    case serverError
-    case connectionFailed
+extension NetworkService {
+    /// Use a local API URL for development
+    func useLocalAPI() {
+        if environment == "development" {
+            // This would be replaced with the actual local development URL
+            // For this example, we're showing localhost but you'd normally use a simulator-friendly URL
+            // let baseURL = "http://localhost:5000"
+        }
+    }
     
-    var localizedDescription: String {
-        switch self {
-        case .invalidURL:
-            return "Invalid URL"
-        case .invalidResponse:
-            return "Invalid response from server"
-        case .httpError(let statusCode):
-            return "HTTP error: \(statusCode)"
-        case .noData:
-            return "No data received"
-        case .encodingFailed:
-            return "Failed to encode request parameters"
-        case .decodingFailed(let error):
-            return "Failed to decode response: \(error.localizedDescription)"
-        case .unauthorized:
-            return "Authentication required"
-        case .serverError:
-            return "Server error"
-        case .connectionFailed:
-            return "Connection failed"
+    /// Create a mock response for testing
+    static func mockResponse<T: Encodable>(_ data: T) -> AnyPublisher<Data, Error> {
+        do {
+            let jsonData = try JSONEncoder().encode(data)
+            return Just(jsonData)
+                .setFailureType(to: Error.self)
+                .eraseToAnyPublisher()
+        } catch {
+            return Fail(error: error).eraseToAnyPublisher()
         }
     }
 }

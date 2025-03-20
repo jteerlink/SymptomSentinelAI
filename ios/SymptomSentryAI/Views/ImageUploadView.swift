@@ -1,361 +1,376 @@
 import SwiftUI
 import UIKit
+import PhotosUI
 
 struct ImageUploadView: View {
-    enum AnalysisType: String, CaseIterable, Identifiable {
-        case throat = "Throat"
-        case ear = "Ear"
-        
-        var id: String { self.rawValue }
-        
-        var icon: String {
-            switch self {
-            case .throat: return "mouth"
-            case .ear: return "ear"
-            }
-        }
-        
-        var description: String {
-            switch self {
-            case .throat: return "Analyze throat conditions such as strep throat, tonsillitis, or pharyngitis"
-            case .ear: return "Analyze ear conditions such as ear infections, earwax buildup, or inflammation"
-            }
-        }
-    }
+    // MARK: - Environment & State
     
-    // MARK: - Properties
-    @State private var selectedAnalysisType: AnalysisType = .throat
+    /// Service for image validation
+    @StateObject private var imageValidator = ImageValidationService()
+    
+    /// Service for ML analysis
+    @StateObject private var analysisService = MLAnalysisService.shared
+    
+    /// Selected image
     @State private var selectedImage: UIImage?
-    @State private var isShowingImagePicker = false
-    @State private var sourceType: UIImagePickerController.SourceType = .photoLibrary
-    @State private var isShowingActionSheet = false
-    @State private var isUploading = false
-    @State private var uploadProgress: Float = 0.0
-    @State private var errorMessage: String?
-    @State private var isShowingError = false
-    @State private var isShowingResults = false
-    @State private var analysisResults: [AnalysisCondition]?
     
-    // MARK: - Maximum image size in bytes (5MB)
-    private let maxImageSize: Int = 5 * 1024 * 1024
+    /// Current analysis type
+    @State private var analysisType: MLAnalysisService.AnalysisType = .throat
+    
+    /// Photo picker selection
+    @State private var photoPickerItem: PhotosPickerItem?
+    
+    /// Navigation state
+    @State private var showResults = false
+    @State private var isShowingCamera = false
+    @State private var isShowingPhotoLibrary = false
+    @State private var showingImageSourceOptions = false
+    
+    /// UI states
+    @State private var uploadProgress: Double = 0
+    @State private var showProgressView = false
+    @State private var errorMessage: String?
+    @State private var showError = false
+    
+    /// Animation states
+    @State private var animateTypeSelection = false
+    @State private var animateImagePreview = false
     
     // MARK: - Body
+    
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(spacing: 20) {
-                    // Analysis type selector
-                    analysisTypePicker
-                    
-                    // Image preview area
-                    imagePreviewSection
-                    
-                    // Error message
-                    if let errorMessage = errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .padding()
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(8)
-                    }
-                    
-                    // Upload button
-                    uploadButton
-                    
-                    // How to use help button
-                    AnalysisTutorialButton()
-                        .padding(.top, 20)
-                }
-                .padding()
-                .disabled(isUploading)
-                .overlay(
-                    // Upload progress overlay
-                    progressOverlay
-                )
-            }
-            .navigationTitle("Image Analysis")
-            .sheet(isPresented: $isShowingImagePicker) {
-                ImagePicker(selectedImage: $selectedImage, sourceType: sourceType)
-            }
-            .actionSheet(isPresented: $isShowingActionSheet) {
-                actionSheetOptions
-            }
-            .alert(isPresented: $isShowingError) {
-                Alert(
-                    title: Text("Error"),
-                    message: Text(errorMessage ?? "An unknown error occurred"),
-                    dismissButton: .default(Text("OK"))
-                )
-            }
-            .navigationViewStyle(StackNavigationViewStyle())
-        }
-        .fullScreenCover(isPresented: $isShowingResults) {
-            // Results view
-            if let results = analysisResults {
-                AnalysisResultsView(results: results, analysisType: selectedAnalysisType, image: selectedImage)
-            } else {
-                // This should not happen, but just in case
-                Text("No results available")
-                    .onAppear {
-                        isShowingResults = false
-                    }
-            }
-        }
-    }
-    
-    // MARK: - Analysis Type Picker
-    private var analysisTypePicker: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Select Analysis Type")
-                .font(.headline)
-            
-            HStack(spacing: 15) {
-                ForEach(AnalysisType.allCases) { type in
-                    AnalysisTypeButton(
-                        type: type,
-                        isSelected: selectedAnalysisType == type,
-                        action: { selectedAnalysisType = type }
-                    )
-                }
-            }
-        }
-    }
-    
-    // MARK: - Image Preview Section
-    private var imagePreviewSection: some View {
-        VStack(spacing: 15) {
-            if let image = selectedImage {
-                // Show selected image
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 300)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
+        ScrollView {
+            VStack(spacing: 20) {
+                // Instructions
+                instructionsSection
                 
-                // Change image button
-                Button(action: { isShowingActionSheet = true }) {
-                    Label("Change Image", systemImage: "arrow.triangle.2.circlepath")
-                        .foregroundColor(.blue)
+                // Type Selection
+                typeSelectionSection
+                    .padding(.vertical)
+                    .opacity(animateTypeSelection ? 1 : 0)
+                    .offset(y: animateTypeSelection ? 0 : 20)
+                
+                // Image Upload
+                imageUploadSection
+                
+                // Analysis Button
+                analyzeButtonSection
+                    .opacity(selectedImage != nil ? 1 : 0.5)
+                    .disabled(selectedImage == nil)
+                
+                // Error Message
+                if let errorMessage = errorMessage, showError {
+                    Text(errorMessage)
+                        .foregroundColor(.red)
+                        .font(.caption)
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(Color.red.opacity(0.1))
+                        )
+                        .padding(.horizontal)
                 }
-            } else {
-                // Empty image area with add button
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.gray.opacity(0.1))
-                        .frame(height: 200)
+            }
+            .padding()
+        }
+        .navigationTitle("Image Analysis")
+        .onAppear {
+            // Animate elements when view appears
+            withAnimation(.easeInOut(duration: 0.5).delay(0.2)) {
+                animateTypeSelection = true
+            }
+        }
+        .sheet(isPresented: $isShowingCamera) {
+            CameraViewController(image: $selectedImage, isShown: $isShowingCamera)
+        }
+        .photosPicker(
+            isPresented: $isShowingPhotoLibrary,
+            selection: $photoPickerItem,
+            matching: .images
+        )
+        .onChange(of: photoPickerItem) { newItem in
+            Task {
+                if let data = try? await newItem?.loadTransferable(type: Data.self),
+                   let uiImage = UIImage(data: data) {
+                    selectedImage = uiImage
+                    photoPickerItem = nil
                     
-                    VStack(spacing: 12) {
-                        Image(systemName: "photo.on.rectangle.angled")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 60, height: 60)
-                            .foregroundColor(.gray)
-                        
-                        Text("Add an image of your \(selectedAnalysisType.rawValue.lowercased())")
-                            .foregroundColor(.gray)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal)
-                        
-                        Button(action: { isShowingActionSheet = true }) {
-                            Text("Upload Image")
-                                .foregroundColor(.white)
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 10)
-                                .background(Color.blue)
-                                .cornerRadius(8)
+                    // Validate the image
+                    let validationResult = await imageValidator.validateImage(uiImage)
+                    if !validationResult.isValid {
+                        errorMessage = validationResult.errorMessage
+                        showError = true
+                        selectedImage = nil
+                    } else {
+                        withAnimation {
+                            animateImagePreview = true
                         }
                     }
                 }
             }
         }
-    }
-    
-    // MARK: - Upload Button
-    private var uploadButton: some View {
-        Button(action: uploadImage) {
-            Text("Analyze Image")
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(selectedImage == nil ? Color.gray : Color.blue)
-                .cornerRadius(10)
-                .shadow(radius: 2)
+        .navigationDestination(isPresented: $showResults) {
+            if let image = selectedImage,
+               let analysis = analysisService.lastAnalysisResult {
+                AnalysisResultsView(image: image, analysis: analysis)
+            }
         }
-        .disabled(selectedImage == nil)
-        .opacity(selectedImage == nil ? 0.5 : 1.0)
-    }
-    
-    // MARK: - Progress Overlay
-    @ViewBuilder
-    private var progressOverlay: some View {
-        if isUploading {
-            ZStack {
-                Color.black.opacity(0.4)
-                    .edgesIgnoringSafeArea(.all)
-                
-                VStack(spacing: 20) {
-                    ProgressView(value: uploadProgress, total: 1.0)
-                        .progressViewStyle(LinearProgressViewStyle())
-                        .frame(width: 200)
-                    
-                    Text("Analyzing image...")
-                        .font(.headline)
-                        .foregroundColor(.white)
+        .alert(isPresented: $showError) {
+            Alert(
+                title: Text("Image Error"),
+                message: Text(errorMessage ?? "Unknown error occurred"),
+                dismissButton: .default(Text("OK")) {
+                    errorMessage = nil
+                    showError = false
                 }
-                .padding()
-                .background(Color(UIColor.systemBackground))
-                .cornerRadius(12)
-                .shadow(radius: 5)
+            )
+        }
+        .onChange(of: analysisService.analysisError) { error in
+            if let error = error {
+                errorMessage = error.localizedDescription
+                showError = true
+                showProgressView = false
+            }
+        }
+        .onChange(of: analysisService.lastAnalysisResult) { result in
+            if result != nil {
+                showProgressView = false
+                showResults = true
             }
         }
     }
     
-    // MARK: - Action Sheet Options
-    private var actionSheetOptions: ActionSheet {
-        ActionSheet(
-            title: Text("Select Image Source"),
-            message: Text("Choose where to select your image from"),
-            buttons: [
-                .default(Text("Camera")) {
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        self.sourceType = .camera
-                        self.isShowingImagePicker = true
-                    } else {
-                        self.errorMessage = "Camera not available on this device"
-                        self.isShowingError = true
-                    }
-                },
-                .default(Text("Photo Library")) {
-                    self.sourceType = .photoLibrary
-                    self.isShowingImagePicker = true
-                },
-                .cancel()
-            ]
-        )
+    // MARK: - View Components
+    
+    private var instructionsSection: some View {
+        VStack(spacing: 12) {
+            Text("Upload a clear image")
+                .font(.title2)
+                .fontWeight(.semibold)
+            
+            Text("Position the camera directly in front of the throat or ear to capture a clear image in good lighting.")
+                .font(.body)
+                .multilineTextAlignment(.center)
+                .foregroundColor(.secondary)
+        }
+        .padding(.vertical, 8)
     }
     
-    // MARK: - Image Upload Function
-    private func uploadImage() {
+    private var typeSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Select Analysis Type")
+                .font(.headline)
+            
+            HStack(spacing: 15) {
+                ForEach(MLAnalysisService.AnalysisType.allCases) { type in
+                    AnalysisTypeButton(
+                        type: type,
+                        isSelected: analysisType == type,
+                        action: { analysisType = type }
+                    )
+                }
+            }
+        }
+    }
+    
+    private var imageUploadSection: some View {
+        VStack(spacing: 25) {
+            if let selectedImage = selectedImage {
+                // Image preview
+                Image(uiImage: selectedImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 250)
+                    .cornerRadius(12)
+                    .shadow(radius: 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                    )
+                    .opacity(animateImagePreview ? 1 : 0)
+                    .scaleEffect(animateImagePreview ? 1 : 0.8)
+                    .animation(.spring(), value: animateImagePreview)
+                    .onAppear {
+                        withAnimation {
+                            animateImagePreview = true
+                        }
+                    }
+                
+                // Replace button
+                Button(action: {
+                    showingImageSourceOptions = true
+                }) {
+                    HStack {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text("Replace Image")
+                    }
+                    .foregroundColor(.blue)
+                    .padding(.vertical, 8)
+                }
+            } else {
+                // Image upload options
+                ZStack {
+                    RoundedRectangle(cornerRadius: 15)
+                        .fill(Color(.systemGray6))
+                        .frame(height: 200)
+                    
+                    VStack(spacing: 15) {
+                        Image(systemName: "camera.fill")
+                            .font(.largeTitle)
+                            .foregroundColor(.blue)
+                        
+                        Text("Upload an image")
+                            .fontWeight(.medium)
+                        
+                        Button(action: {
+                            showingImageSourceOptions = true
+                        }) {
+                            Text("Select Image")
+                                .fontWeight(.semibold)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 12)
+                                .background(Color.blue)
+                                .cornerRadius(10)
+                        }
+                        .accessibilityIdentifier("SelectImageButton")
+                    }
+                }
+            }
+        }
+        .confirmationDialog(
+            "Choose Image Source",
+            isPresented: $showingImageSourceOptions,
+            titleVisibility: .visible
+        ) {
+            Button("Camera") {
+                isShowingCamera = true
+            }
+            Button("Photo Library") {
+                isShowingPhotoLibrary = true
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+    }
+    
+    private var analyzeButtonSection: some View {
+        VStack(spacing: 15) {
+            if showProgressView {
+                ProgressView("Analyzing image...", value: uploadProgress, total: 1.0)
+                    .progressViewStyle(LinearProgressViewStyle())
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            } else {
+                Button(action: {
+                    analyzeImage()
+                }) {
+                    HStack {
+                        Image(systemName: "waveform.path.ecg")
+                        Text("Analyze Image")
+                            .fontWeight(.semibold)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.blue)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+                .accessibilityIdentifier("AnalyzeImageButton")
+            }
+            
+            Text("Free analysis remaining today: 3")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    // MARK: - Methods
+    
+    /// Analyze the selected image
+    private func analyzeImage() {
         guard let image = selectedImage else { return }
         
-        // Validate image using ImageValidationService
-        let validationResult = ImageValidationService.shared.validateImage(image)
-        
-        if !validationResult.isValid {
-            errorMessage = validationResult.errorMessage ?? "Invalid image. Please try another image."
-            isShowingError = true
-            return
-        }
-        
-        // Get image data
-        guard let imageData = ImageValidationService.shared.getImageData(from: image) else {
-            errorMessage = "Failed to process the image. Please try another image."
-            isShowingError = true
-            return
-        }
-        
-        // Double-check image size (redundant, but just to be safe)
-        guard imageData.count <= maxImageSize else {
-            errorMessage = "Image is too large. Maximum size is 5MB."
-            isShowingError = true
-            return
-        }
-        
-        // Start uploading
-        isUploading = true
+        showProgressView = true
         uploadProgress = 0.1
         
-        // Simulate upload progress
-        let progressTimer = Timer.scheduledTimer(withTimeInterval: 0.2, repeats: true) { timer in
-            if uploadProgress < 0.9 {
-                uploadProgress += 0.1
+        // Simulate upload progress (in a real app, this would track actual upload progress)
+        withAnimation {
+            uploadProgress = 0.3
+        }
+        
+        Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { _ in
+            withAnimation {
+                uploadProgress = 0.6
             }
         }
         
-        // Use MLAnalysisService to analyze the image
-        MLAnalysisService.shared.analyzeImage(
-            image: image,
-            type: selectedAnalysisType.rawValue.lowercased()
-        ) { result in
-            DispatchQueue.main.async {
-                progressTimer.invalidate()
-                uploadProgress = 1.0
-                
-                switch result {
-                case .success(let conditions):
-                    // Process analysis results
-                    self.analysisResults = conditions
-                    
-                    // Delay to show complete progress before showing results
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                        self.isUploading = false
-                        self.isShowingResults = true
+        // Perform analysis
+        let _ = analysisService.analyzeImage(image, type: analysisType)
+            .sink(
+                receiveCompletion: { completion in
+                    switch completion {
+                    case .finished:
+                        break
+                    case .failure(let error):
+                        errorMessage = error.localizedDescription
+                        showError = true
+                        showProgressView = false
+                    }
+                },
+                receiveValue: { _ in
+                    withAnimation {
+                        uploadProgress = 1.0
                     }
                     
-                case .failure(let error):
-                    self.isUploading = false
-                    self.errorMessage = "Analysis failed: \(error.localizedDescription)"
-                    self.isShowingError = true
+                    // Navigation is handled by the onChange observer
                 }
-            }
-        }
+            )
     }
 }
 
-// MARK: - Analysis Type Button
+// MARK: - Supporting Views
+
+/// Button for selecting analysis type
 struct AnalysisTypeButton: View {
-    let type: ImageUploadView.AnalysisType
+    let type: MLAnalysisService.AnalysisType
     let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 8) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? Color.blue : Color.gray.opacity(0.2))
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: type.icon)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 30, height: 30)
-                        .foregroundColor(isSelected ? .white : .gray)
-                }
+            VStack(spacing: 12) {
+                Image(systemName: type.iconName)
+                    .font(.system(size: 28))
+                    .foregroundColor(isSelected ? .white : .blue)
                 
-                Text(type.rawValue)
+                Text(type.displayName)
                     .font(.subheadline)
-                    .foregroundColor(isSelected ? .blue : .gray)
+                    .foregroundColor(isSelected ? .white : .primary)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+            .padding(.vertical, 20)
             .background(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? Color.blue : Color(.systemGray6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
                     .stroke(isSelected ? Color.blue : Color.clear, lineWidth: 2)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(isSelected ? Color.blue.opacity(0.1) : Color.clear)
-                    )
             )
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
-// MARK: - Image Picker
-struct ImagePicker: UIViewControllerRepresentable {
-    @Binding var selectedImage: UIImage?
-    var sourceType: UIImagePickerController.SourceType
-    @Environment(\.presentationMode) private var presentationMode
+/// Camera view controller
+struct CameraViewController: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    @Binding var isShown: Bool
     
     func makeUIViewController(context: Context) -> UIImagePickerController {
         let picker = UIImagePickerController()
         picker.delegate = context.coordinator
-        picker.sourceType = sourceType
-        picker.allowsEditing = true
+        picker.sourceType = .camera
         return picker
     }
     
@@ -365,32 +380,32 @@ struct ImagePicker: UIViewControllerRepresentable {
         Coordinator(self)
     }
     
-    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
-        let parent: ImagePicker
+    class Coordinator: NSObject, UINavigationControllerDelegate, UIImagePickerControllerDelegate {
+        let parent: CameraViewController
         
-        init(_ parent: ImagePicker) {
+        init(_ parent: CameraViewController) {
             self.parent = parent
         }
         
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
-            if let editedImage = info[.editedImage] as? UIImage {
-                parent.selectedImage = editedImage
-            } else if let originalImage = info[.originalImage] as? UIImage {
-                parent.selectedImage = originalImage
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            if let image = info[.originalImage] as? UIImage {
+                parent.image = image
             }
-            
-            parent.presentationMode.wrappedValue.dismiss()
+            parent.isShown = false
         }
         
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            parent.presentationMode.wrappedValue.dismiss()
+            parent.isShown = false
         }
     }
 }
 
-// MARK: - Preview Provider
+// MARK: - Previews
+
 struct ImageUploadView_Previews: PreviewProvider {
     static var previews: some View {
-        ImageUploadView()
+        NavigationView {
+            ImageUploadView()
+        }
     }
 }

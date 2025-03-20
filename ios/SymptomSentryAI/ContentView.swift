@@ -1,242 +1,411 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var userService: UserService
-    @StateObject private var tutorialService = TutorialService.shared
+    // MARK: - Environment & State
+    
+    /// Tutorial service to manage onboarding state
+    @ObservedObject private var tutorialService = TutorialService.shared
+    
+    /// Currently selected tab
     @State private var selectedTab = 0
-    @State private var screenSize: CGSize = .zero
+    
+    // MARK: - Body
     
     var body: some View {
-        GeometryReader { geometry in
+        TabView(selection: $selectedTab) {
+            // Home
+            NavigationView {
+                Text("Home Screen")
+                    .navigationTitle("Home")
+            }
+            .tabItem {
+                Label("Home", systemImage: "house.fill")
+            }
+            .tag(0)
+            
+            // Analysis
+            NavigationView {
+                ImageUploadView()
+                    .navigationTitle("Analysis")
+            }
+            .tabItem {
+                Label("Analysis", systemImage: "waveform.path.ecg")
+            }
+            .tag(1)
+            
+            // Education
+            NavigationView {
+                EducationView()
+                    .navigationTitle("Education")
+            }
+            .tabItem {
+                Label("Education", systemImage: "book.fill")
+            }
+            .tag(2)
+            
+            // Profile
+            NavigationView {
+                ProfileView()
+                    .navigationTitle("Profile")
+            }
+            .tabItem {
+                Label("Profile", systemImage: "person.fill")
+            }
+            .tag(3)
+        }
+        .fullScreenCover(isPresented: $tutorialService.shouldShowOnboarding) {
+            OnboardingView()
+        }
+        .overlay(
+            // Show tutorial overlay when tutorial is active
             Group {
-                if userService.isAuthenticated {
-                    // Main app with tab navigation
-                    ZStack {
-                        TabView(selection: $selectedTab) {
-                            HomeView()
-                                .tabItem {
-                                    Label("Home", systemImage: "house")
-                                }
-                                .tag(0)
-                            
-                            AnalysisView()
-                                .tabItem {
-                                    Label("Analysis", systemImage: "camera")
-                                }
-                                .tag(1)
-                            
-                            EducationView()
-                                .tabItem {
-                                    Label("Learn", systemImage: "book")
-                                }
-                                .tag(2)
-                            
-                            SubscriptionView()
-                                .tabItem {
-                                    Label("Premium", systemImage: "star")
-                                }
-                                .tag(3)
-                            
-                            ProfileView()
-                                .tabItem {
-                                    Label("Profile", systemImage: "person")
-                                }
-                                .tag(4)
-                        }
-                        .accentColor(Color.blue)
-                        
-                        // Show tutorial overlay if needed
-                        if tutorialService.isShowingTutorial {
-                            TutorialOverlayView(
-                                selectedTab: $selectedTab,
-                                screenSize: screenSize
-                            )
-                            .zIndex(100) // Ensure it's on top
-                        }
-                    }
-                    .onAppear {
-                        // Update screen size when view appears
-                        screenSize = geometry.size
-                        
-                        // Check if tutorial should be shown
-                        if !tutorialService.tutorialCompleted {
-                            tutorialService.startTutorial()
-                        }
-                    }
-                    .onChange(of: geometry.size) { newSize in
-                        screenSize = newSize
-                    }
-                } else {
-                    // Authentication flow
-                    AuthView()
+                if tutorialService.isTutorialOverlayVisible {
+                    TutorialOverlayView()
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
+        )
+        .onChange(of: selectedTab) { newTab in
+            // Trigger appropriate feature tutorials when navigating to specific tabs
+            if newTab == 1 && !UserDefaults.standard.bool(forKey: "hasSeenAnalysisTutorial") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    tutorialService.startFeatureTutorial(featureId: "analysis")
+                    UserDefaults.standard.set(true, forKey: "hasSeenAnalysisTutorial")
+                }
+            } else if newTab == 2 && !UserDefaults.standard.bool(forKey: "hasSeenEducationTutorial") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    tutorialService.startFeatureTutorial(featureId: "education")
+                    UserDefaults.standard.set(true, forKey: "hasSeenEducationTutorial")
+                }
+            }
         }
     }
 }
 
-// Authentication View
-struct AuthView: View {
-    @State private var isLogin = true
-    @EnvironmentObject var userService: UserService
+/// Profile view with settings to access tutorials
+struct ProfileView: View {
+    // MARK: - Environment & State
     
-    // Login form fields
-    @State private var loginEmail = ""
-    @State private var loginPassword = ""
+    /// Tutorial service
+    @ObservedObject private var tutorialService = TutorialService.shared
     
-    // Registration form fields
-    @State private var registerName = ""
-    @State private var registerEmail = ""
-    @State private var registerPassword = ""
-    @State private var registerConfirmPassword = ""
+    // MARK: - Body
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // User profile section
+                ProfileHeaderView()
+                
+                // Settings sections
+                SettingsSection(title: "App Settings") {
+                    SettingsRowView(title: "Notifications", icon: "bell.fill") {
+                        // Action
+                    }
+                    
+                    SettingsRowView(title: "Privacy", icon: "lock.fill") {
+                        // Action
+                    }
+                    
+                    SettingsRowView(title: "Language", icon: "globe") {
+                        // Action
+                    }
+                }
+                
+                SettingsSection(title: "Help & Support") {
+                    SettingsRowView(title: "Tutorials", icon: "questionmark.circle.fill") {
+                        showTutorialsMenu()
+                    }
+                    
+                    SettingsRowView(title: "Contact Support", icon: "envelope.fill") {
+                        // Action
+                    }
+                    
+                    SettingsRowView(title: "FAQ", icon: "text.book.closed.fill") {
+                        // Action
+                    }
+                }
+                
+                SettingsSection(title: "Account") {
+                    SettingsRowView(title: "Subscription", icon: "star.fill") {
+                        // Action
+                    }
+                    
+                    SettingsRowView(title: "Privacy Settings", icon: "hand.raised.fill") {
+                        // Action
+                    }
+                    
+                    SettingsRowView(title: "Sign Out", icon: "arrow.right.square.fill", foregroundColor: .red) {
+                        // Action
+                    }
+                }
+            }
+            .padding()
+        }
+        .sheet(isPresented: $showingTutorialsMenu) {
+            TutorialsMenuView()
+        }
+    }
+    
+    // MARK: - State
+    
+    @State private var showingTutorialsMenu = false
+    
+    // MARK: - Methods
+    
+    private func showTutorialsMenu() {
+        showingTutorialsMenu = true
+    }
+}
+
+/// Menu with tutorial options
+struct TutorialsMenuView: View {
+    // MARK: - Environment & State
+    
+    /// Tutorial service
+    @ObservedObject private var tutorialService = TutorialService.shared
+    
+    /// Dismissal handling
+    @Environment(\.dismiss) var dismiss
+    
+    // MARK: - Body
     
     var body: some View {
         NavigationView {
-            VStack {
-                // App logo
-                Image(systemName: "stethoscope")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 100, height: 100)
-                    .foregroundColor(.blue)
-                    .padding(.top, 50)
-                
-                Text("SymptomSentry AI")
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                    .padding(.bottom, 30)
-                
-                // Toggle between login and register
-                Picker("Authentication Mode", selection: $isLogin) {
-                    Text("Login").tag(true)
-                    Text("Register").tag(false)
-                }
-                .pickerStyle(SegmentedPickerStyle())
-                .padding(.horizontal, 40)
-                .padding(.bottom, 20)
-                
-                if isLogin {
-                    // Login Form
-                    VStack(spacing: 20) {
-                        TextField("Email", text: $loginEmail)
-                            .autocapitalization(.none)
-                            .keyboardType(.emailAddress)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .padding(.horizontal, 40)
-                        
-                        SecureField("Password", text: $loginPassword)
-                            .textFieldStyle(RoundedBorderTextFieldStyle())
-                            .padding(.horizontal, 40)
-                        
-                        Button(action: handleLogin) {
-                            Text("Log In")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .padding()
-                                .frame(minWidth: 0, maxWidth: .infinity)
-                                .background(Color.blue)
-                                .cornerRadius(10)
+            List {
+                Section(header: Text("App Tutorials")) {
+                    // Replay full onboarding
+                    Button(action: {
+                        dismiss()
+                        // Brief delay before showing onboarding
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            tutorialService.startOnboarding()
                         }
-                        .padding(.horizontal, 40)
-                        .disabled(userService.isLoading)
-                        
-                        if userService.isLoading {
-                            ProgressView()
+                    }) {
+                        HStack {
+                            Image(systemName: "play.fill")
+                                .frame(width: 30)
+                                .foregroundColor(.blue)
+                            
+                            Text("Replay Onboarding")
                         }
-                        
-                        if let error = userService.error {
-                            Text(error)
+                    }
+                    
+                    // Feature-specific tutorials
+                    Button(action: {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            tutorialService.startFeatureTutorial(featureId: "imageUpload")
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "camera.fill")
+                                .frame(width: 30)
+                                .foregroundColor(.green)
+                            
+                            Text("Image Upload Guide")
+                        }
+                    }
+                    
+                    Button(action: {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            tutorialService.startFeatureTutorial(featureId: "analysis")
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "waveform.path.ecg")
+                                .frame(width: 30)
+                                .foregroundColor(.purple)
+                            
+                            Text("Analysis Features")
+                        }
+                    }
+                    
+                    Button(action: {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            tutorialService.startFeatureTutorial(featureId: "education")
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "book.fill")
+                                .frame(width: 30)
+                                .foregroundColor(.green)
+                            
+                            Text("Educational Content Guide")
+                        }
+                    }
+                    
+                    Button(action: {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            tutorialService.startFeatureTutorial(featureId: "telemedicine")
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "video.fill")
+                                .frame(width: 30)
                                 .foregroundColor(.red)
-                                .padding(.top, 10)
+                            
+                            Text("Telemedicine Guide")
                         }
-                    }
-                } else {
-                    // Register Form
-                    ScrollView {
-                        VStack(spacing: 20) {
-                            TextField("Full Name", text: $registerName)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .padding(.horizontal, 40)
-                            
-                            TextField("Email", text: $registerEmail)
-                                .autocapitalization(.none)
-                                .keyboardType(.emailAddress)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .padding(.horizontal, 40)
-                            
-                            SecureField("Password", text: $registerPassword)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .padding(.horizontal, 40)
-                            
-                            SecureField("Confirm Password", text: $registerConfirmPassword)
-                                .textFieldStyle(RoundedBorderTextFieldStyle())
-                                .padding(.horizontal, 40)
-                            
-                            Button(action: handleRegistration) {
-                                Text("Create Account")
-                                    .font(.headline)
-                                    .foregroundColor(.white)
-                                    .padding()
-                                    .frame(minWidth: 0, maxWidth: .infinity)
-                                    .background(Color.blue)
-                                    .cornerRadius(10)
-                            }
-                            .padding(.horizontal, 40)
-                            .disabled(userService.isLoading || registerPassword != registerConfirmPassword)
-                            
-                            if userService.isLoading {
-                                ProgressView()
-                            }
-                            
-                            if let error = userService.error {
-                                Text(error)
-                                    .foregroundColor(.red)
-                                    .padding(.top, 10)
-                            }
-                            
-                            if registerPassword != registerConfirmPassword && !registerConfirmPassword.isEmpty {
-                                Text("Passwords do not match")
-                                    .foregroundColor(.red)
-                                    .padding(.top, 10)
-                            }
-                        }
-                        .padding(.vertical)
                     }
                 }
                 
-                Spacer()
+                Section(header: Text("Reset")) {
+                    Button(action: {
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            tutorialService.resetTutorials()
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                                .frame(width: 30)
+                                .foregroundColor(.orange)
+                            
+                            Text("Reset All Tutorials")
+                        }
+                    }
+                }
             }
-            .navigationBarHidden(true)
-        }
-    }
-    
-    private func handleLogin() {
-        userService.signIn(email: loginEmail, password: loginPassword) { success, error in
-            if !success, let error = error {
-                userService.error = error
-            }
-        }
-    }
-    
-    private func handleRegistration() {
-        guard registerPassword == registerConfirmPassword else {
-            userService.error = "Passwords do not match"
-            return
-        }
-        
-        userService.signUp(name: registerName, email: registerEmail, password: registerPassword) { success, error in
-            if !success, let error = error {
-                userService.error = error
+            .listStyle(InsetGroupedListStyle())
+            .navigationTitle("Tutorials")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
             }
         }
     }
 }
 
-// Preview provider
+/// Profile header view
+struct ProfileHeaderView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "person.circle.fill")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 100, height: 100)
+                .foregroundColor(.blue)
+            
+            Text("John Doe")
+                .font(.title)
+                .fontWeight(.bold)
+            
+            Text("john.doe@example.com")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            HStack(spacing: 40) {
+                VStack {
+                    Text("5")
+                        .font(.headline)
+                    Text("Analyses")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                VStack {
+                    Text("2")
+                        .font(.headline)
+                    Text("Consultations")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                VStack {
+                    Text("Free")
+                        .font(.headline)
+                    Text("Plan")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color(.systemBackground))
+                .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
+        )
+    }
+}
+
+/// Settings section view
+struct SettingsSection<Content: View>: View {
+    let title: String
+    let content: Content
+    
+    init(title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .foregroundColor(.secondary)
+                .padding(.leading, 8)
+            
+            VStack(spacing: 0) {
+                content
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color(.systemBackground))
+                    .shadow(color: Color.black.opacity(0.05), radius: 3, x: 0, y: 1)
+            )
+        }
+    }
+}
+
+/// Settings row view
+struct SettingsRowView: View {
+    let title: String
+    let icon: String
+    let foregroundColor: Color
+    let action: () -> Void
+    
+    init(title: String, icon: String, foregroundColor: Color = .primary, action: @escaping () -> Void) {
+        self.title = title
+        self.icon = icon
+        self.foregroundColor = foregroundColor
+        self.action = action
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .frame(width: 24, height: 24)
+                    .foregroundColor(foregroundColor)
+                
+                Text(title)
+                    .foregroundColor(foregroundColor)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(Color(.systemGray3))
+            }
+            .padding(.vertical, 14)
+            .padding(.horizontal, 16)
+        }
+        .accessibilityIdentifier(title.replacingOccurrences(of: " ", with: ""))
+    }
+}
+
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
         ContentView()
-            .environmentObject(UserService.shared)
     }
 }

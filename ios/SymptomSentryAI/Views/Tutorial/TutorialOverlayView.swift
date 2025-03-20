@@ -1,178 +1,275 @@
 import SwiftUI
 
+/// Overlay view that highlights UI elements during feature tutorials
 struct TutorialOverlayView: View {
-    @ObservedObject var tutorialService = TutorialService.shared
-    @Binding var selectedTab: Int
-    var screenSize: CGSize
+    // MARK: - Environment & State
+    
+    /// Tutorial service
+    @ObservedObject private var tutorialService = TutorialService.shared
+    
+    /// Whether to show hint arrow
+    @State private var showArrow = false
+    
+    // MARK: - Body
     
     var body: some View {
         ZStack {
-            // Semitransparent background
-            Color.black.opacity(0.75)
-                .edgesIgnoringSafeArea(.all)
-                .onTapGesture {
-                    // Skip to next step if tapping outside highlighted area
-                    tutorialService.nextStep()
-                }
+            // Semi-transparent overlay
+            Color.black.opacity(0.7)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
             
-            // Current tutorial step
-            if tutorialService.currentStep < tutorialService.tutorialSteps.count {
-                let step = tutorialService.tutorialSteps[tutorialService.currentStep]
+            // This creates a hole in the overlay to highlight the selected UI element
+            if tutorialService.highlightPosition != .zero {
+                Rectangle()
+                    .fill(Color.black.opacity(0.7))
+                    .ignoresSafeArea()
+                    .mask(
+                        ZStack {
+                            Rectangle()
+                                .ignoresSafeArea()
+                            
+                            // Cut out a hole where the highlight should be
+                            RoundedRectangle(cornerRadius: 8)
+                                .frame(
+                                    width: tutorialService.highlightPosition.width + 16,
+                                    height: tutorialService.highlightPosition.height + 16
+                                )
+                                .position(
+                                    x: tutorialService.highlightPosition.midX,
+                                    y: tutorialService.highlightPosition.midY
+                                )
+                                .blendMode(.destinationOut)
+                        }
+                    )
+                    .allowsHitTesting(false)
                 
-                // Tab highlighting
-                if let highlightTab = step.highlightTab {
-                    VStack {
-                        Spacer()
-                        
-                        Rectangle()
-                            .fill(Color.white.opacity(0.2))
-                            .frame(width: screenSize.width / 5, height: 60)
-                            .offset(x: calculateTabOffset(for: highlightTab, screenWidth: screenSize.width), y: 0)
-                            .animation(.easeInOut(duration: 0.3))
-                    }
-                    .transition(.opacity)
+                // Pulsing outline around highlighted element
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white, lineWidth: 3)
+                    .frame(
+                        width: tutorialService.highlightPosition.width + 16,
+                        height: tutorialService.highlightPosition.height + 16
+                    )
+                    .position(
+                        x: tutorialService.highlightPosition.midX,
+                        y: tutorialService.highlightPosition.midY
+                    )
+                    .scaleEffect(showArrow ? 1.05 : 1.0)
+                    .animation(Animation.easeInOut(duration: 1).repeatForever(autoreverses: true), value: showArrow)
                     .onAppear {
-                        // Animate to the highlighted tab if needed
-                        if selectedTab != highlightTab.index {
-                            withAnimation {
-                                selectedTab = highlightTab.index
-                            }
-                        }
+                        showArrow = true
                     }
-                }
-                
-                // Tutorial content card
-                VStack(spacing: 20) {
-                    // Step indicator
-                    HStack(spacing: 8) {
-                        ForEach(0..<tutorialService.tutorialSteps.count, id: \.self) { index in
-                            Circle()
-                                .fill(index == tutorialService.currentStep ? Color.white : Color.gray.opacity(0.5))
-                                .frame(width: 8, height: 8)
-                        }
-                    }
-                    .padding(.top)
+            }
+            
+            // Tutorial information card
+            if !tutorialService.featureTutorialSteps.isEmpty {
+                VStack {
+                    Spacer()
                     
-                    // Icon
-                    Image(systemName: step.imageName)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 60, height: 60)
-                        .foregroundColor(.white)
-                        .padding()
-                    
-                    // Title and description
-                    Text(step.title)
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                    
-                    Text(step.description)
-                        .font(.body)
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal)
-                    
-                    // Additional custom content
-                    step.additionalContent
-                    
-                    // Navigation buttons
-                    HStack(spacing: 20) {
-                        // Skip button
-                        Button(action: tutorialService.skipTutorial) {
-                            Text("Skip Tour")
-                                .foregroundColor(.white)
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 16)
-                                .background(Color.gray.opacity(0.3))
-                                .cornerRadius(8)
-                        }
+                    // Tutorial info card
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Tutorial title
+                        Text(currentStep.title)
+                            .font(.title3)
+                            .fontWeight(.bold)
                         
-                        Spacer()
+                        Divider()
                         
-                        // Previous button (if not first step)
-                        if tutorialService.currentStep > 0 {
-                            Button(action: tutorialService.previousStep) {
-                                Image(systemName: "chevron.left")
+                        // Tutorial description
+                        Text(currentStep.description)
+                            .font(.body)
+                            .fixedSize(horizontal: false, vertical: true)
+                        
+                        Spacer(minLength: 16)
+                        
+                        // Navigation buttons
+                        HStack {
+                            // Back button
+                            Button(action: {
+                                tutorialService.previousTutorialStep()
+                            }) {
+                                Image(systemName: "arrow.left")
                                     .foregroundColor(.white)
-                                    .padding(10)
-                                    .background(Color.blue.opacity(0.3))
-                                    .clipShape(Circle())
+                                    .padding(12)
+                                    .background(Circle().fill(Color.gray.opacity(0.5)))
+                            }
+                            .disabled(tutorialService.currentTutorialStep == 0)
+                            .opacity(tutorialService.currentTutorialStep == 0 ? 0.3 : 1.0)
+                            
+                            Spacer()
+                            
+                            // Progress indicator
+                            HStack(spacing: 4) {
+                                ForEach(0..<tutorialService.featureTutorialSteps.count, id: \.self) { index in
+                                    Circle()
+                                        .fill(index == tutorialService.currentTutorialStep ? Color.white : Color.gray)
+                                        .frame(width: 8, height: 8)
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            // Next/Skip button
+                            if tutorialService.currentTutorialStep < tutorialService.featureTutorialSteps.count - 1 {
+                                Button(action: {
+                                    tutorialService.nextTutorialStep()
+                                }) {
+                                    Image(systemName: "arrow.right")
+                                        .foregroundColor(.white)
+                                        .padding(12)
+                                        .background(Circle().fill(Color.blue))
+                                }
+                            } else {
+                                Button(action: {
+                                    tutorialService.completeTutorial()
+                                }) {
+                                    Text("Done")
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.white)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(Capsule().fill(Color.blue))
+                                }
                             }
                         }
-                        
-                        // Next/Finish button
-                        Button(action: tutorialService.nextStep) {
-                            Text(tutorialService.currentStep == tutorialService.tutorialSteps.count - 1 ? "Finish" : "Next")
-                                .foregroundColor(.white)
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 16)
-                                .background(Color.blue)
-                                .cornerRadius(8)
-                        }
                     }
-                    .padding(.bottom)
+                    .padding(20)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: Color.black.opacity(0.3), radius: 10, x: 0, y: 5)
+                    )
+                    .padding(.horizontal)
+                    .padding(.bottom, 40)
                 }
-                .padding()
-                .background(Color(UIColor.systemBackground).opacity(0.2))
-                .cornerRadius(16)
-                .shadow(radius: 5)
-                .frame(width: min(screenSize.width - 40, 400))
-                .padding(.horizontal, 20)
-                .transition(AnyTransition.opacity.combined(with: .scale))
-                .animation(.easeInOut)
-                .position(calculatePosition(for: step, in: screenSize))
             }
         }
         .edgesIgnoringSafeArea(.all)
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Computed Properties
     
-    private func calculatePosition(for step: TutorialStep, in screenSize: CGSize) -> CGPoint {
-        // If a specific highlight frame exists, position near that
-        if let highlightFrame = step.highlightFrame {
-            // Position above or below the highlight depending on space available
-            let centerX = highlightFrame.midX
-            let centerY = highlightFrame.minY > screenSize.height / 2 
-                ? highlightFrame.minY - 100 // Place above
-                : highlightFrame.maxY + 100 // Place below
-            
-            return CGPoint(x: centerX, y: centerY)
+    /// Current tutorial step
+    private var currentStep: TutorialStep {
+        guard !tutorialService.featureTutorialSteps.isEmpty,
+              tutorialService.currentTutorialStep < tutorialService.featureTutorialSteps.count else {
+            return TutorialStep(id: "error", title: "Error", description: "No tutorial content available", highlightFrame: .zero)
         }
         
-        // Default positioning based on alignment
-        switch step.alignment {
-        case .top:
-            return CGPoint(x: screenSize.width / 2, y: screenSize.height * 0.25)
-        case .bottom:
-            return CGPoint(x: screenSize.width / 2, y: screenSize.height * 0.75)
-        case .leading:
-            return CGPoint(x: screenSize.width * 0.25, y: screenSize.height / 2)
-        case .trailing:
-            return CGPoint(x: screenSize.width * 0.75, y: screenSize.height / 2)
-        default:
-            return CGPoint(x: screenSize.width / 2, y: screenSize.height / 2)
-        }
+        return tutorialService.featureTutorialSteps[tutorialService.currentTutorialStep]
     }
+}
+
+/// Tutorial button view for interactive UI elements in tutorials
+struct TutorialButtonView: View {
+    // MARK: - Properties
     
-    private func calculateTabOffset(for tab: TutorialStep.TabSelection, screenWidth: CGFloat) -> CGFloat {
-        let tabWidth = screenWidth / 5
-        let centerOffset = (tab.index - 2) * Int(tabWidth)
-        return CGFloat(centerOffset)
+    /// Button title
+    let title: String
+    
+    /// Button action
+    let action: () -> Void
+    
+    /// Feature ID for tutorial
+    let featureId: String
+    
+    /// Tutorial service
+    @ObservedObject private var tutorialService = TutorialService.shared
+    
+    // MARK: - Body
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: "questionmark.circle")
+                Text(title)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color.blue))
+            .foregroundColor(.white)
+        }
+        .contentShape(Rectangle()) // Increase tap target
+        .overlay(
+            GeometryReader { geometry -> AnyView in
+                // Capture the button's position and size
+                DispatchQueue.main.async {
+                    if tutorialService.currentFeatureTutorial == featureId {
+                        tutorialService.updateHighlightPosition(geometry.frame(in: .global))
+                    }
+                }
+                return AnyView(EmptyView())
+            }
+        )
+    }
+}
+
+/// Feature tutorial view
+struct FeatureTutorialView: View {
+    // MARK: - Properties
+    
+    /// Feature ID
+    let featureId: String
+    
+    /// Tutorial title
+    let title: String
+    
+    /// Tutorial description
+    let description: String
+    
+    /// Tutorial service
+    @ObservedObject private var tutorialService = TutorialService.shared
+    
+    // MARK: - Body
+    
+    var body: some View {
+        // Not shown directly - used as a container for tutorial information
+        EmptyView()
+            .onAppear {
+                // Set up the tutorial when this view appears
+                let step = TutorialStep(
+                    id: featureId,
+                    title: title,
+                    description: description,
+                    highlightFrame: .zero
+                )
+                
+                tutorialService.featureTutorialSteps = [step]
+                tutorialService.currentTutorialStep = 0
+                tutorialService.currentFeatureTutorial = featureId
+                tutorialService.isTutorialOverlayVisible = true
+            }
+            .onDisappear {
+                tutorialService.completeTutorial()
+            }
     }
 }
 
 // MARK: - Preview
-
 struct TutorialOverlayView_Previews: PreviewProvider {
-    @State static var selectedTab = 0
-    
     static var previews: some View {
-        TutorialOverlayView(
-            selectedTab: $selectedTab,
-            screenSize: CGSize(width: 375, height: 812)
-        )
+        TutorialOverlayView()
+            .onAppear {
+                // Set up preview data
+                let tutorialService = TutorialService.shared
+                tutorialService.highlightPosition = CGRect(x: 200, y: 200, width: 100, height: 50)
+                tutorialService.featureTutorialSteps = [
+                    TutorialStep(
+                        id: "test_1",
+                        title: "Welcome to the App",
+                        description: "This is a test tutorial to show how the overlay works with highlighted elements.",
+                        highlightFrame: CGRect(x: 200, y: 200, width: 100, height: 50)
+                    ),
+                    TutorialStep(
+                        id: "test_2",
+                        title: "Try This Feature",
+                        description: "Tap on the highlighted button to see what happens next.",
+                        highlightFrame: CGRect(x: 200, y: 200, width: 100, height: 50)
+                    )
+                ]
+                tutorialService.currentTutorialStep = 0
+                tutorialService.isTutorialOverlayVisible = true
+            }
     }
 }

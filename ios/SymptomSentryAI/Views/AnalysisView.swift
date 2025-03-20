@@ -1,413 +1,369 @@
 import SwiftUI
 
+/**
+ * AnalysisView
+ *
+ * This view displays the results of the image analysis after upload.
+ * It shows:
+ * - The uploaded image
+ * - Analysis results with confidence scores
+ * - Possible conditions with descriptions
+ * - Recommended next steps
+ */
 struct AnalysisView: View {
-    // Service access
-    @EnvironmentObject var userService: UserService
+    // MARK: - Properties
+    
+    // Analysis data
+    let imageURL: String
+    let type: String
+    
+    // ML Analysis Service
+    private let mlAnalysisService = MLAnalysisService()
     
     // State
-    @State private var showingLimitExceededAlert = false
-    @State private var showingHistoryView = false
-    
-    var body: some View {
-        NavigationView {
-            // Use our new ImageUploadView with integrated analysis
-            ImageUploadView()
-                .navigationBarItems(
-                    trailing: Button(action: {
-                        showingHistoryView = true
-                    }) {
-                        HStack {
-                            Image(systemName: "clock.arrow.circlepath")
-                            Text("History")
-                        }
-                    }
-                )
-                .sheet(isPresented: $showingHistoryView) {
-                    AnalysisHistoryView()
-                }
-        }
-    }
-}
-
-// Analysis History View to show past analyses
-struct AnalysisHistoryView: View {
-    @Environment(\.presentationMode) var presentationMode
-    @EnvironmentObject var userService: UserService
-    @State private var historyItems: [AnalysisHistoryItem] = []
     @State private var isLoading = true
+    @State private var loadingMessage = "Analyzing your image..."
+    @State private var analysisResults: [AnalysisCondition] = []
+    @State private var errorMessage: String?
+    @State private var loadedImage: UIImage?
+    
+    // MARK: - Body
     
     var body: some View {
-        NavigationView {
-            Group {
-                if isLoading {
-                    ProgressView("Loading history...")
-                        .onAppear {
-                            loadHistory()
-                        }
-                } else if historyItems.isEmpty {
-                    VStack(spacing: 20) {
-                        Image(systemName: "clock")
+        ScrollView {
+            VStack(spacing: 20) {
+                // Image section
+                VStack(spacing: 12) {
+                    if let loadedImage = loadedImage {
+                        Image(uiImage: loadedImage)
                             .resizable()
                             .scaledToFit()
-                            .frame(width: 80, height: 80)
-                            .foregroundColor(.gray)
+                            .frame(maxHeight: 250)
+                            .cornerRadius(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                    } else {
+                        // Image placeholder during loading
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(Color.secondary.opacity(0.1))
+                            .frame(height: 250)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                            )
+                    }
+                    
+                    Text(type.capitalized)
+                        .font(.headline)
+                        .foregroundColor(.secondary)
+                }
+                .padding(.horizontal)
+                
+                if isLoading {
+                    // Loading indicator
+                    VStack(spacing: 16) {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .scaleEffect(1.5)
                         
-                        Text("No Analysis History")
-                            .font(.title2)
-                            .fontWeight(.semibold)
+                        Text(loadingMessage)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                } else if let errorMessage = errorMessage {
+                    // Error message
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 40))
+                            .foregroundColor(.red)
                         
-                        Text("Your previous analyses will appear here")
+                        Text("Analysis Error")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text(errorMessage)
                             .font(.body)
-                            .foregroundColor(.gray)
+                            .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal)
                     }
-                    .padding()
+                    .padding(.vertical, 30)
                 } else {
-                    List {
-                        ForEach(historyItems) { item in
-                            NavigationLink(destination: HistoryDetailView(historyItem: item)) {
-                                HistoryItemRow(item: item)
+                    // Results section
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Analysis Results")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        // Disclaimer
+                        DisclaimerView()
+                        
+                        // Results
+                        ForEach(analysisResults) { condition in
+                            ConditionCardView(condition: condition)
+                        }
+                        
+                        // Next steps section
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Recommended Next Steps")
+                                .font(.headline)
+                                .padding(.top)
+                            
+                            NextStepRowView(
+                                step: "Consult with a healthcare professional",
+                                description: "This analysis is not a diagnosis. Always consult with a qualified healthcare provider.",
+                                systemImage: "person.crop.circle.badge.checkmark"
+                            )
+                            
+                            NextStepRowView(
+                                step: "Learn more",
+                                description: "Tap the conditions above to read more about symptoms and treatments.",
+                                systemImage: "book.fill"
+                            )
+                            
+                            NextStepRowView(
+                                step: "Save this analysis",
+                                description: "Save this analysis to your health record for future reference.",
+                                systemImage: "square.and.arrow.down"
+                            )
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+                
+                Spacer(minLength: 40)
+                
+                // Action buttons
+                if !isLoading {
+                    HStack(spacing: 20) {
+                        ActionButton(
+                            title: "Save",
+                            systemImage: "square.and.arrow.down",
+                            color: .blue
+                        ) {
+                            // Save analysis functionality
+                        }
+                        
+                        ActionButton(
+                            title: "Share",
+                            systemImage: "square.and.arrow.up",
+                            color: .green
+                        ) {
+                            // Share analysis functionality
+                        }
+                    }
+                    .padding(.horizontal)
+                    .padding(.bottom, 20)
+                }
+            }
+            .padding(.top)
+        }
+        .navigationTitle("Analysis Results")
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            loadImage()
+            performAnalysis()
+        }
+    }
+    
+    // MARK: - Methods
+    
+    /// Load the image from the URL
+    private func loadImage() {
+        // For demonstration, we're using a placeholder loading
+        // In a real app, you would load from the imageURL
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            // Simulate loading an image
+            let placeholderImage = UIImage(systemName: "photo") ?? UIImage()
+            self.loadedImage = placeholderImage
+        }
+    }
+    
+    /// Perform the analysis on the image
+    private func performAnalysis() {
+        // In a real app, this would use the actual image data
+        mlAnalysisService.analyzeImage(type: type, imageURL: imageURL) { result in
+            DispatchQueue.main.async {
+                isLoading = false
+                
+                switch result {
+                case .success(let conditions):
+                    self.analysisResults = conditions
+                case .failure(let error):
+                    self.errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+/// Card view for displaying a potential condition
+struct ConditionCardView: View {
+    let condition: AnalysisCondition
+    @State private var isExpanded = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header with condition name and confidence
+            Button(action: {
+                withAnimation {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(condition.name)
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text("Confidence: \(Int(condition.confidenceScore * 100))%")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                        .foregroundColor(.blue)
+                }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 16)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(UIColor.systemBackground))
+                        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+                )
+            }
+            
+            // Expandable detail section
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(condition.description)
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                    
+                    if !condition.symptoms.isEmpty {
+                        Text("Common Symptoms")
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        ForEach(condition.symptoms, id: \.self) { symptom in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: "circle.fill")
+                                    .font(.system(size: 6))
+                                    .foregroundColor(.blue)
+                                    .padding(.top, 6)
+                                
+                                Text(symptom)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
                             }
                         }
                     }
-                    .listStyle(InsetGroupedListStyle())
+                    
+                    Button(action: {
+                        // Action to learn more about this condition
+                    }) {
+                        Text("Learn More")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.blue)
+                    }
+                    .padding(.top, 8)
                 }
-            }
-            .navigationTitle("Analysis History")
-            .navigationBarItems(trailing: Button("Done") {
-                presentationMode.wrappedValue.dismiss()
-            })
-        }
-    }
-    
-    private func loadHistory() {
-        // Fetch analysis history from UserService
-        userService.getAnalysisHistory { result in
-            isLoading = false
-            switch result {
-            case .success(let items):
-                self.historyItems = items
-            case .failure:
-                // Handle error - show empty state for now
-                self.historyItems = []
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color(UIColor.systemBackground).opacity(0.6))
             }
         }
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+        )
+        .padding(.vertical, 4)
     }
 }
 
-// History item model
-struct AnalysisHistoryItem: Identifiable {
-    let id: String
-    let date: Date
-    let type: String // "throat" or "ear"
-    let topConditionName: String
-    let topConditionConfidence: Double
-    let imageReference: String
-    let conditions: [AnalysisCondition]
-    
-    var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
-    }
-}
-
-// Row view for a history item in the list
-struct HistoryItemRow: View {
-    let item: AnalysisHistoryItem
+/// Row view for next steps
+struct NextStepRowView: View {
+    let step: String
+    let description: String
+    let systemImage: String
     
     var body: some View {
-        HStack {
-            // Type icon
-            Image(systemName: item.type == "throat" ? "mouth" : "ear")
-                .font(.system(size: 24))
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: systemImage)
                 .foregroundColor(.blue)
-                .frame(width: 40, height: 40)
-                .background(Color.blue.opacity(0.1))
-                .clipShape(Circle())
+                .frame(width: 24, height: 24)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(item.topConditionName)
+                Text(step)
                     .font(.headline)
+                    .foregroundColor(.primary)
                 
-                Text("\(item.formattedDate) • \(item.type.capitalized)")
+                Text(description)
                     .font(.subheadline)
-                    .foregroundColor(.gray)
-            }
-            
-            Spacer()
-            
-            // Confidence indicator
-            ZStack {
-                Circle()
-                    .trim(from: 0, to: CGFloat(item.topConditionConfidence))
-                    .stroke(
-                        item.topConditionConfidence > 0.7 ? Color.red :
-                            item.topConditionConfidence > 0.4 ? Color.orange : Color.green,
-                        lineWidth: 3
-                    )
-                    .frame(width: 30, height: 30)
-                    .rotationEffect(.degrees(-90))
-                
-                Text("\(Int(item.topConditionConfidence * 100))%")
-                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(.secondary)
             }
         }
         .padding(.vertical, 8)
     }
 }
 
-// Detail view for a history item
-struct HistoryDetailView: View {
-    let historyItem: AnalysisHistoryItem
+/// Action button for save/share
+struct ActionButton: View {
+    let title: String
+    let systemImage: String
+    let color: Color
+    let action: () -> Void
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                // Header
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(historyItem.formattedDate)
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                        
-                        Text("\(historyItem.type.capitalized) Analysis")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                    }
-                    
-                    Spacer()
-                    
-                    Image(systemName: historyItem.type == "throat" ? "mouth" : "ear")
-                        .font(.system(size: 24))
-                        .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
-                        .background(Color.blue)
-                        .clipShape(Circle())
-                }
-                .padding(.horizontal)
-                
-                // Results
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Analysis Results")
-                        .font(.headline)
-                        .padding(.horizontal)
-                    
-                    ForEach(historyItem.conditions) { condition in
-                        ConditionCardView(condition: condition)
-                            .padding(.horizontal)
-                    }
-                }
-                
-                // Disclaimer
-                DisclaimerView()
-            }
-            .padding(.vertical)
-        }
-        .navigationTitle("Analysis Details")
-    }
-}
-
-// MARK: - Supporting Views
-
-// Results view to display analysis conditions
-struct ResultsView: View {
-    let results: [AnalysisCondition]
-    let analysisType: MLAnalysisService.AnalysisType
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Analysis Results")
-                .font(.title2)
-                .fontWeight(.bold)
-                .padding(.horizontal)
-            
-            Text("We've analyzed your \(analysisType == .throat ? "throat" : "ear") image and identified the following potential conditions:")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .padding(.horizontal)
-            
-            ForEach(results) { condition in
-                ConditionCardView(condition: condition)
-            }
-            
-            DisclaimerView()
-        }
-    }
-}
-
-// Card view for each identified condition
-struct ConditionCardView: View {
-    let condition: AnalysisCondition
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        Button(action: action) {
             HStack {
-                Text(condition.name)
-                    .font(.headline)
-                
-                Spacer()
-                
-                // Confidence badge
-                Text("\(condition.confidencePercentage)%")
-                    .font(.subheadline)
-                    .fontWeight(.bold)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color(condition.confidenceColor))
-                    .foregroundColor(.white)
-                    .cornerRadius(8)
+                Image(systemName: systemImage)
+                Text(title)
+                    .fontWeight(.medium)
             }
-            
-            Text(condition.description)
-                .font(.body)
-                .foregroundColor(.primary)
-            
-            Divider()
-            
-            HStack(alignment: .top) {
-                Image(systemName: "exclamationmark.triangle")
-                    .foregroundColor(Color(condition.severity.color))
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Severity: \(condition.severity.displayName)")
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(Color(condition.severity.color))
-                    
-                    Text(condition.recommendation)
-                        .font(.subheadline)
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-        .padding()
-        .background(Color.white)
-        .cornerRadius(12)
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-        .padding(.horizontal)
-    }
-}
-
-// Medical disclaimer
-struct DisclaimerView: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("IMPORTANT DISCLAIMER")
-                .font(.headline)
-                .foregroundColor(.red)
-            
-            Text("This analysis is not a medical diagnosis. The results are based on machine learning algorithms and should not replace professional medical advice. If you have health concerns, please consult a healthcare professional.")
-                .font(.caption)
-                .foregroundColor(.gray)
-        }
-        .padding()
-        .background(Color.red.opacity(0.1))
-        .cornerRadius(10)
-        .padding()
-    }
-}
-
-// Instructions card
-struct InstructionCardView: View {
-    let analysisType: MLAnalysisService.AnalysisType
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 15) {
-            Text("How to get a good analysis")
-                .font(.headline)
-            
-            VStack(alignment: .leading, spacing: 10) {
-                InstructionRow(
-                    icon: "lightbulb.fill",
-                    text: "Use bright, natural lighting"
-                )
-                
-                InstructionRow(
-                    icon: "camera.fill",
-                    text: "Hold the camera steady"
-                )
-                
-                InstructionRow(
-                    icon: "drop.fill",
-                    text: "For throat: Use a flashlight and open mouth wide"
-                )
-                
-                InstructionRow(
-                    icon: "ear.fill",
-                    text: "For ear: Gently pull ear up and back to straighten canal"
-                )
-            }
-        }
-        .padding()
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(12)
-    }
-}
-
-struct InstructionRow: View {
-    let icon: String
-    let text: String
-    
-    var body: some View {
-        HStack(spacing: 15) {
-            Image(systemName: icon)
-                .foregroundColor(.blue)
-                .imageScale(.large)
-            
-            Text(text)
-                .font(.subheadline)
-        }
-    }
-}
-
-// Placeholder for UIImagePickerController in a real app
-struct ImagePickerView: View {
-    @Binding var image: UIImage?
-    @Environment(\.presentationMode) var presentationMode
-    
-    var body: some View {
-        VStack {
-            Text("Image Picker Placeholder")
-                .font(.headline)
-                .padding()
-            
-            Text("In a real app, this would be a UIImagePickerController")
-                .font(.subheadline)
-                .foregroundColor(.gray)
-                .multilineTextAlignment(.center)
-                .padding()
-            
-            Button("Select Sample Image") {
-                // Create a simple colored rectangle as a placeholder image
-                let renderer = UIGraphicsImageRenderer(size: CGSize(width: 300, height: 300))
-                image = renderer.image { ctx in
-                    UIColor.blue.setFill()
-                    ctx.fill(CGRect(x: 0, y: 0, width: 300, height: 300))
-                }
-                
-                presentationMode.wrappedValue.dismiss()
-            }
-            .padding()
-            .background(Color.blue)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .background(color)
             .foregroundColor(.white)
             .cornerRadius(10)
-            .padding(.horizontal)
-            
-            Button("Cancel") {
-                presentationMode.wrappedValue.dismiss()
-            }
-            .padding()
         }
     }
 }
 
-// Preview provider
+/// Medical disclaimer view
+struct DisclaimerView: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: "exclamationmark.triangle")
+                .foregroundColor(.orange)
+            
+            Text("This analysis is for informational purposes only and does not constitute medical advice. Please consult with a healthcare professional for proper diagnosis.")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+        }
+        .padding(12)
+        .background(Color.orange.opacity(0.1))
+        .cornerRadius(8)
+        .padding(.bottom, 8)
+    }
+}
+
 struct AnalysisView_Previews: PreviewProvider {
     static var previews: some View {
-        AnalysisView()
-            .environmentObject(UserService.shared)
+        NavigationView {
+            AnalysisView(imageURL: "https://example.com/image.jpg", type: "throat")
+        }
     }
 }

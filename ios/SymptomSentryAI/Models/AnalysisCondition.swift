@@ -1,41 +1,37 @@
 import Foundation
-import SwiftUI
 
-/// Model representing a medical condition identified during analysis
-struct AnalysisCondition: Identifiable, Codable {
-    // MARK: - Properties
-    
-    /// Unique identifier
+/// Model representing a medical condition identified by image analysis
+struct AnalysisCondition: Identifiable, Codable, Hashable {
+    /// Unique identifier for the condition
     let id: String
     
-    /// Condition name
+    /// Human-readable name of the condition
     let name: String
     
-    /// Confidence level (0.0-1.0)
-    let confidence: Double
-    
-    /// Condition description
+    /// Detailed description of the condition
     let description: String
     
-    /// Severity level
-    let severity: ConditionSeverity
+    /// Confidence score (0.0 to 1.0) representing how likely this condition is
+    let confidence: Double
     
-    /// Treatment recommendation
-    let recommendation: String
+    /// List of common symptoms associated with this condition
+    let symptoms: [String]
     
-    // MARK: - Computed Properties
+    /// Flag indicating if the condition requires urgent medical attention
+    let isPotentiallySerious: Bool
     
-    /// Confidence as percentage
-    var confidencePercentage: Int {
-        Int(confidence * 100)
+    /// Formatted confidence percentage for display
+    var confidencePercentage: String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.maximumFractionDigits = 1
+        return formatter.string(from: NSNumber(value: confidence)) ?? "\(Int(confidence * 100))%"
     }
     
-    /// Color based on confidence level
-    var confidenceColor: String {
-        if confidence >= 0.8 {
+    /// Badge color based on confidence level
+    var confidenceBadgeColor: String {
+        if confidence >= 0.7 {
             return "red"
-        } else if confidence >= 0.6 {
-            return "orange"
         } else if confidence >= 0.4 {
             return "yellow"
         } else {
@@ -43,47 +39,90 @@ struct AnalysisCondition: Identifiable, Codable {
         }
     }
     
-    // MARK: - Initialization
-    
-    init(id: String, name: String, confidence: Double, description: String, severity: ConditionSeverity, recommendation: String) {
-        self.id = id
-        self.name = name
-        self.confidence = confidence
-        self.description = description
-        self.severity = severity
-        self.recommendation = recommendation
+    /// Determines if the condition warrants highlighting
+    var isHighConfidence: Bool {
+        return confidence >= 0.6
     }
 }
 
-/// Severity level of a medical condition
-enum ConditionSeverity: String, Codable {
-    case mild = "mild"
-    case moderate = "moderate"
-    case severe = "severe"
+/// Complete analysis response from the server
+struct AnalysisResponse: Codable {
+    /// Unique identifier for this analysis
+    let id: String
     
-    // MARK: - Computed Properties
+    /// Type of analysis performed (throat, ear, etc.)
+    let type: String
     
-    /// Display name for the severity level
-    var displayName: String {
-        switch self {
-        case .mild:
-            return "Mild"
-        case .moderate:
-            return "Moderate"
-        case .severe:
-            return "Severe"
+    /// ISO timestamp when the analysis was performed
+    let timestamp: String
+    
+    /// List of conditions identified in the analysis
+    let conditions: [AnalysisCondition]
+    
+    /// Formatted date for display
+    var formattedDate: String {
+        if let date = ISO8601DateFormatter().date(from: timestamp) {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .medium
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
         }
+        return timestamp
     }
-    
-    /// Color associated with the severity level
-    var color: String {
-        switch self {
-        case .mild:
-            return "green"
-        case .moderate:
-            return "orange"
-        case .severe:
-            return "red"
-        }
-    }
+}
+
+/// Mock data for previews and testing
+extension AnalysisCondition {
+    static var mockData: [AnalysisCondition] = [
+        AnalysisCondition(
+            id: "strep_throat",
+            name: "Strep Throat",
+            description: "A bacterial infection that causes inflammation and pain in the throat.",
+            confidence: 0.85,
+            symptoms: [
+                "Throat pain that comes on quickly",
+                "Red and swollen tonsils",
+                "White patches on the tonsils",
+                "Tiny red spots on the roof of the mouth",
+                "Fever"
+            ],
+            isPotentiallySerious: true
+        ),
+        AnalysisCondition(
+            id: "tonsillitis",
+            name: "Tonsillitis",
+            description: "Inflammation of the tonsils, typically caused by viral or bacterial infection.",
+            confidence: 0.65,
+            symptoms: [
+                "Red, swollen tonsils",
+                "White or yellow coating on tonsils",
+                "Sore throat",
+                "Painful swallowing",
+                "Fever"
+            ],
+            isPotentiallySerious: false
+        ),
+        AnalysisCondition(
+            id: "pharyngitis",
+            name: "Pharyngitis",
+            description: "Inflammation of the pharynx resulting in a sore throat.",
+            confidence: 0.35,
+            symptoms: [
+                "Sore throat",
+                "Difficulty swallowing",
+                "Fever",
+                "Enlarged lymph nodes"
+            ],
+            isPotentiallySerious: false
+        )
+    ]
+}
+
+extension AnalysisResponse {
+    static var mockData: AnalysisResponse = AnalysisResponse(
+        id: "123e4567-e89b-12d3-a456-426614174000",
+        type: "throat",
+        timestamp: "2025-03-20T15:35:42.123456",
+        conditions: AnalysisCondition.mockData
+    )
 }

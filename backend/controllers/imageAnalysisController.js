@@ -230,57 +230,148 @@ async function runInference(model, imageTensor, type) {
         if (type === 'throat') {
             return [
                 {
+                    id: 'strep_throat',
                     name: 'Strep Throat',
                     confidence: 0.78,
-                    description: 'A bacterial infection that causes inflammation and pain in the throat.'
+                    description: 'A bacterial infection that causes inflammation and pain in the throat.',
+                    symptoms: [
+                        'Throat pain that comes on quickly',
+                        'Red and swollen tonsils',
+                        'White patches on the tonsils',
+                        'Tiny red spots on the roof of the mouth',
+                        'Fever'
+                    ],
+                    isPotentiallySerious: true
                 },
                 {
+                    id: 'tonsillitis',
                     name: 'Tonsillitis',
                     confidence: 0.65,
-                    description: 'Inflammation of the tonsils, typically caused by viral or bacterial infection.'
+                    description: 'Inflammation of the tonsils, typically caused by viral or bacterial infection.',
+                    symptoms: [
+                        'Red, swollen tonsils',
+                        'White or yellow coating on tonsils',
+                        'Sore throat',
+                        'Painful swallowing',
+                        'Fever'
+                    ],
+                    isPotentiallySerious: false
                 },
                 {
+                    id: 'laryngitis',
                     name: 'Laryngitis',
                     confidence: 0.42,
-                    description: 'Inflammation of the voice box (larynx) that causes voice changes and sore throat.'
+                    description: 'Inflammation of the voice box (larynx) that causes voice changes and sore throat.',
+                    symptoms: [
+                        'Hoarseness',
+                        'Weak voice or voice loss',
+                        'Tickling sensation in the throat',
+                        'Dry throat',
+                        'Raw throat'
+                    ],
+                    isPotentiallySerious: false
                 },
                 {
+                    id: 'pharyngitis',
                     name: 'Pharyngitis',
                     confidence: 0.36,
-                    description: 'Inflammation of the pharynx resulting in a sore throat.'
+                    description: 'Inflammation of the pharynx resulting in a sore throat.',
+                    symptoms: [
+                        'Sore throat',
+                        'Difficulty swallowing',
+                        'Fever',
+                        'Enlarged lymph nodes'
+                    ],
+                    isPotentiallySerious: false
                 },
                 {
+                    id: 'healthy',
                     name: 'Healthy',
                     confidence: 0.12,
-                    description: 'No significant abnormalities detected.'
+                    description: 'No significant abnormalities detected.',
+                    symptoms: [],
+                    isPotentiallySerious: false
                 }
             ];
         } else {
             return [
                 {
+                    id: 'otitis_media',
                     name: 'Otitis Media',
                     confidence: 0.82,
-                    description: 'Middle ear infection that causes inflammation and fluid buildup.'
+                    description: 'Middle ear infection that causes inflammation and fluid buildup.',
+                    symptoms: [
+                        'Ear pain',
+                        'Fluid draining from ears',
+                        'Hearing difficulties',
+                        'Fever',
+                        'Irritability in children'
+                    ],
+                    isPotentiallySerious: false
                 },
                 {
+                    id: 'earwax_buildup',
                     name: 'Earwax Buildup',
                     confidence: 0.54,
-                    description: 'Excessive accumulation of cerumen (earwax) in the ear canal.'
+                    description: 'Excessive accumulation of cerumen (earwax) in the ear canal.',
+                    symptoms: [
+                        'Feeling of fullness in the ear',
+                        'Partial hearing loss',
+                        'Ringing in the ear (tinnitus)',
+                        'Itching in the ear',
+                        'Discharge from the ear'
+                    ],
+                    isPotentiallySerious: false
                 },
                 {
+                    id: 'otitis_externa',
                     name: 'Otitis Externa',
                     confidence: 0.43,
-                    description: 'Infection of the ear canal, often referred to as swimmer\'s ear.'
+                    description: 'Infection of the ear canal, often referred to as swimmer\'s ear.',
+                    symptoms: [
+                        'Ear pain',
+                        'Itchiness in ear',
+                        'Redness and swelling',
+                        'Drainage of clear fluid',
+                        'Difficulty hearing'
+                    ],
+                    isPotentiallySerious: false
                 },
                 {
+                    id: 'eustachian_tube_dysfunction',
                     name: 'Eustachian Tube Dysfunction',
                     confidence: 0.31,
-                    description: 'Blocked or dysfunctional eustachian tubes that connect the middle ear to the back of the throat.'
+                    description: 'Blocked or dysfunctional eustachian tubes that connect the middle ear to the back of the throat.',
+                    symptoms: [
+                        'Ear fullness or pressure',
+                        'Ear pain',
+                        'Muffled hearing',
+                        'Ringing in the ears',
+                        'Dizziness'
+                    ],
+                    isPotentiallySerious: false
                 },
                 {
+                    id: 'perforated_eardrum',
+                    name: 'Perforated Eardrum',
+                    confidence: 0.22,
+                    description: 'A hole or tear in the thin tissue that separates your ear canal from your middle ear.',
+                    symptoms: [
+                        'Ear pain that may subside quickly',
+                        'Clear, pus-filled or bloody drainage from the ear',
+                        'Hearing loss',
+                        'Ringing in the ear (tinnitus)',
+                        'Spinning sensation (vertigo)'
+                    ],
+                    isPotentiallySerious: true
+                },
+                {
+                    id: 'healthy',
                     name: 'Healthy',
                     confidence: 0.15,
-                    description: 'No significant abnormalities detected.'
+                    description: 'No significant abnormalities detected.',
+                    symptoms: [],
+                    isPotentiallySerious: false
                 }
             ];
         }

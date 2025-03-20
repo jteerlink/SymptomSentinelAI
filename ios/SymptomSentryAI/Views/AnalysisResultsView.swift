@@ -1,418 +1,390 @@
 import SwiftUI
 
 struct AnalysisResultsView: View {
-    let results: [AnalysisCondition]
-    let analysisType: ImageUploadView.AnalysisType
-    let image: UIImage?
+    // MARK: - Properties
     
-    @Environment(\.presentationMode) private var presentationMode
+    /// The image that was analyzed
+    let image: UIImage
+    
+    /// The analysis response from the server
+    let analysis: AnalysisResponse
+    
+    /// State for showing condition details
     @State private var selectedCondition: AnalysisCondition?
-    @State private var isShowingDetailView = false
-    @State private var isSaved = false
+    
+    /// Animation state
+    @State private var animateResults = false
+    
+    // MARK: - Body
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Header with image
-                    resultHeader
-                    
-                    // Results summary
-                    resultsSummary
-                    
-                    // Conditions list
-                    conditionsList
-                    
-                    // Disclaimer
-                    disclaimerSection
-                    
-                    // Action buttons
-                    actionButtons
-                }
-                .padding()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Analysis header
+                header
+                
+                // Image section
+                imageSection
+                
+                // Results summary
+                resultsSummary
+                    .padding(.top, 10)
+                
+                // Conditions list
+                conditionsList
+                    .padding(.top, 5)
+                
+                // Action buttons
+                actionButtons
+                    .padding(.top, 20)
             }
-            .navigationTitle("Analysis Results")
-            .navigationBarItems(
-                leading: Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("Close")
-                },
-                trailing: Button(action: saveAnalysis) {
-                    if isSaved {
-                        Label("Saved", systemImage: "checkmark")
-                    } else {
-                        Label("Save", systemImage: "square.and.arrow.down")
-                    }
-                }
-            )
-            .sheet(isPresented: $isShowingDetailView) {
-                if let condition = selectedCondition {
-                    ConditionDetailView(condition: condition)
-                }
-            }
+            .padding()
+            .opacity(animateResults ? 1 : 0)
+            .offset(y: animateResults ? 0 : 20)
         }
-    }
-    
-    // MARK: - Result Header
-    private var resultHeader: some View {
-        VStack(spacing: 15) {
-            if let image = image {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxHeight: 200)
-                    .cornerRadius(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
-            }
-            
-            HStack {
-                Image(systemName: analysisType == .throat ? "mouth" : "ear")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 24, height: 24)
-                    .foregroundColor(.blue)
-                
-                Text("\(analysisType.rawValue) Analysis")
-                    .font(.headline)
-                
-                Spacer()
-                
-                Text(Date(), style: .date)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-            }
-            .padding(.top, 5)
-            
-            Divider()
-        }
-    }
-    
-    // MARK: - Results Summary
-    private var resultsSummary: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if let topCondition = results.first {
-                Text("Top Potential Condition")
-                    .font(.headline)
-                
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 5) {
-                        Text(topCondition.name)
-                            .font(.title3)
-                            .fontWeight(.semibold)
-                        
-                        Text(topCondition.shortDescription)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .lineLimit(2)
-                    }
-                    
-                    Spacer()
-                    
-                    // Confidence indicator
-                    confidenceIndicator(for: topCondition)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.blue.opacity(0.1))
-                )
-            } else {
-                Text("No conditions detected")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-            }
-        }
-    }
-    
-    // MARK: - Conditions List
-    private var conditionsList: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("All Potential Conditions")
-                .font(.headline)
-            
-            ForEach(results) { condition in
+        .navigationTitle("Analysis Results")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
-                    selectedCondition = condition
-                    isShowingDetailView = true
+                    // Share report functionality would go here
                 }) {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(condition.name)
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            
-                            if !condition.shortDescription.isEmpty {
-                                Text(condition.shortDescription)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // Confidence percentage
-                        Text("\(Int(condition.confidence * 100))%")
-                            .font(.headline)
-                            .foregroundColor(confidenceColor(for: condition.confidence))
-                        
-                        Image(systemName: "chevron.right")
-                            .foregroundColor(.gray)
-                    }
-                    .padding()
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 1)
-                    )
+                    Image(systemName: "square.and.arrow.up")
                 }
+            }
+        }
+        .onAppear {
+            // Animate the results appearing
+            withAnimation(.easeOut(duration: 0.5)) {
+                animateResults = true
+            }
+        }
+        .sheet(item: $selectedCondition) { condition in
+            NavigationView {
+                ConditionDetailView(condition: condition)
             }
         }
     }
     
-    // MARK: - Disclaimer Section
-    private var disclaimerSection: some View {
+    // MARK: - View Components
+    
+    private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Important Disclaimer")
-                .font(.headline)
-                .foregroundColor(.red)
+            Text("Analysis Complete")
+                .font(.title)
+                .bold()
             
-            Text("This analysis is for educational purposes only and does not constitute medical advice. Always consult with a healthcare professional for proper diagnosis and treatment.")
+            Text("Type: \(analysis.type.capitalized) Analysis")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            
+            Text("Completed on \(analysis.formattedDate)")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color.red.opacity(0.1))
-        )
     }
     
-    // MARK: - Action Buttons
-    private var actionButtons: some View {
-        HStack(spacing: 15) {
-            Button(action: {
-                // Share results
-                let sharableText = createShareableContent()
-                let activityVC = UIActivityViewController(
-                    activityItems: [sharableText],
-                    applicationActivities: nil
+    private var imageSection: some View {
+        VStack(alignment: .center, spacing: 12) {
+            Image(uiImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxHeight: 250)
+                .cornerRadius(12)
+                .shadow(radius: 4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                 )
-                
-                if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                   let rootVC = windowScene.windows.first?.rootViewController {
-                    rootVC.present(activityVC, animated: true, completion: nil)
-                }
-            }) {
-                Label("Share Results", systemImage: "square.and.arrow.up")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(10)
-            }
             
-            Button(action: {
-                // Book telemedicine appointment - this would typically navigate to a booking view
-                // For now, we'll dismiss this view and could show another screen
-                presentationMode.wrappedValue.dismiss()
-            }) {
-                Label("Get Medical Advice", systemImage: "video")
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .foregroundColor(.white)
-                    .background(Color.blue)
-                    .cornerRadius(10)
-            }
-        }
-        .padding(.top, 10)
-    }
-    
-    // MARK: - Helper Views
-    
-    private func confidenceIndicator(for condition: AnalysisCondition) -> some View {
-        VStack(alignment: .center, spacing: 5) {
-            ZStack {
-                Circle()
-                    .stroke(Color.gray.opacity(0.3), lineWidth: 4)
-                    .frame(width: 60, height: 60)
-                
-                Circle()
-                    .trim(from: 0, to: CGFloat(min(condition.confidence, 1.0)))
-                    .stroke(confidenceColor(for: condition.confidence), lineWidth: 4)
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(Angle(degrees: -90))
-                
-                Text("\(Int(condition.confidence * 100))%")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(confidenceColor(for: condition.confidence))
-            }
-            
-            Text("Confidence")
+            Text("Image ID: \(analysis.id.prefix(8))")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
+        .frame(maxWidth: .infinity)
     }
     
-    private func confidenceColor(for confidence: Double) -> Color {
-        if confidence >= 0.7 {
-            return .red
-        } else if confidence >= 0.4 {
-            return .orange
-        } else {
-            return .green
+    private var resultsSummary: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Analysis Results")
+                .font(.headline)
+            
+            HStack {
+                HStack {
+                    Circle()
+                        .fill(analysis.conditions.first?.confidence ?? 0 >= 0.7 ? Color.red : Color.green)
+                        .frame(width: 12, height: 12)
+                    
+                    Text("Result:")
+                        .font(.subheadline)
+                        .bold()
+                }
+                
+                if let topCondition = analysis.conditions.first {
+                    Text(topCondition.confidence >= 0.7 ? 
+                         "High likelihood of \(topCondition.name)" : 
+                         "Possible indications detected")
+                        .font(.subheadline)
+                } else {
+                    Text("No conditions detected")
+                        .font(.subheadline)
+                }
+            }
+            
+            if let topCondition = analysis.conditions.first, topCondition.isPotentiallySerious && topCondition.confidence >= 0.7 {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.red)
+                    
+                    Text("This may require medical attention")
+                        .font(.subheadline)
+                        .foregroundColor(.red)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .background(Color.red.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.top, 8)
+            }
         }
     }
     
-    // MARK: - Helper Methods
-    
-    private func saveAnalysis() {
-        // Save the analysis to history
-        // In a real app, this would call a service to save to a database
-        isSaved = true
-        
-        // Simulate API call
-        // AnalysisService.shared.saveAnalysis(...)
+    private var conditionsList: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Potential Conditions")
+                .font(.headline)
+            
+            ForEach(analysis.conditions) { condition in
+                Button(action: {
+                    selectedCondition = condition
+                }) {
+                    ConditionRowView(condition: condition)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            
+            if analysis.conditions.isEmpty {
+                Text("No conditions identified")
+                    .font(.body)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 10)
+            }
+        }
     }
     
-    private func createShareableContent() -> String {
-        var content = "SymptomSentry AI Analysis Results\n"
-        content += "Type: \(analysisType.rawValue)\n"
-        content += "Date: \(Date().formatted())\n\n"
-        
-        content += "Potential Conditions:\n"
-        for (index, condition) in results.enumerated() {
-            content += "\(index + 1). \(condition.name) - \(Int(condition.confidence * 100))% confidence\n"
+    private var actionButtons: some View {
+        VStack(spacing: 12) {
+            Button(action: {
+                // This would navigate to educational content for the top condition
+            }) {
+                HStack {
+                    Image(systemName: "book.fill")
+                    Text("Learn About This Condition")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.blue)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            }
+            .disabled(analysis.conditions.isEmpty)
+            
+            Button(action: {
+                // This would connect the user to telemedicine
+            }) {
+                HStack {
+                    Image(systemName: "video.fill")
+                    Text("Connect With Doctor")
+                }
+                .frame(maxWidth: .infinity)
+                .padding()
+                .background(Color.green)
+                .foregroundColor(.white)
+                .cornerRadius(10)
+            }
         }
-        
-        content += "\nDisclaimer: This analysis is for educational purposes only and does not constitute medical advice."
-        
-        return content
     }
 }
 
-// MARK: - Condition Detail View
-struct ConditionDetailView: View {
+// MARK: - Supporting Views
+
+/// Row view for displaying a single condition in the list
+struct ConditionRowView: View {
     let condition: AnalysisCondition
-    @Environment(\.presentationMode) private var presentationMode
     
     var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // Condition header
-                    HStack {
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(condition.name)
-                                .font(.title2)
-                                .fontWeight(.bold)
-                            
-                            if !condition.medicalTerm.isEmpty {
-                                Text("Medical term: \(condition.medicalTerm)")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        // Confidence percentage
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue.opacity(0.1))
-                                .frame(width: 70, height: 70)
-                            
-                            Text("\(Int(condition.confidence * 100))%")
-                                .font(.title3)
-                                .fontWeight(.semibold)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .padding()
-                    .background(Color.blue.opacity(0.05))
-                    .cornerRadius(12)
-                    
-                    // Description
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Description")
-                            .font(.headline)
-                        
-                        Text(condition.description)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    // Symptoms
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Common Symptoms")
-                            .font(.headline)
-                        
-                        ForEach(condition.symptoms, id: \.self) { symptom in
-                            HStack(alignment: .top) {
-                                Image(systemName: "circle.fill")
-                                    .resizable()
-                                    .frame(width: 6, height: 6)
-                                    .foregroundColor(.blue)
-                                    .padding(.top, 7)
-                                
-                                Text(symptom)
-                                    .foregroundColor(.secondary)
-                                
-                                Spacer()
-                            }
-                        }
-                    }
-                    
-                    // Treatment options
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Typical Treatments")
-                            .font(.headline)
-                        
-                        ForEach(condition.treatments, id: \.self) { treatment in
-                            HStack(alignment: .top) {
-                                Image(systemName: "circle.fill")
-                                    .resizable()
-                                    .frame(width: 6, height: 6)
-                                    .foregroundColor(.green)
-                                    .padding(.top, 7)
-                                
-                                Text(treatment)
-                                    .foregroundColor(.secondary)
-                                
-                                Spacer()
-                            }
-                        }
-                    }
-                    
-                    // When to see a doctor
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("When to See a Doctor")
-                            .font(.headline)
-                            .foregroundColor(.red)
-                        
-                        Text(condition.whenToSeeDoctor)
-                            .foregroundColor(.secondary)
-                    }
-                    .padding()
-                    .background(Color.red.opacity(0.05))
-                    .cornerRadius(10)
-                    
-                    // Disclaimer
-                    Text("This information is for educational purposes only and should not replace professional medical advice.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.top)
-                }
-                .padding()
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(condition.name)
+                    .font(.headline)
+                    .foregroundColor(.primary)
+                
+                Text(condition.description)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
             }
-            .navigationTitle("Condition Details")
-            .navigationBarItems(
-                trailing: Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("Close")
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(condition.confidencePercentage)
+                    .font(.headline)
+                    .foregroundColor(condition.isHighConfidence ? .red : .primary)
+                
+                Text("confidence")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            Image(systemName: "chevron.right")
+                .foregroundColor(.secondary)
+                .font(.caption)
+        }
+        .padding()
+        .background(Color(.systemBackground))
+        .cornerRadius(10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(
+                    Color(condition.confidenceBadgeColor).opacity(0.5),
+                    lineWidth: 1
+                )
+        )
+        .shadow(
+            color: Color.black.opacity(0.05),
+            radius: 2,
+            x: 0,
+            y: 1
+        )
+    }
+}
+
+/// Detailed view for a single condition
+struct ConditionDetailView: View {
+    let condition: AnalysisCondition
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                // Header
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(condition.name)
+                        .font(.largeTitle)
+                        .bold()
+                    
+                    HStack {
+                        Text("Confidence: \(condition.confidencePercentage)")
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color(condition.confidenceBadgeColor).opacity(0.2))
+                            .cornerRadius(8)
+                        
+                        if condition.isPotentiallySerious {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(.red)
+                                
+                                Text("Potentially Serious")
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Color.red.opacity(0.1))
+                            .cornerRadius(8)
+                        }
+                    }
                 }
+                
+                Divider()
+                
+                // Description
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("About this Condition")
+                        .font(.headline)
+                    
+                    Text(condition.description)
+                        .font(.body)
+                }
+                
+                Divider()
+                
+                // Symptoms
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Common Symptoms")
+                        .font(.headline)
+                    
+                    ForEach(condition.symptoms, id: \.self) { symptom in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "circle.fill")
+                                .font(.system(size: 8))
+                                .padding(.top, 5)
+                            
+                            Text(symptom)
+                                .font(.body)
+                        }
+                    }
+                }
+                
+                Divider()
+                
+                // Action buttons
+                VStack(spacing: 12) {
+                    Button(action: {
+                        // Learn more action
+                    }) {
+                        HStack {
+                            Image(systemName: "book.fill")
+                            Text("Learn More")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                    
+                    Button(action: {
+                        // Medical advice action
+                    }) {
+                        HStack {
+                            Image(systemName: "video.fill")
+                            Text("Consult a Doctor")
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.green)
+                        .foregroundColor(.white)
+                        .cornerRadius(10)
+                    }
+                }
+                
+                Text("Disclaimer: This analysis is for informational purposes only and should not be considered as medical advice. Always consult with a qualified healthcare provider for proper diagnosis and treatment.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 20)
+            }
+            .padding()
+        }
+        .navigationBarTitle("", displayMode: .inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button("Close") {
+                    presentationMode.wrappedValue.dismiss()
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Previews
+
+struct AnalysisResultsView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            AnalysisResultsView(
+                image: UIImage(systemName: "photo") ?? UIImage(),
+                analysis: AnalysisResponse.mockData
             )
         }
     }

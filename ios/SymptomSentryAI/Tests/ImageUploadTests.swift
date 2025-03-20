@@ -3,198 +3,185 @@ import XCTest
 
 class ImageUploadTests: XCTestCase {
     
-    // MARK: - Properties
-    
-    var mlAnalysisService: MLAnalysisService!
+    var imageValidationService: ImageValidationService!
     var networkService: NetworkService!
+    var testBundle: Bundle!
     
-    // MARK: - Setup & Teardown
-    
-    override func setUp() {
-        super.setUp()
-        mlAnalysisService = MLAnalysisService.shared
-        networkService = NetworkService.shared
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        imageValidationService = ImageValidationService()
+        networkService = NetworkService()
+        testBundle = Bundle(for: type(of: self))
     }
     
-    override func tearDown() {
-        mlAnalysisService = nil
+    override func tearDownWithError() throws {
+        imageValidationService = nil
         networkService = nil
-        super.tearDown()
+        testBundle = nil
+        try super.tearDownWithError()
     }
     
     // MARK: - Image Validation Tests
     
-    func testImageValidationSizeSuccess() {
-        // Create a small test image
-        let size = CGSize(width: 100, height: 100)
-        UIGraphicsBeginImageContext(size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setFillColor(UIColor.red.cgColor)
-        context?.fill(CGRect(origin: .zero, size: size))
-        let image = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
+    func testImageSizeValidation() throws {
+        // Test valid image size (under 5MB)
+        let validSizeImage = createTestImage(size: 100, color: .blue)
+        let validSizeData = validSizeImage.jpegData(compressionQuality: 0.8)!
         
-        // Get image data with compression
+        var result = imageValidationService.validateImageSize(data: validSizeData)
+        XCTAssertTrue(result.isValid, "Valid size image should pass validation")
+        
+        // Generate a large image (over 5MB)
+        let largeSizeData = Data(count: 6 * 1024 * 1024) // 6MB of random data
+        
+        result = imageValidationService.validateImageSize(data: largeSizeData)
+        XCTAssertFalse(result.isValid, "Oversized image should fail validation")
+        XCTAssertTrue(result.errorMessage?.contains("5MB") ?? false, "Error should mention size limit")
+    }
+    
+    func testImageFormatValidation() throws {
+        // Valid JPEG format
+        let jpegImage = createTestImage(size: 100, color: .red)
+        let jpegData = jpegImage.jpegData(compressionQuality: 0.8)!
+        
+        var result = imageValidationService.validateImageFormat(data: jpegData)
+        XCTAssertTrue(result.isValid, "JPEG image should pass format validation")
+        
+        // Valid PNG format
+        let pngImage = createTestImage(size: 100, color: .green)
+        let pngData = pngImage.pngData()!
+        
+        result = imageValidationService.validateImageFormat(data: pngData)
+        XCTAssertTrue(result.isValid, "PNG image should pass format validation")
+        
+        // Invalid format (text data)
+        let invalidData = "This is not an image".data(using: .utf8)!
+        
+        result = imageValidationService.validateImageFormat(data: invalidData)
+        XCTAssertFalse(result.isValid, "Text data should fail format validation")
+        XCTAssertTrue(result.errorMessage?.contains("format") ?? false, "Error should mention format issue")
+    }
+    
+    func testValidateFullImage() throws {
+        // Create a valid image
+        let image = createTestImage(size: 200, color: .blue)
         let imageData = image.jpegData(compressionQuality: 0.8)!
         
-        // Validate against 5MB limit
-        XCTAssertLessThan(imageData.count, 5 * 1024 * 1024, "Image should be less than 5MB")
+        let result = imageValidationService.validateImage(data: imageData)
+        XCTAssertTrue(result.isValid, "Valid image should pass full validation")
+        XCTAssertNil(result.errorMessage, "No error message for valid image")
     }
     
-    func testImageValidationSizeFailure() {
-        // This test simulates a large image exceeding size limit
-        // Since creating a 5MB+ image is resource intensive, we'll mock the validation logic
-        
-        let maxSize = 5 * 1024 * 1024 // 5MB
-        let mockImageData = Data(repeating: 0, count: maxSize + 1000) // Slightly over 5MB
-        
-        XCTAssertGreaterThan(mockImageData.count, maxSize, "Mock image should be greater than 5MB")
-    }
+    // MARK: - Network Upload Tests
     
-    func testImageFormatValidationSuccess() {
-        // Create a simple test image
-        let size = CGSize(width: 100, height: 100)
-        UIGraphicsBeginImageContext(size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setFillColor(UIColor.blue.cgColor)
-        context?.fill(CGRect(origin: .zero, size: size))
-        let image = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
+    func testUploadImageSuccess() throws {
+        // Create a mock for NetworkService
+        let mockNetworkService = MockNetworkService()
+        mockNetworkService.mockUploadResponse = .success(
+            UploadResponse(imageUrl: "https://example.com/test.jpg", type: "throat", success: true)
+        )
         
-        // Test JPEG format
-        let jpegData = image.jpegData(compressionQuality: 0.8)
-        XCTAssertNotNil(jpegData, "JPEG data should be valid")
-        
-        // Test PNG format
-        let pngData = image.pngData()
-        XCTAssertNotNil(pngData, "PNG data should be valid")
-    }
-    
-    // MARK: - MultipartFormData Tests
-    
-    func testMultipartFormDataCreation() {
-        // Create form data
-        let formData = MultipartFormData()
-        
-        // Add text field
-        formData.append("throat", name: "type")
-        
-        // Create a small test image
-        let size = CGSize(width: 50, height: 50)
-        UIGraphicsBeginImageContext(size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setFillColor(UIColor.green.cgColor)
-        context?.fill(CGRect(origin: .zero, size: size))
-        let image = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
-        
-        // Add image data
-        let imageData = image.jpegData(compressionQuality: 0.8)!
-        formData.append(imageData, name: "image", fileName: "test.jpg", mimeType: "image/jpeg")
-        
-        // Finalize
-        formData.finalize()
-        
-        // Verify non-empty data
-        XCTAssertGreaterThan(formData.data.count, 0, "Form data should not be empty")
-        
-        // Verify it contains boundary
-        let dataString = String(data: formData.data, encoding: .utf8)
-        XCTAssertNotNil(dataString, "Form data should be convertible to string")
-        XCTAssertTrue(dataString!.contains(formData.boundary), "Form data should contain boundary string")
-        
-        // Verify it contains content-disposition
-        XCTAssertTrue(dataString!.contains("Content-Disposition"), "Form data should contain Content-Disposition")
-        
-        // Verify it contains field name
-        XCTAssertTrue(dataString!.contains("name=\"type\""), "Form data should contain field name")
-        
-        // Verify it contains file name
-        XCTAssertTrue(dataString!.contains("filename=\"test.jpg\""), "Form data should contain filename")
-    }
-    
-    // MARK: - Image Analysis Tests
-    
-    func testImagePreprocessing() {
-        // Create a test image
-        let originalSize = CGSize(width: 400, height: 300)
-        UIGraphicsBeginImageContext(originalSize)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setFillColor(UIColor.yellow.cgColor)
-        context?.fill(CGRect(origin: .zero, size: originalSize))
-        let image = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
-        
-        // Get image data
+        let image = createTestImage(size: 200, color: .red)
         let imageData = image.jpegData(compressionQuality: 0.8)!
         
-        // Test format validation
-        XCTAssertNotNil(imageData, "Image data should be valid")
+        let expectation = self.expectation(description: "Upload image")
         
-        // Test size validation
-        XCTAssertLessThan(imageData.count, 5 * 1024 * 1024, "Image should be less than 5MB")
-    }
-    
-    func testImageAnalysisExpectation() {
-        // Set up expectation
-        let expectation = XCTestExpectation(description: "Image analysis completes")
-        
-        // Create a test image
-        let size = CGSize(width: 200, height: 200)
-        UIGraphicsBeginImageContext(size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setFillColor(UIColor.red.cgColor)
-        context?.fill(CGRect(origin: .zero, size: size))
-        let image = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
-        
-        // Perform analysis (this will use mock data since we're in tests)
-        mlAnalysisService.analyzeImage(image: image, type: "throat") { result in
+        mockNetworkService.uploadImage(data: imageData, type: "throat") { result in
             switch result {
-            case .success(let conditions):
-                // We expect the mock data to return at least one condition
-                XCTAssertGreaterThan(conditions.count, 0, "Analysis should return at least one condition")
-                expectation.fulfill()
-                
+            case .success(let response):
+                XCTAssertTrue(response.success, "Upload should be successful")
+                XCTAssertEqual(response.type, "throat", "Type should match")
+                XCTAssertFalse(response.imageUrl.isEmpty, "Image URL should not be empty")
             case .failure(let error):
-                XCTFail("Analysis should not fail: \(error.localizedDescription)")
+                XCTFail("Upload should not fail: \(error.localizedDescription)")
             }
+            expectation.fulfill()
         }
         
-        // Wait for expectation to be fulfilled
-        wait(for: [expectation], timeout: 5.0)
+        waitForExpectations(timeout: 5, handler: nil)
     }
     
-    // MARK: - UI Tests for Image Selection
-    
-    func testImageSelectionUIExpectation() {
-        // This would typically be part of UI testing, but we can simulate the selection logic
+    func testUploadImageFailure() throws {
+        // Create a mock for NetworkService
+        let mockNetworkService = MockNetworkService()
+        mockNetworkService.mockUploadResponse = .failure(NetworkError.serverError("Invalid image format"))
         
-        // Test that the ImagePicker correctly handles image selection
-        let picker = ImagePicker(selectedImage: .constant(nil), sourceType: .photoLibrary)
+        let image = createTestImage(size: 200, color: .red)
+        let imageData = image.jpegData(compressionQuality: 0.8)!
         
-        // Create a test coordinator
-        let coordinator = picker.makeCoordinator()
-        XCTAssertNotNil(coordinator, "Coordinator should be created")
+        let expectation = self.expectation(description: "Upload image failure")
         
-        // Create test image
-        let size = CGSize(width: 100, height: 100)
-        UIGraphicsBeginImageContext(size)
-        let context = UIGraphicsGetCurrentContext()
-        context?.setFillColor(UIColor.blue.cgColor)
-        context?.fill(CGRect(origin: .zero, size: size))
-        let testImage = UIGraphicsGetImageFromCurrentImageContext()!
-        UIGraphicsEndImageContext()
+        mockNetworkService.uploadImage(data: imageData, type: "throat") { result in
+            switch result {
+            case .success:
+                XCTFail("Upload should fail")
+            case .failure(let error):
+                if case NetworkError.serverError(let message) = error {
+                    XCTAssertEqual(message, "Invalid image format", "Error message should match")
+                } else {
+                    XCTFail("Unexpected error type: \(error)")
+                }
+            }
+            expectation.fulfill()
+        }
         
-        // Simulate image picker controller didFinishPickingMediaWithInfo
-        // This is a mock test since we can't actually trigger the picker in a unit test
-        let info: [UIImagePickerController.InfoKey: Any] = [.originalImage: testImage]
-        
-        // In real UI tests, the picker would be presented and an image selected
-        // Here we're just verifying the code path exists
-        XCTAssertNoThrow({
-            // This would typically run in the UI test
-            // coordinator.imagePickerController(UIImagePickerController(), didFinishPickingMediaWithInfo: info)
-        }, "Image selection should not throw an error")
+        waitForExpectations(timeout: 5, handler: nil)
     }
+    
+    // MARK: - Helper Methods
+    
+    private func createTestImage(size: CGFloat, color: UIColor) -> UIImage {
+        let renderer = UIGraphicsImageRenderer(size: CGSize(width: size, height: size))
+        return renderer.image { ctx in
+            color.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        }
+    }
+}
+
+// MARK: - Mock Classes for Testing
+
+class MockNetworkService: NetworkService {
+    var mockUploadResponse: Result<UploadResponse, NetworkError>?
+    
+    override func uploadImage(data: Data, type: String, completion: @escaping (Result<UploadResponse, NetworkError>) -> Void) {
+        if let mockResponse = mockUploadResponse {
+            completion(mockResponse)
+        } else {
+            completion(.failure(.networkError("No mock response configured")))
+        }
+    }
+    
+    override func getPresignedURL(type: String, fileType: String, completion: @escaping (Result<PresignedURLResponse, NetworkError>) -> Void) {
+        completion(.success(PresignedURLResponse(
+            presignedUrl: "https://example.com/presigned-url",
+            publicUrl: "https://example.com/public-url",
+            key: "uploads/throat/test-image.jpg",
+            success: true
+        )))
+    }
+}
+
+// Response models to match the backend API
+struct UploadResponse: Codable {
+    let imageUrl: String
+    let type: String
+    let success: Bool
+    let message: String?
+    let timestamp: String?
+    
+    init(imageUrl: String, type: String, success: Bool, message: String? = nil, timestamp: String? = nil) {
+        self.imageUrl = imageUrl
+        self.type = type
+        self.success = success
+        self.message = message
+        self.timestamp = timestamp
+    }
+}
+
+struct PresignedURLResponse: Codable {
+    let presignedUrl: String
+    let publicUrl: String
+    let key: String
+    let success: Bool
 }

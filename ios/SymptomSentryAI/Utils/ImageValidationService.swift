@@ -1,157 +1,159 @@
 import Foundation
 import UIKit
+import Vision
 
-/// Service for validating images before upload or analysis
-class ImageValidationService {
-    static let shared = ImageValidationService()
+/// Service for validating images before upload and analysis
+class ImageValidationService: ObservableObject {
+    // MARK: - Constants
     
-    // Default size limit of 5MB
-    private let defaultMaxSizeBytes = 5 * 1024 * 1024
+    /// Maximum allowed image size in bytes (5MB)
+    private let maxImageSizeBytes: Int = 5 * 1024 * 1024
     
-    // Allowed MIME types
-    private let allowedMimeTypes = ["image/jpeg", "image/png"]
+    /// Minimum required image dimensions (pixels)
+    private let minDimension: CGFloat = 640
     
-    private init() {}
+    /// Maximum allowed image dimensions (pixels)
+    private let maxDimension: CGFloat = 4096
     
-    /// Validate image size and format
-    /// - Parameters:
-    ///   - image: The UIImage to validate
-    ///   - maxSizeBytes: Maximum allowed size in bytes (default: 5MB)
-    /// - Returns: A tuple containing (isValid, errorMessage)
-    func validateImage(_ image: UIImage, maxSizeBytes: Int? = nil) -> (isValid: Bool, errorMessage: String?) {
-        // Check for size limit
-        let sizeLimit = maxSizeBytes ?? defaultMaxSizeBytes
+    /// Minimum required image quality/clarity score (0-1)
+    private let minQualityScore: Float = 0.4
+    
+    // MARK: - Types
+    
+    /// Result of image validation
+    struct ValidationResult {
+        let isValid: Bool
+        let errorMessage: String?
         
-        // Try JPEG format first (usually smaller)
-        if let jpegData = image.jpegData(compressionQuality: 0.8) {
-            // Check size
-            if jpegData.count > sizeLimit {
-                return (false, "Image is too large. Maximum size is 5MB.")
-            }
-            return (true, nil)
+        static let valid = ValidationResult(isValid: true, errorMessage: nil)
+        
+        static func invalid(message: String) -> ValidationResult {
+            return ValidationResult(isValid: false, errorMessage: message)
         }
-        
-        // Try PNG as fallback
-        if let pngData = image.pngData() {
-            // Check size
-            if pngData.count > sizeLimit {
-                return (false, "Image is too large. Maximum size is 5MB.")
-            }
-            return (true, nil)
-        }
-        
-        // If we get here, the image format is not supported
-        return (false, "Unsupported image format. Please use JPEG or PNG images.")
     }
     
-    /// Get the image data in an appropriate format (JPEG or PNG)
-    /// - Parameters:
-    ///   - image: The UIImage to convert to data
-    ///   - preferredFormat: The preferred format (.jpeg or .png)
-    ///   - compressionQuality: JPEG compression quality (0.0 to 1.0)
-    /// - Returns: Image data in the appropriate format, or nil if conversion failed
-    func getImageData(from image: UIImage, preferredFormat: ImageFormat = .jpeg, compressionQuality: CGFloat = 0.8) -> Data? {
-        switch preferredFormat {
-        case .jpeg:
-            if let jpegData = image.jpegData(compressionQuality: compressionQuality) {
-                return jpegData
+    // MARK: - Methods
+    
+    /// Validate an image for analysis
+    /// - Parameter image: The image to validate
+    /// - Returns: A validation result
+    func validateImage(_ image: UIImage) async -> ValidationResult {
+        // Check image size
+        if let imageData = image.jpegData(compressionQuality: 0.8) {
+            if imageData.count > maxImageSizeBytes {
+                return .invalid(message: "Image size exceeds 5MB limit. Please select a smaller image.")
             }
-            // Fall back to PNG if JPEG fails
-            return image.pngData()
+        }
+        
+        // Check image dimensions
+        let dimensions = image.size
+        if dimensions.width < minDimension || dimensions.height < minDimension {
+            return .invalid(message: "Image is too small. Please select an image with dimensions of at least 640x640 pixels.")
+        }
+        
+        if dimensions.width > maxDimension || dimensions.height > maxDimension {
+            return .invalid(message: "Image is too large. Please select an image with dimensions no larger than 4096x4096 pixels.")
+        }
+        
+        // Check image format
+        if image.cgImage == nil {
+            return .invalid(message: "Invalid image format. Please select a JPEG or PNG image.")
+        }
+        
+        // Check image quality (focus/blur)
+        let qualityResult = await checkImageQuality(image)
+        if !qualityResult.isValid {
+            return qualityResult
+        }
+        
+        return .valid
+    }
+    
+    /// Check the quality (focus/blur) of an image using Vision framework
+    /// - Parameter image: The image to check
+    /// - Returns: A validation result
+    private func checkImageQuality(_ image: UIImage) async -> ValidationResult {
+        guard let cgImage = image.cgImage else {
+            return .invalid(message: "Unable to process image. Please select another image.")
+        }
+        
+        // Create Vision request to detect blur/sharpness
+        let request = VNImageQualityRequest()
+        
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        
+        do {
+            try handler.perform([request])
             
-        case .png:
-            if let pngData = image.pngData() {
-                return pngData
+            if let observations = request.results as? [VNImageQualityObservation] {
+                // Process quality metrics
+                for observation in observations {
+                    if observation.quality < minQualityScore {
+                        return .invalid(message: "Image is too blurry or low quality. Please capture a clear, well-lit image.")
+                    }
+                }
             }
-            // Fall back to JPEG if PNG fails
-            return image.jpegData(compressionQuality: compressionQuality)
+            
+            return .valid
+        } catch {
+            // If Vision processing fails, still allow the image but log the error
+            print("Image quality analysis failed: \(error.localizedDescription)")
+            return .valid
         }
     }
     
-    /// Resize an image to fit within a maximum dimension while preserving aspect ratio
+    /// Resize an image to make it suitable for upload and analysis
     /// - Parameters:
-    ///   - image: The image to resize
-    ///   - maxDimension: The maximum width or height
-    /// - Returns: The resized image
-    func resizeImage(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+    ///   - image: The original image
+    ///   - maxDimension: The maximum dimension size
+    /// - Returns: A resized image
+    func resizeImageIfNeeded(_ image: UIImage, maxDimension: CGFloat = 1024) -> UIImage {
         let originalSize = image.size
-        var newSize = originalSize
         
-        // Calculate the new size while preserving aspect ratio
-        if originalSize.width > maxDimension || originalSize.height > maxDimension {
-            let widthRatio = maxDimension / originalSize.width
-            let heightRatio = maxDimension / originalSize.height
-            
-            // Use the smaller ratio to ensure both dimensions are within the limit
-            let ratio = min(widthRatio, heightRatio)
-            
-            newSize = CGSize(width: originalSize.width * ratio, height: originalSize.height * ratio)
-        }
-        
-        // No need to resize if the image is already smaller than the max dimension
-        if newSize == originalSize {
+        // If image is already smaller than max dimension, return it as is
+        if originalSize.width <= maxDimension && originalSize.height <= maxDimension {
             return image
         }
         
-        // Render the new image
-        let renderer = UIGraphicsImageRenderer(size: newSize)
-        return renderer.image { context in
-            image.draw(in: CGRect(origin: .zero, size: newSize))
-        }
+        // Calculate scaling factor to fit within the maximum dimension
+        let widthRatio = maxDimension / originalSize.width
+        let heightRatio = maxDimension / originalSize.height
+        let scaleFactor = min(widthRatio, heightRatio)
+        
+        let newSize = CGSize(
+            width: originalSize.width * scaleFactor,
+            height: originalSize.height * scaleFactor
+        )
+        
+        // Create a new resized image
+        UIGraphicsBeginImageContextWithOptions(newSize, false, image.scale)
+        image.draw(in: CGRect(origin: .zero, size: newSize))
+        let resizedImage = UIGraphicsGetImageFromCurrentImageContext() ?? image
+        UIGraphicsEndImageContext()
+        
+        return resizedImage
     }
     
-    /// Detect the MIME type of image data
-    /// - Parameter data: The image data
-    /// - Returns: The MIME type or nil if not a supported image format
-    func detectMimeType(from data: Data) -> String? {
-        var headerBytes = [UInt8](repeating: 0, count: 8)
-        data.copyBytes(to: &headerBytes, count: min(8, data.count))
+    /// Improve the quality of an image for analysis (contrast, brightness)
+    /// - Parameter image: The original image
+    /// - Returns: An enhanced image
+    func enhanceImageForAnalysis(_ image: UIImage) -> UIImage {
+        guard let cgImage = image.cgImage else { return image }
         
-        // Check for JPEG header (starts with FF D8 FF)
-        if headerBytes[0] == 0xFF && headerBytes[1] == 0xD8 && headerBytes[2] == 0xFF {
-            return "image/jpeg"
+        // Create Core Image context
+        let context = CIContext()
+        let ciImage = CIImage(cgImage: cgImage)
+        
+        // Apply enhancements: Auto Adjustments
+        let filter = CIFilter(name: "CIAutoEnhance")
+        filter?.setValue(ciImage, forKey: kCIInputImageKey)
+        
+        // Get the output image
+        guard let outputImage = filter?.outputImage,
+              let enhancedCGImage = context.createCGImage(outputImage, from: outputImage.extent) else {
+            return image
         }
         
-        // Check for PNG header (89 50 4E 47 0D 0A 1A 0A)
-        if headerBytes[0] == 0x89 && headerBytes[1] == 0x50 && headerBytes[2] == 0x4E && headerBytes[3] == 0x47 {
-            return "image/png"
-        }
-        
-        return nil
-    }
-    
-    /// Check if the data is a valid image format
-    /// - Parameter data: The data to check
-    /// - Returns: True if the data is a valid image format, false otherwise
-    func isValidImageFormat(_ data: Data) -> Bool {
-        guard let mimeType = detectMimeType(from: data) else {
-            return false
-        }
-        
-        return allowedMimeTypes.contains(mimeType)
-    }
-}
-
-/// Image format enum
-enum ImageFormat {
-    case jpeg
-    case png
-}
-
-/// Image validation error enum
-enum ImageValidationError: Error {
-    case invalidFormat
-    case tooLarge
-    case processingFailed
-    
-    var localizedDescription: String {
-        switch self {
-        case .invalidFormat:
-            return "Unsupported image format. Please use JPEG or PNG images."
-        case .tooLarge:
-            return "Image is too large. Maximum size is 5MB."
-        case .processingFailed:
-            return "Failed to process the image. Please try another image."
-        }
+        return UIImage(cgImage: enhancedCGImage, scale: image.scale, orientation: image.imageOrientation)
     }
 }

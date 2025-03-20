@@ -2,6 +2,11 @@ import SwiftUI
 
 @main
 struct SymptomSentryAIApp: App {
+    // MARK: - Environment & State
+    
+    /// Theme manager
+    @StateObject private var themeManager = ThemeManager.shared
+    
     // MARK: - App Lifecycle
     
     /// Init: Setup app when it's first loaded
@@ -21,6 +26,7 @@ struct SymptomSentryAIApp: App {
                 .onAppear {
                     // Perform any additional setup when the root view appears
                 }
+                .withAppTheme()
         }
     }
     
@@ -50,6 +56,15 @@ struct SymptomSentryAIApp: App {
                 defaults.set(false, forKey: "hasSeenAnalysisTutorial")
                 defaults.set(false, forKey: "hasSeenImageUploadTutorial")
                 defaults.set(false, forKey: "hasSeenTelemedicineTutorial")
+            }
+            
+            // Set theme for UI testing
+            if arguments.contains("THEME-LIGHT") {
+                ThemeManager.shared.setTheme(.light)
+            } else if arguments.contains("THEME-DARK") {
+                ThemeManager.shared.setTheme(.dark)
+            } else {
+                ThemeManager.shared.setTheme(.system)
             }
         }
     }

@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Setup other event listeners
     setupEventListeners();
+    
+    // Initialize theme based on system preference
+    initializeTheme();
 });
 
 // Setup navigation between app pages
@@ -92,6 +95,62 @@ function setupEventListeners() {
     // Handle window resize for responsive adjustments
     window.addEventListener('resize', () => {
         // Add any responsive layout adjustments here if needed
+    });
+}
+
+// Initialize theme based on system preference
+function initializeTheme() {
+    // Check if the user's system prefers dark mode
+    const prefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    
+    // Apply the theme based on system preference
+    if (prefersDarkMode) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+        console.log('Applied dark theme based on system preference');
+    } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        console.log('Applied light theme based on system preference');
+    }
+    
+    // Listen for changes in system preference
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        const newTheme = event.matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        console.log(`Theme switched to ${newTheme} based on system preference change`);
+    });
+    
+    // Add theme toggle to navbar
+    addThemeToggle();
+}
+
+// Add theme toggle button to navbar
+function addThemeToggle() {
+    const navbar = document.querySelector('.navbar-nav');
+    if (!navbar) return;
+    
+    // Create theme toggle button
+    const themeToggleItem = document.createElement('li');
+    themeToggleItem.className = 'nav-item theme-toggle-container';
+    
+    const themeToggle = document.createElement('a');
+    themeToggle.className = 'nav-link theme-toggle';
+    themeToggle.href = '#';
+    themeToggle.innerHTML = `
+        <i class="fas fa-moon theme-toggle-icon dark-icon"></i>
+        <i class="fas fa-sun theme-toggle-icon light-icon"></i>
+    `;
+    
+    themeToggleItem.appendChild(themeToggle);
+    navbar.appendChild(themeToggleItem);
+    
+    // Add event listener to toggle theme
+    themeToggle.addEventListener('click', (e) => {
+        e.preventDefault();
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+        
+        document.documentElement.setAttribute('data-theme', newTheme);
+        console.log(`Theme manually switched to ${newTheme}`);
     });
 }
 

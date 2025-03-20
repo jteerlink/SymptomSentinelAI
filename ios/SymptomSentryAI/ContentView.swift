@@ -6,6 +6,9 @@ struct ContentView: View {
     /// Tutorial service to manage onboarding state
     @ObservedObject private var tutorialService = TutorialService.shared
     
+    /// Theme manager
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
     /// Currently selected tab
     @State private var selectedTab = 0
     
@@ -78,6 +81,8 @@ struct ContentView: View {
                 }
             }
         }
+        // Apply the current theme
+        .withAppTheme()
     }
 }
 
@@ -87,6 +92,9 @@ struct ProfileView: View {
     
     /// Tutorial service
     @ObservedObject private var tutorialService = TutorialService.shared
+    
+    /// Theme manager
+    @ObservedObject private var themeManager = ThemeManager.shared
     
     // MARK: - Body
     
@@ -98,6 +106,10 @@ struct ProfileView: View {
                 
                 // Settings sections
                 SettingsSection(title: "App Settings") {
+                    SettingsRowView(title: "Theme", icon: themeIconName) {
+                        showThemePicker = true
+                    }
+                    
                     SettingsRowView(title: "Notifications", icon: "bell.fill") {
                         // Action
                     }
@@ -144,16 +156,93 @@ struct ProfileView: View {
         .sheet(isPresented: $showingTutorialsMenu) {
             TutorialsMenuView()
         }
+        .sheet(isPresented: $showThemePicker) {
+            ThemePickerView()
+        }
     }
     
     // MARK: - State
     
     @State private var showingTutorialsMenu = false
+    @State private var showThemePicker = false
     
     // MARK: - Methods
     
     private func showTutorialsMenu() {
         showingTutorialsMenu = true
+    }
+    
+    // MARK: - Computed Properties
+    
+    /// Get icon for current theme
+    private var themeIconName: String {
+        switch themeManager.currentTheme {
+        case .system: return "circle.lefthalf.filled"
+        case .light: return "sun.max.fill"
+        case .dark: return "moon.fill"
+        }
+    }
+}
+
+/// Theme picker view
+struct ThemePickerView: View {
+    // MARK: - Environment & State
+    
+    /// Theme manager
+    @ObservedObject private var themeManager = ThemeManager.shared
+    
+    /// Dismissal handling
+    @Environment(\.dismiss) var dismiss
+    
+    // MARK: - Body
+    
+    var body: some View {
+        NavigationView {
+            List {
+                ForEach(AppTheme.allCases, id: \.self) { theme in
+                    Button(action: {
+                        themeManager.setTheme(theme)
+                    }) {
+                        HStack {
+                            Image(systemName: theme.iconName)
+                                .frame(width: 30)
+                                .foregroundColor(themeColor(for: theme))
+                            
+                            Text(theme.displayName)
+                            
+                            Spacer()
+                            
+                            if themeManager.currentTheme == theme {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("theme\(theme.displayName)")
+                }
+            }
+            .listStyle(InsetGroupedListStyle())
+            .navigationTitle("Theme")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - Methods
+    
+    /// Get theme icon color
+    private func themeColor(for theme: AppTheme) -> Color {
+        switch theme {
+        case .light: return .yellow
+        case .dark: return .indigo
+        case .system: return .blue
+        }
     }
 }
 

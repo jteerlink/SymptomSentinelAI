@@ -267,7 +267,7 @@ def analyze_image(img_data, analysis_type):
         analysis_type (str): Type of analysis ('throat' or 'ear')
         
     Returns:
-        list: Top 3 conditions with names, confidence scores, and additional details
+        list: Top 2 conditions with names, confidence scores, and additional details
         
     Raises:
         ValueError: If analysis_type is not supported or image is invalid
@@ -285,8 +285,8 @@ def analyze_image(img_data, analysis_type):
     # Run inference
     predictions = model.predict(img_tensor)
     
-    # Get the top 3 conditions with confidence scores
-    top_indices = np.argsort(predictions[0])[::-1][:3]
+    # Get the top 2 conditions with confidence scores (changed from 3 to 2)
+    top_indices = np.argsort(predictions[0])[::-1][:2]
     confidence_scores = predictions[0][top_indices]
     
     # Get the condition definitions

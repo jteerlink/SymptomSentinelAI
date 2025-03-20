@@ -227,8 +227,9 @@ async function runInference(model, imageTensor, type) {
         // In a real app, this would run the actual model inference
         // For the demo, we'll return mock predictions based on the type
         
+        let conditions;
         if (type === 'throat') {
-            return [
+            conditions = [
                 {
                     id: 'strep_throat',
                     name: 'Strep Throat',
@@ -256,45 +257,10 @@ async function runInference(model, imageTensor, type) {
                         'Fever'
                     ],
                     isPotentiallySerious: false
-                },
-                {
-                    id: 'laryngitis',
-                    name: 'Laryngitis',
-                    confidence: 0.42,
-                    description: 'Inflammation of the voice box (larynx) that causes voice changes and sore throat.',
-                    symptoms: [
-                        'Hoarseness',
-                        'Weak voice or voice loss',
-                        'Tickling sensation in the throat',
-                        'Dry throat',
-                        'Raw throat'
-                    ],
-                    isPotentiallySerious: false
-                },
-                {
-                    id: 'pharyngitis',
-                    name: 'Pharyngitis',
-                    confidence: 0.36,
-                    description: 'Inflammation of the pharynx resulting in a sore throat.',
-                    symptoms: [
-                        'Sore throat',
-                        'Difficulty swallowing',
-                        'Fever',
-                        'Enlarged lymph nodes'
-                    ],
-                    isPotentiallySerious: false
-                },
-                {
-                    id: 'healthy',
-                    name: 'Healthy',
-                    confidence: 0.12,
-                    description: 'No significant abnormalities detected.',
-                    symptoms: [],
-                    isPotentiallySerious: false
                 }
             ];
         } else {
-            return [
+            conditions = [
                 {
                     id: 'otitis_media',
                     name: 'Otitis Media',
@@ -322,59 +288,12 @@ async function runInference(model, imageTensor, type) {
                         'Discharge from the ear'
                     ],
                     isPotentiallySerious: false
-                },
-                {
-                    id: 'otitis_externa',
-                    name: 'Otitis Externa',
-                    confidence: 0.43,
-                    description: 'Infection of the ear canal, often referred to as swimmer\'s ear.',
-                    symptoms: [
-                        'Ear pain',
-                        'Itchiness in ear',
-                        'Redness and swelling',
-                        'Drainage of clear fluid',
-                        'Difficulty hearing'
-                    ],
-                    isPotentiallySerious: false
-                },
-                {
-                    id: 'eustachian_tube_dysfunction',
-                    name: 'Eustachian Tube Dysfunction',
-                    confidence: 0.31,
-                    description: 'Blocked or dysfunctional eustachian tubes that connect the middle ear to the back of the throat.',
-                    symptoms: [
-                        'Ear fullness or pressure',
-                        'Ear pain',
-                        'Muffled hearing',
-                        'Ringing in the ears',
-                        'Dizziness'
-                    ],
-                    isPotentiallySerious: false
-                },
-                {
-                    id: 'perforated_eardrum',
-                    name: 'Perforated Eardrum',
-                    confidence: 0.22,
-                    description: 'A hole or tear in the thin tissue that separates your ear canal from your middle ear.',
-                    symptoms: [
-                        'Ear pain that may subside quickly',
-                        'Clear, pus-filled or bloody drainage from the ear',
-                        'Hearing loss',
-                        'Ringing in the ear (tinnitus)',
-                        'Spinning sensation (vertigo)'
-                    ],
-                    isPotentiallySerious: true
-                },
-                {
-                    id: 'healthy',
-                    name: 'Healthy',
-                    confidence: 0.15,
-                    description: 'No significant abnormalities detected.',
-                    symptoms: [],
-                    isPotentiallySerious: false
                 }
             ];
         }
+        
+        // Return only the top 2 conditions as requested
+        return conditions;
     } catch (error) {
         console.error('Error running inference:', error);
         throw error;

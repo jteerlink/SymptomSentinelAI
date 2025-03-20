@@ -124,7 +124,7 @@ def test_analyze_image_throat(mock_get_model, mock_model, sample_image_data):
     results = analyze_image(sample_image_data['bytes'], 'throat')
     
     # Check the results
-    assert len(results) == 3  # Top 3 conditions
+    assert len(results) == 2  # Top 2 conditions (changed from 3 to 2)
     assert results[0]['id'] == THROAT_CONDITIONS[0]['id']
     assert results[0]['name'] == THROAT_CONDITIONS[0]['name']
     assert 'confidence' in results[0]
@@ -142,7 +142,7 @@ def test_analyze_image_ear(mock_get_model, mock_model, sample_image_data):
     results = analyze_image(sample_image_data['bytes'], 'ear')
     
     # Check the results
-    assert len(results) == 3  # Top 3 conditions
+    assert len(results) == 2  # Top 2 conditions (changed from 3 to 2)
     assert results[0]['id'] == EAR_CONDITIONS[0]['id']
     assert results[0]['name'] == EAR_CONDITIONS[0]['name']
     assert 'confidence' in results[0]

@@ -240,16 +240,65 @@ function setupUploadEventListeners(container) {
         dropArea.style.display = 'block';
     }
     
-    // Show loading state during analysis
+    // Show loading state during analysis with a health-themed animation
     function showAnalysisLoading() {
         analyzeButton.disabled = true;
-        analyzeButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Analyzing...';
+        
+        // Create a custom loading overlay
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.className = 'analysis-loading-overlay';
+        loadingOverlay.innerHTML = `
+            <div class="analysis-loading-content">
+                <div class="heartbeat-loader"></div>
+                <div class="analysis-loading-text">
+                    <span class="analyzing-text">Analyzing</span>
+                    <span class="dot-animation">.</span>
+                    <span class="dot-animation">.</span>
+                    <span class="dot-animation">.</span>
+                </div>
+                <div class="analysis-steps slide-transition">
+                    <span class="badge bg-primary processing-step">Processing Image</span>
+                    <span class="badge bg-info detection-step">Detecting Patterns</span>
+                    <span class="badge bg-success diagnosis-step">Generating Results</span>
+                </div>
+            </div>
+        `;
+        
+        // Add the overlay to the container
+        container.appendChild(loadingOverlay);
+        
+        // Show the animation stages with a staggered effect
+        setTimeout(() => {
+            const steps = loadingOverlay.querySelectorAll('.slide-transition');
+            steps.forEach(step => step.classList.add('show'));
+            
+            // Animate the steps sequentially
+            const badges = loadingOverlay.querySelectorAll('.badge');
+            badges.forEach((badge, index) => {
+                setTimeout(() => {
+                    badge.classList.add('active');
+                }, index * 1200);
+            });
+        }, 300);
     }
     
     // Hide loading state after analysis
     function hideAnalysisLoading() {
         analyzeButton.disabled = false;
         analyzeButton.innerHTML = '<i class="fas fa-microscope"></i> Analyze Image';
+        
+        // Remove the loading overlay with a fade-out effect
+        const loadingOverlay = container.querySelector('.analysis-loading-overlay');
+        if (loadingOverlay) {
+            loadingOverlay.style.opacity = '0';
+            
+            // Remove from DOM after animation completes
+            setTimeout(() => {
+                if (loadingOverlay.parentNode) {
+                    loadingOverlay.parentNode.removeChild(loadingOverlay);
+                }
+            }, 500);
+        }
     }
     
     // Show error message if analysis fails

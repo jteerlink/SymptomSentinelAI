@@ -9,6 +9,7 @@
     
     /* Light Theme Colors */
     --light-bg-color: #f8f9fc;
+    --light-bg-color-rgb: 248, 249, 252;
     --light-text-color: #5a5c69;
     --light-card-bg: #ffffff;
     --light-border-color: #e3e6f0;
@@ -20,6 +21,7 @@
     
     /* Dark Theme Colors */
     --dark-bg-color: #1e1e2f;
+    --dark-bg-color-rgb: 30, 30, 47;
     --dark-text-color: #e4e6eb;
     --dark-card-bg: #252542;
     --dark-border-color: #373751;
@@ -31,6 +33,7 @@
     
     /* Default theme (light) */
     --bg-color: var(--light-bg-color);
+    --bg-color-rgb: var(--light-bg-color-rgb);
     --text-color: var(--light-text-color);
     --card-bg: var(--light-card-bg);
     --border-color: var(--light-border-color);
@@ -46,6 +49,7 @@
 /* Dark Theme */
 [data-theme="dark"] {
     --bg-color: var(--dark-bg-color);
+    --bg-color-rgb: var(--dark-bg-color-rgb);
     --text-color: var(--dark-text-color);
     --card-bg: var(--dark-card-bg);
     --border-color: var(--dark-border-color);
@@ -244,6 +248,105 @@ main {
 .loading-spinner {
     text-align: center;
     padding: 20px;
+}
+
+/* Analysis Loading Animation */
+.analysis-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(var(--bg-color-rgb, 248, 249, 252), 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.5s ease;
+}
+
+.analysis-loading-content {
+    text-align: center;
+    padding: 30px;
+    border-radius: 10px;
+    background-color: var(--card-bg);
+    box-shadow: 0 4px 20px var(--shadow-color);
+    max-width: 400px;
+}
+
+.heartbeat-loader {
+    width: 60px;
+    height: 60px;
+    margin: 0 auto 20px;
+    background-color: transparent;
+    border-radius: 50%;
+    position: relative;
+    animation: heartbeat 1.2s ease infinite;
+}
+
+.heartbeat-loader:before, 
+.heartbeat-loader:after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 15px;
+    width: 30px;
+    height: 50px;
+    background-color: var(--danger-color);
+    border-radius: 30px 30px 0 0;
+    transform: rotate(-45deg);
+    transform-origin: 0 100%;
+}
+
+.heartbeat-loader:after {
+    left: 0;
+    transform: rotate(45deg);
+    transform-origin: 100% 100%;
+}
+
+.analysis-loading-text {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+}
+
+.dot-animation {
+    opacity: 0;
+    animation: dotPulse 1.4s infinite;
+}
+
+.dot-animation:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.dot-animation:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+.analysis-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.processing-step, .detection-step, .diagnosis-step {
+    opacity: 0.5;
+    transition: all 0.4s ease;
+    padding: 8px 12px;
+    transform: scale(0.95);
+}
+
+.processing-step.active, .detection-step.active, .diagnosis-step.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+@keyframes dotPulse {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 /* Education Page */

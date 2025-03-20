@@ -15,7 +15,7 @@ function renderUploadUI(container) {
         <div class="upload-container">
             <div class="upload-instructions mb-4">
                 <h4>Upload an Image for Analysis</h4>
-                <p>Take or upload a clear image of your throat or ear for AI analysis.</p>
+                <p>Select the area you want to analyze, then take or upload a clear image for AI analysis.</p>
                 
                 <div class="alert alert-info">
                     <strong>For best results:</strong>
@@ -27,40 +27,58 @@ function renderUploadUI(container) {
                 </div>
             </div>
             
-            <div class="tab-container mb-4">
-                <ul class="nav nav-tabs" id="uploadTabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="throat-tab" data-bs-toggle="tab" data-bs-target="#throat-content" type="button" role="tab">
-                            <i class="fas fa-head-side-cough"></i> Throat
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="ear-tab" data-bs-toggle="tab" data-bs-target="#ear-content" type="button" role="tab">
-                            <i class="fas fa-deaf"></i> Ear
-                        </button>
-                    </li>
-                </ul>
-                
-                <div class="tab-content p-3 border border-top-0 rounded-bottom" id="uploadTabsContent">
-                    <div class="tab-pane fade show active" id="throat-content" role="tabpanel">
+            <div class="scan-type-selection mb-4">
+                <h5 class="text-center mb-4">Select what you want to scan:</h5>
+                <div class="scan-options">
+                    <div class="scan-option-card" id="throat-option">
+                        <div class="scan-option-icon">
+                            <i class="fas fa-head-side-cough fa-3x"></i>
+                        </div>
+                        <h5 class="scan-option-label">Throat</h5>
+                        <p class="scan-option-description">Analyze throat conditions including strep throat, tonsillitis, or pharyngitis</p>
+                    </div>
+                    <div class="scan-option-card" id="ear-option">
+                        <div class="scan-option-icon">
+                            <i class="fas fa-deaf fa-3x"></i>
+                        </div>
+                        <h5 class="scan-option-label">Ear</h5>
+                        <p class="scan-option-description">Analyze ear canal conditions including ear infections, earwax buildup, or external otitis</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="analysis-type-info" style="display: none;" class="mb-4">
+                <div id="throat-instructions" style="display: none;">
+                    <div class="alert alert-primary">
+                        <h5><i class="fas fa-head-side-cough"></i> Throat Scan Selected</h5>
                         <p>Upload a clear image of your throat area for analysis. Position the camera to show the back of your throat.</p>
                     </div>
-                    <div class="tab-pane fade" id="ear-content" role="tabpanel">
+                </div>
+                <div id="ear-instructions" style="display: none;">
+                    <div class="alert alert-primary">
+                        <h5><i class="fas fa-deaf"></i> Ear Scan Selected</h5>
                         <p>Upload a clear image of your ear canal for analysis. Gently pull your ear up and back to better expose the ear canal.</p>
                     </div>
                 </div>
             </div>
             
-            <div class="drop-area" id="dropArea">
+            <div class="drop-area" id="dropArea" style="display: none;">
                 <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
                 <p>Drag and drop an image here, or click to browse</p>
                 <input type="file" class="file-input" id="fileInput" accept="image/*">
-                <button class="btn btn-primary mt-3" id="browseButton">
-                    <i class="fas fa-folder-open"></i> Browse Files
-                </button>
-                <button class="btn btn-secondary mt-3 ms-2" id="cameraButton">
-                    <i class="fas fa-camera"></i> Take Photo
-                </button>
+                <div class="mt-3">
+                    <button class="btn btn-primary" id="browseButton">
+                        <i class="fas fa-folder-open"></i> Browse Files
+                    </button>
+                    <button class="btn btn-secondary ms-2" id="cameraButton">
+                        <i class="fas fa-camera"></i> Take Photo
+                    </button>
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-outline-secondary btn-sm" id="backToOptionsButton">
+                        <i class="fas fa-arrow-left"></i> Back to Scan Options
+                    </button>
+                </div>
             </div>
             
             <div class="preview-container mt-4" style="display: none;" id="previewContainer">
@@ -89,6 +107,82 @@ function setupUploadEventListeners(container) {
     const previewImage = container.querySelector('#previewImage');
     const removeButton = container.querySelector('#removeButton');
     const analyzeButton = container.querySelector('#analyzeButton');
+    
+    // Get scan option elements
+    const throatOption = container.querySelector('#throat-option');
+    const earOption = container.querySelector('#ear-option');
+    const analysisTypeInfo = container.querySelector('#analysis-type-info');
+    const throatInstructions = container.querySelector('#throat-instructions');
+    const earInstructions = container.querySelector('#ear-instructions');
+    
+    // Track selected analysis type
+    let selectedAnalysisType = null;
+    
+    // Add click event listeners to scan options
+    throatOption.addEventListener('click', () => {
+        selectAnalysisType('throat');
+    });
+    
+    earOption.addEventListener('click', () => {
+        selectAnalysisType('ear');
+    });
+    
+    // Get the back to options button
+    const backToOptionsButton = container.querySelector('#backToOptionsButton');
+    
+    // Add event listener for the back button
+    backToOptionsButton.addEventListener('click', () => {
+        // Reset the analysis type
+        selectedAnalysisType = null;
+        
+        // Hide the instructions and drop area
+        analysisTypeInfo.classList.remove('show');
+        dropArea.classList.remove('show');
+        
+        // Use setTimeout to wait for animations to complete
+        setTimeout(() => {
+            analysisTypeInfo.style.display = 'none';
+            dropArea.style.display = 'none';
+            
+            // Reset the selection UI
+            throatOption.classList.remove('selected');
+            earOption.classList.remove('selected');
+            
+            // Reset instructions
+            throatInstructions.style.display = 'none';
+            earInstructions.style.display = 'none';
+        }, 300);
+    });
+    
+    // Function to handle scan type selection
+    function selectAnalysisType(type) {
+        // Update selected type
+        selectedAnalysisType = type;
+        
+        // Update UI to show selection
+        throatOption.classList.remove('selected');
+        earOption.classList.remove('selected');
+        
+        if (type === 'throat') {
+            throatOption.classList.add('selected');
+            throatInstructions.style.display = 'block';
+            earInstructions.style.display = 'none';
+        } else {
+            earOption.classList.add('selected');
+            throatInstructions.style.display = 'none';
+            earInstructions.style.display = 'block';
+        }
+        
+        // Show instructions and drop area
+        analysisTypeInfo.style.display = 'block';
+        dropArea.style.display = 'block';
+        
+        // Add animation for smooth transition
+        setTimeout(() => {
+            analysisTypeInfo.classList.add('show');
+            dropArea.classList.add('show');
+        }, 10);
+    }
     
     // Handle drag and drop events
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -156,11 +250,6 @@ function setupUploadEventListeners(container) {
         // Get base64 representation (data URL) of the image
         const imageData = canvas.toDataURL('image/jpeg');
         
-        // Get the type of analysis (throat or ear) from the active tab
-        const analysisType = document.querySelector('#throat-tab').classList.contains('active') 
-            ? 'throat' 
-            : 'ear';
-        
         // Show loading state
         showAnalysisLoading();
         
@@ -180,7 +269,7 @@ function setupUploadEventListeners(container) {
                 },
                 body: JSON.stringify({
                     image: imageData,
-                    type: analysisType
+                    type: selectedAnalysisType
                 }),
             });
             
@@ -237,7 +326,21 @@ function setupUploadEventListeners(container) {
         fileInput.value = '';
         previewImage.src = '';
         previewContainer.style.display = 'none';
-        dropArea.style.display = 'block';
+
+        // If we're already in an analysis session, just show the drop area again
+        if (selectedAnalysisType) {
+            dropArea.style.display = 'block';
+        } else {
+            // Reset the entire selection if no analysis type is selected
+            analysisTypeInfo.style.display = 'none';
+            throatInstructions.style.display = 'none';
+            earInstructions.style.display = 'none';
+            dropArea.style.display = 'none';
+            
+            // Reset the selection UI
+            throatOption.classList.remove('selected');
+            earOption.classList.remove('selected');
+        }
     }
     
     // Show loading state during analysis with a healthcare animation

@@ -126,6 +126,91 @@ main {
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
 }
 
+/* Scan Type Selection Styles */
+.scan-options {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+}
+
+.scan-option-card {
+    background-color: var(--input-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 25px;
+    width: 280px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 6px var(--shadow-color);
+}
+
+.scan-option-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--primary-color);
+    box-shadow: 0 6px 12px var(--shadow-color);
+}
+
+.scan-option-card.selected {
+    border-color: var(--primary-color);
+    background-color: var(--highlight-bg);
+    box-shadow: 0 6px 12px rgba(78, 115, 223, 0.2);
+}
+
+.scan-option-icon {
+    color: var(--primary-color);
+    margin-bottom: 15px;
+    transition: transform 0.3s ease;
+}
+
+.scan-option-card:hover .scan-option-icon {
+    transform: scale(1.1);
+}
+
+.scan-option-label {
+    font-weight: bold;
+    color: var(--text-color);
+    margin-bottom: 10px;
+}
+
+.scan-option-description {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    opacity: 0.9;
+}
+
+.scan-option-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--primary-color);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.scan-option-card:hover::after,
+.scan-option-card.selected::after {
+    transform: scaleX(1);
+}
+
+#analysis-type-info {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#analysis-type-info.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 .drop-area {
     border: 2px dashed var(--border-color);
     border-radius: 10px;
@@ -136,6 +221,13 @@ main {
     background-color: var(--input-bg);
     color: var(--text-color);
     transition: all 0.3s ease;
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.drop-area.show {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .drop-area.highlight {

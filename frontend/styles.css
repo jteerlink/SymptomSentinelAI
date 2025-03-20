@@ -1,63 +1,25 @@
 /* General Styles */
 :root {
-    /* Common Colors */
+    /* Colors */
     --primary-color: #4e73df;
     --secondary-color: #1cc88a;
     --danger-color: #e74a3b;
     --warning-color: #f6c23e;
     --info-color: #36b9cc;
     
-    /* Light Theme Colors */
-    --light-bg-color: #f8f9fc;
-    --light-bg-color-rgb: 248, 249, 252;
-    --light-text-color: #5a5c69;
-    --light-card-bg: #ffffff;
-    --light-border-color: #e3e6f0;
-    --light-shadow-color: rgba(0, 0, 0, 0.1);
-    --light-input-bg: #ffffff;
-    --light-input-border: #d1d3e2;
-    --light-navbar-bg: #ffffff;
-    --light-highlight-bg: rgba(78, 115, 223, 0.1);
-    
-    /* Dark Theme Colors */
-    --dark-bg-color: #1e1e2f;
-    --dark-bg-color-rgb: 30, 30, 47;
-    --dark-text-color: #e4e6eb;
-    --dark-card-bg: #252542;
-    --dark-border-color: #373751;
-    --dark-shadow-color: rgba(0, 0, 0, 0.3);
-    --dark-input-bg: #2a2a45;
-    --dark-input-border: #373751;
-    --dark-navbar-bg: #252542;
-    --dark-highlight-bg: rgba(78, 115, 223, 0.2);
-    
-    /* Default theme (light) */
-    --bg-color: var(--light-bg-color);
-    --bg-color-rgb: var(--light-bg-color-rgb);
-    --text-color: var(--light-text-color);
-    --card-bg: var(--light-card-bg);
-    --border-color: var(--light-border-color);
-    --shadow-color: var(--light-shadow-color);
-    --input-bg: var(--light-input-bg);
-    --input-border: var(--light-input-border);
-    --navbar-bg: var(--light-navbar-bg);
-    --highlight-bg: var(--light-highlight-bg);
+    /* Default theme */
+    --bg-color: #f8f9fc;
+    --bg-color-rgb: 248, 249, 252;
+    --text-color: #5a5c69;
+    --card-bg: #ffffff;
+    --border-color: #e3e6f0;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --input-bg: #ffffff;
+    --input-border: #d1d3e2;
+    --navbar-bg: #ffffff;
+    --highlight-bg: rgba(78, 115, 223, 0.1);
     
     --bg-gradient: linear-gradient(to right, #4e73df, #36b9cc);
-}
-
-/* Dark Theme */
-[data-theme="dark"] {
-    --bg-color: var(--dark-bg-color);
-    --bg-color-rgb: var(--dark-bg-color-rgb);
-    --text-color: var(--dark-text-color);
-    --card-bg: var(--dark-card-bg);
-    --border-color: var(--dark-border-color);
-    --shadow-color: var(--dark-shadow-color);
-    --input-bg: var(--dark-input-bg);
-    --input-border: var(--dark-input-border);
-    --navbar-bg: var(--dark-navbar-bg);
-    --highlight-bg: var(--dark-highlight-bg);
 }
 
 body {
@@ -67,20 +29,6 @@ body {
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-/* Theme Toggle */
-.theme-toggle {
-    display: inline-flex;
-    align-items: center;
-    margin-left: 15px;
-    cursor: pointer;
-}
-
-.theme-toggle-icon {
-    font-size: 1.2rem;
-    margin-right: 5px;
 }
 
 .app-container {
@@ -521,21 +469,7 @@ main {
     transition: opacity 0.4s ease-out, transform 0.4s ease-out;
 }
 
-.condition-card {
-    margin-bottom: 15px;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px var(--shadow-color);
-    border-left: 4px solid var(--primary-color);
-    background-color: var(--card-bg);
-    color: var(--text-color);
-    transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
-}
 
-.condition-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 8px var(--shadow-color);
-}
 
 .high-confidence {
     border-left-color: #dc3545;

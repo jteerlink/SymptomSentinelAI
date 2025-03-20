@@ -1,0 +1,15 @@
+import SwiftUI
+
+// This file is kept as a placeholder to avoid compilation errors.
+// The theme functionality has been removed as per user request.
+
+/// Simplified theme manager (non-functional)
+class ThemeManager: ObservableObject {
+    // Singleton instance
+    static let shared = ThemeManager()
+    
+    // Private initializer for singleton
+    private init() {
+        // Theme functionality has been removed
+    }
+}

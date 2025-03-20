@@ -218,9 +218,48 @@ function showArticleModal(article, container) {
         </div>
     `;
     
-    // Show the modal
-    const modalInstance = new bootstrap.Modal(modal);
-    modalInstance.show();
+    // Show the modal safely
+    try {
+        // Check if bootstrap is available globally
+        if (typeof bootstrap !== 'undefined') {
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+        } else {
+            // Fallback using jQuery if available
+            if (typeof $ !== 'undefined') {
+                $(modal).modal('show');
+            } else {
+                // Manual fallback - add 'show' class and display modal
+                modal.classList.add('show');
+                modal.style.display = 'block';
+                document.body.classList.add('modal-open');
+                
+                // Create backdrop manually if it doesn't exist
+                let backdrop = document.querySelector('.modal-backdrop');
+                if (!backdrop) {
+                    backdrop = document.createElement('div');
+                    backdrop.className = 'modal-backdrop fade show';
+                    document.body.appendChild(backdrop);
+                }
+                
+                // Add click listener to close button
+                const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"]');
+                closeButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        modal.classList.remove('show');
+                        modal.style.display = 'none';
+                        document.body.classList.remove('modal-open');
+                        if (backdrop && backdrop.parentNode) {
+                            backdrop.parentNode.removeChild(backdrop);
+                        }
+                    });
+                });
+            }
+        }
+    } catch (error) {
+        console.error('Error showing modal:', error);
+        alert(`Article: ${article.title} - Please see the full education section for details.`);
+    }
 }
 
 function filterArticles(category, container) {

@@ -240,7 +240,7 @@ function setupUploadEventListeners(container) {
         dropArea.style.display = 'block';
     }
     
-    // Show loading state during analysis with a health-themed animation
+    // Show loading state during analysis with a healthcare animation
     function showAnalysisLoading() {
         analyzeButton.disabled = true;
         

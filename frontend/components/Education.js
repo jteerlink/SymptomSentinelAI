@@ -49,24 +49,6 @@ function renderEducationUI(container) {
                     </div>
                 </div>
             </div>
-            
-            <!-- Article Modal -->
-            <div class="modal fade" id="articleModal" tabindex="-1" aria-labelledby="articleModalLabel" aria-hidden="true">
-                <div class="modal-dialog modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="articleModalLabel">Article Title</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body" id="articleModalBody">
-                            <!-- Article content will be loaded here -->
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     `;
     
@@ -180,86 +162,72 @@ function renderArticles(articles, container) {
 }
 
 function showArticleModal(article, container) {
-    // Get the modal elements
-    const modal = container.querySelector('#articleModal');
-    const modalTitle = container.querySelector('#articleModalLabel');
-    const modalBody = container.querySelector('#articleModalBody');
+    // Instead of using a modal which requires Bootstrap JS, create an inline expandable view
+    // Get the article container
+    const articleContainer = container.querySelector('#articleContainer');
+    if (!articleContainer) return;
     
-    if (!modal || !modalTitle || !modalBody) return;
+    // Check if we already have an expanded article view
+    let expandedView = container.querySelector('.expanded-article-view');
+    if (expandedView) {
+        // Remove existing expanded view before showing new one
+        expandedView.remove();
+    }
     
-    // Set the modal content
-    modalTitle.textContent = article.title;
-    
-    // Create the article content
-    modalBody.innerHTML = `
-        <div class="article-header mb-3">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <span class="badge bg-primary">${article.category === 'throat' ? 'Throat' : 'Ear'}</span>
-                    ${article.tags.map(tag => `<span class="badge bg-secondary ms-1">${tag}</span>`).join('')}
-                </div>
-                <div class="text-muted small">Last updated: ${article.updatedAt}</div>
+    // Create expanded article view
+    expandedView = document.createElement('div');
+    expandedView.className = 'expanded-article-view col-12 mb-4';
+    expandedView.innerHTML = `
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4>${article.title}</h4>
+                <button type="button" class="btn-close close-article" aria-label="Close"></button>
             </div>
-        </div>
-        
-        <div class="article-content">
-            ${article.content}
-        </div>
-        
-        <div class="article-footer mt-4 pt-3 border-top">
-            <h5>Related Conditions</h5>
-            <ul>
-                ${article.relatedConditions.map(condition => `
-                    <li>
-                        <strong>${condition.name}</strong>: ${condition.description}
-                    </li>
-                `).join('')}
-            </ul>
+            <div class="card-body">
+                <div class="article-header mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="badge bg-primary">${article.category === 'throat' ? 'Throat' : 'Ear'}</span>
+                            ${article.tags.map(tag => `<span class="badge bg-secondary ms-1">${tag}</span>`).join('')}
+                        </div>
+                        <div class="text-muted small">Last updated: ${article.updatedAt}</div>
+                    </div>
+                </div>
+                
+                <div class="article-content">
+                    ${article.content}
+                </div>
+                
+                <div class="article-footer mt-4 pt-3 border-top">
+                    <h5>Related Conditions</h5>
+                    <ul>
+                        ${article.relatedConditions.map(condition => `
+                            <li>
+                                <strong>${condition.name}</strong>: ${condition.description}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-secondary close-article">Close</button>
+            </div>
         </div>
     `;
     
-    // Show the modal safely
-    try {
-        // Check if bootstrap is available globally
-        if (typeof bootstrap !== 'undefined') {
-            const modalInstance = new bootstrap.Modal(modal);
-            modalInstance.show();
-        } else {
-            // Fallback using jQuery if available
-            if (typeof $ !== 'undefined') {
-                $(modal).modal('show');
-            } else {
-                // Manual fallback - add 'show' class and display modal
-                modal.classList.add('show');
-                modal.style.display = 'block';
-                document.body.classList.add('modal-open');
-                
-                // Create backdrop manually if it doesn't exist
-                let backdrop = document.querySelector('.modal-backdrop');
-                if (!backdrop) {
-                    backdrop = document.createElement('div');
-                    backdrop.className = 'modal-backdrop fade show';
-                    document.body.appendChild(backdrop);
-                }
-                
-                // Add click listener to close button
-                const closeButtons = modal.querySelectorAll('[data-bs-dismiss="modal"]');
-                closeButtons.forEach(button => {
-                    button.addEventListener('click', () => {
-                        modal.classList.remove('show');
-                        modal.style.display = 'none';
-                        document.body.classList.remove('modal-open');
-                        if (backdrop && backdrop.parentNode) {
-                            backdrop.parentNode.removeChild(backdrop);
-                        }
-                    });
-                });
-            }
-        }
-    } catch (error) {
-        console.error('Error showing modal:', error);
-        alert(`Article: ${article.title} - Please see the full education section for details.`);
-    }
+    // Insert at the beginning of the article container
+    articleContainer.insertBefore(expandedView, articleContainer.firstChild);
+    
+    // Add smooth scroll to the expanded view
+    expandedView.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Add event listeners to close buttons
+    const closeButtons = expandedView.querySelectorAll('.close-article');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            expandedView.remove();
+        });
+    });
 }
 
 function filterArticles(category, container) {

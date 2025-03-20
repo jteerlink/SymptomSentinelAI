@@ -12,8 +12,10 @@ struct AnalysisResultsView: View {
     /// State for showing condition details
     @State private var selectedCondition: AnalysisCondition?
     
-    /// Animation state
+    /// Animation states
     @State private var animateResults = false
+    @State private var pulseHighConfidence = false
+    @State private var showHeartbeatEffect = false
     
     // MARK: - Body
     
@@ -54,9 +56,19 @@ struct AnalysisResultsView: View {
             }
         }
         .onAppear {
-            // Animate the results appearing
+            // Sequence of animations for a more engaging experience
             withAnimation(.easeOut(duration: 0.5)) {
                 animateResults = true
+            }
+            
+            // Start pulsing animation for high confidence results after a slight delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                pulseHighConfidence = true
+            }
+            
+            // Start heartbeat effect for serious conditions after a slight delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                showHeartbeatEffect = true
             }
         }
         .sheet(item: $selectedCondition) { condition in
@@ -108,12 +120,20 @@ struct AnalysisResultsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Analysis Results")
                 .font(.headline)
+                .transition(AnimationUtility.Transition.slide)
             
             HStack {
                 HStack {
+                    // Pulsing indicator for high confidence results
                     Circle()
                         .fill(analysis.conditions.first?.confidence ?? 0 >= 0.7 ? Color.red : Color.green)
                         .frame(width: 12, height: 12)
+                        .scaleEffect(pulseHighConfidence && (analysis.conditions.first?.confidence ?? 0) >= 0.7 ? 1.3 : 1.0)
+                        .animation(
+                            Animation.easeInOut(duration: 0.6)
+                                .repeatForever(autoreverses: true),
+                            value: pulseHighConfidence
+                        )
                     
                     Text("Result:")
                         .font(.subheadline)
@@ -125,16 +145,25 @@ struct AnalysisResultsView: View {
                          "High likelihood of \(topCondition.name)" : 
                          "Possible indications detected")
                         .font(.subheadline)
+                        .transition(.opacity)
+                        .id("result-\(topCondition.name)")
                 } else {
                     Text("No conditions detected")
                         .font(.subheadline)
                 }
             }
+            .transition(AnimationUtility.Transition.scale)
             
             if let topCondition = analysis.conditions.first, topCondition.isPotentiallySerious && topCondition.confidence >= 0.7 {
                 HStack(spacing: 4) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .foregroundColor(.red)
+                        .scaleEffect(showHeartbeatEffect ? 1.2 : 1.0)
+                        .animation(
+                            Animation.easeInOut(duration: 0.4)
+                                .repeatForever(autoreverses: true),
+                            value: showHeartbeatEffect
+                        )
                     
                     Text("This may require medical attention")
                         .font(.subheadline)
@@ -145,6 +174,8 @@ struct AnalysisResultsView: View {
                 .background(Color.red.opacity(0.1))
                 .cornerRadius(8)
                 .padding(.top, 8)
+                .transition(AnimationUtility.Transition.scale)
+                .modifier(BreathingEffect())
             }
         }
     }
@@ -153,14 +184,27 @@ struct AnalysisResultsView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Potential Conditions")
                 .font(.headline)
+                .transition(AnimationUtility.Transition.slide)
             
-            ForEach(analysis.conditions) { condition in
+            // Staggered animation for condition cards
+            ForEach(Array(analysis.conditions.enumerated()), id: \.element.id) { index, condition in
                 Button(action: {
-                    selectedCondition = condition
+                    withAnimation(AnimationUtility.Curve.spring) {
+                        selectedCondition = condition
+                    }
                 }) {
                     ConditionRowView(condition: condition)
+                        .opacity(animateResults ? 1 : 0)
+                        .offset(x: animateResults ? 0 : 20)
+                        // Stagger the animation of each condition card
+                        .animation(
+                            .easeOut(duration: 0.5)
+                                .delay(Double(index) * 0.15 + 0.3),
+                            value: animateResults
+                        )
                 }
                 .buttonStyle(PlainButtonStyle())
+                .transition(AnimationUtility.Transition.scale)
             }
             
             if analysis.conditions.isEmpty {
@@ -168,6 +212,8 @@ struct AnalysisResultsView: View {
                     .font(.body)
                     .foregroundColor(.secondary)
                     .padding(.vertical, 10)
+                    .opacity(animateResults ? 1 : 0)
+                    .animation(.easeOut(duration: 0.5).delay(0.3), value: animateResults)
             }
         }
     }
@@ -179,6 +225,8 @@ struct AnalysisResultsView: View {
             }) {
                 HStack {
                     Image(systemName: "book.fill")
+                        .imageScale(.large)
+                        .symbolEffect(.pulse, options: .repeating, value: animateResults)
                     Text("Learn About This Condition")
                 }
                 .frame(maxWidth: .infinity)
@@ -188,12 +236,28 @@ struct AnalysisResultsView: View {
                 .cornerRadius(10)
             }
             .disabled(analysis.conditions.isEmpty)
+            .opacity(animateResults ? 1 : 0)
+            .offset(y: animateResults ? 0 : 20)
+            .animation(.easeOut(duration: 0.5).delay(0.7), value: animateResults)
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.blue.opacity(0.7), lineWidth: 2)
+                    .scaleEffect(pulseHighConfidence ? 1.05 : 1)
+                    .opacity(pulseHighConfidence ? 0.6 : 0)
+                    .animation(
+                        Animation.easeInOut(duration: 1.5)
+                            .repeatForever(autoreverses: true),
+                        value: pulseHighConfidence
+                    )
+            )
             
             Button(action: {
                 // This would connect the user to telemedicine
             }) {
                 HStack {
                     Image(systemName: "video.fill")
+                        .imageScale(.large)
+                        .symbolEffect(.bounce.up, options: .repeating, value: showHeartbeatEffect)
                     Text("Connect With Doctor")
                 }
                 .frame(maxWidth: .infinity)
@@ -202,6 +266,10 @@ struct AnalysisResultsView: View {
                 .foregroundColor(.white)
                 .cornerRadius(10)
             }
+            .opacity(animateResults ? 1 : 0)
+            .offset(y: animateResults ? 0 : 20)
+            .animation(.easeOut(duration: 0.5).delay(0.9), value: animateResults)
+            .shadow(color: Color.green.opacity(0.3), radius: 5, x: 0, y: 2)
         }
     }
 }
@@ -265,6 +333,10 @@ struct ConditionDetailView: View {
     let condition: AnalysisCondition
     @Environment(\.presentationMode) var presentationMode
     
+    // Animation states
+    @State private var animateContent = false
+    @State private var showHeartbeatEffect = false
+    
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
@@ -273,6 +345,9 @@ struct ConditionDetailView: View {
                     Text(condition.name)
                         .font(.largeTitle)
                         .bold()
+                        .opacity(animateContent ? 1 : 0)
+                        .offset(y: animateContent ? 0 : 10)
+                        .animation(.easeOut(duration: 0.4), value: animateContent)
                     
                     HStack {
                         Text("Confidence: \(condition.confidencePercentage)")
@@ -280,11 +355,19 @@ struct ConditionDetailView: View {
                             .padding(.vertical, 5)
                             .background(Color(condition.confidenceBadgeColor).opacity(0.2))
                             .cornerRadius(8)
+                            .opacity(animateContent ? 1 : 0)
+                            .animation(.easeOut(duration: 0.4).delay(0.1), value: animateContent)
                         
                         if condition.isPotentiallySerious {
                             HStack(spacing: 4) {
                                 Image(systemName: "exclamationmark.triangle.fill")
                                     .foregroundColor(.red)
+                                    .scaleEffect(showHeartbeatEffect ? 1.2 : 1.0)
+                                    .animation(
+                                        Animation.easeInOut(duration: 0.4)
+                                            .repeatForever(autoreverses: true),
+                                        value: showHeartbeatEffect
+                                    )
                                 
                                 Text("Potentially Serious")
                             }
@@ -292,29 +375,42 @@ struct ConditionDetailView: View {
                             .padding(.vertical, 5)
                             .background(Color.red.opacity(0.1))
                             .cornerRadius(8)
+                            .transition(AnimationUtility.Transition.scale)
+                            .opacity(animateContent ? 1 : 0)
+                            .animation(.easeOut(duration: 0.4).delay(0.2), value: animateContent)
                         }
                     }
                 }
                 
                 Divider()
+                    .opacity(animateContent ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4).delay(0.3), value: animateContent)
                 
                 // Description
                 VStack(alignment: .leading, spacing: 8) {
                     Text("About this Condition")
                         .font(.headline)
+                        .opacity(animateContent ? 1 : 0)
+                        .animation(.easeOut(duration: 0.4).delay(0.4), value: animateContent)
                     
                     Text(condition.description)
                         .font(.body)
+                        .opacity(animateContent ? 1 : 0)
+                        .animation(.easeOut(duration: 0.4).delay(0.5), value: animateContent)
                 }
                 
                 Divider()
+                    .opacity(animateContent ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4).delay(0.6), value: animateContent)
                 
                 // Symptoms
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Common Symptoms")
                         .font(.headline)
+                        .opacity(animateContent ? 1 : 0)
+                        .animation(.easeOut(duration: 0.4).delay(0.7), value: animateContent)
                     
-                    ForEach(condition.symptoms, id: \.self) { symptom in
+                    ForEach(Array(condition.symptoms.enumerated()), id: \.element) { index, symptom in
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: "circle.fill")
                                 .font(.system(size: 8))
@@ -323,10 +419,15 @@ struct ConditionDetailView: View {
                             Text(symptom)
                                 .font(.body)
                         }
+                        .opacity(animateContent ? 1 : 0)
+                        .offset(x: animateContent ? 0 : -10)
+                        .animation(.easeOut(duration: 0.4).delay(0.8 + Double(index) * 0.1), value: animateContent)
                     }
                 }
                 
                 Divider()
+                    .opacity(animateContent ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4).delay(0.9), value: animateContent)
                 
                 // Action buttons
                 VStack(spacing: 12) {
@@ -335,6 +436,7 @@ struct ConditionDetailView: View {
                     }) {
                         HStack {
                             Image(systemName: "book.fill")
+                                .imageScale(.large)
                             Text("Learn More")
                         }
                         .frame(maxWidth: .infinity)
@@ -343,12 +445,16 @@ struct ConditionDetailView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
+                    .opacity(animateContent ? 1 : 0)
+                    .offset(y: animateContent ? 0 : 20)
+                    .animation(.easeOut(duration: 0.5).delay(1.0), value: animateContent)
                     
                     Button(action: {
                         // Medical advice action
                     }) {
                         HStack {
                             Image(systemName: "video.fill")
+                                .imageScale(.large)
                             Text("Consult a Doctor")
                         }
                         .frame(maxWidth: .infinity)
@@ -357,12 +463,17 @@ struct ConditionDetailView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     }
+                    .opacity(animateContent ? 1 : 0)
+                    .offset(y: animateContent ? 0 : 20)
+                    .animation(.easeOut(duration: 0.5).delay(1.1), value: animateContent)
                 }
                 
                 Text("Disclaimer: This analysis is for informational purposes only and should not be considered as medical advice. Always consult with a qualified healthcare provider for proper diagnosis and treatment.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.top, 20)
+                    .opacity(animateContent ? 0.7 : 0)
+                    .animation(.easeOut(duration: 0.5).delay(1.2), value: animateContent)
             }
             .padding()
         }
@@ -370,8 +481,21 @@ struct ConditionDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Close") {
-                    presentationMode.wrappedValue.dismiss()
+                    withAnimation(AnimationUtility.Curve.standard) {
+                        presentationMode.wrappedValue.dismiss()
+                    }
                 }
+            }
+        }
+        .onAppear {
+            // Start content animations with small delay to allow modal presentation to complete
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                animateContent = true
+            }
+            
+            // Start heartbeat effect for serious conditions after a slight delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                showHeartbeatEffect = true
             }
         }
     }

@@ -115,10 +115,15 @@ main {
 .page {
     display: none;
     padding: 20px 0;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
 }
 
 .page.active {
     display: block;
+    opacity: 1;
+    transform: translateY(0);
 }
 
 /* Home Page */
@@ -233,6 +238,7 @@ main {
     height: 100%;
     border-radius: 5px;
     background-color: var(--primary-color);
+    transition: width 1s ease-out;
 }
 
 .loading-spinner {
@@ -350,6 +356,103 @@ main {
     box-shadow: 0 -2px 10px var(--shadow-color);
     background-color: var(--card-bg);
     transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Animations and Micro-interactions */
+@keyframes heartbeat {
+    0% { transform: scale(1); }
+    15% { transform: scale(1.12); }
+    30% { transform: scale(1); }
+    45% { transform: scale(1.08); }
+    60% { transform: scale(1); }
+    100% { transform: scale(1); }
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(30px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.heartbeat {
+    animation: heartbeat 1.5s ease infinite;
+}
+
+.pulse {
+    animation: pulse 1.5s ease infinite;
+}
+
+.staggered-item {
+    opacity: 0;
+    transform: translateY(20px);
+    transition-property: opacity, transform;
+    transition-duration: 0.4s, 0.4s;
+    transition-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition-delay: 0s;
+    will-change: opacity, transform;
+}
+
+.staggered-item.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.slide-transition {
+    opacity: 0;
+    transform: translateX(30px);
+}
+
+.slide-transition.show {
+    opacity: 1;
+    transform: translateX(0);
+    transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+}
+
+.condition-card {
+    margin-bottom: 15px;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow-color);
+    border-left: 4px solid var(--primary-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    transition: background-color 0.3s ease, color 0.3s ease, transform 0.3s ease;
+}
+
+.condition-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.high-confidence {
+    border-left-color: #dc3545;
+}
+
+.high-confidence .condition-severity {
+    color: #dc3545;
+}
+
+.high-confidence-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #dc3545;
+    margin-right: 8px;
+}
+
+.high-confidence-indicator.pulse {
+    animation: pulse 1.5s ease infinite;
 }
 
 /* Responsive Adjustments */

@@ -12,50 +12,110 @@ struct ContentView: View {
     /// Currently selected tab
     @State private var selectedTab = 0
     
+    /// Animation state
+    @State private var tabChanging = false
+    @State private var previousTab = 0
+    
+    // MARK: - Computed Properties
+    
+    /// Background layer for tab transitions
+    private var tabBackgroundLayer: some View {
+        ZStack {
+            // Each tab gets a unique background "accent" that subtly animates on change
+            if selectedTab == 0 {
+                Circle()
+                    .fill(Color.blue.opacity(0.1))
+                    .frame(width: tabChanging ? 800 : 0)
+                    .offset(x: -100, y: -200)
+                    .scaleEffect(tabChanging ? 1.2 : 1)
+            } else if selectedTab == 1 {
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(Color.red.opacity(0.1))
+                    .frame(width: tabChanging ? 900 : 0, height: tabChanging ? 900 : 0)
+                    .offset(x: 0, y: 100)
+                    .rotationEffect(.degrees(tabChanging ? 45 : 0))
+            } else if selectedTab == 2 {
+                Circle()
+                    .fill(Color.green.opacity(0.1))
+                    .frame(width: tabChanging ? 1000 : 0)
+                    .offset(x: 100, y: -150)
+                    .scaleEffect(tabChanging ? 1.5 : 1)
+            } else if selectedTab == 3 {
+                Circle()
+                    .fill(Color.purple.opacity(0.1))
+                    .frame(width: tabChanging ? 800 : 0)
+                    .offset(x: 50, y: 200)
+                    .scaleEffect(tabChanging ? 1.3 : 1)
+            }
+        }
+        .animation(AnimationUtility.Curve.spring, value: selectedTab)
+        .animation(AnimationUtility.Curve.gentle, value: tabChanging)
+    }
+    
     // MARK: - Body
     
     var body: some View {
-        TabView(selection: $selectedTab) {
-            // Home
-            NavigationView {
-                Text("Home Screen")
-                    .navigationTitle("Home")
-            }
-            .tabItem {
-                Label("Home", systemImage: "house.fill")
-            }
-            .tag(0)
+        ZStack {
+            // Background animation layer
+            tabBackgroundLayer
+                .animation(AnimationUtility.Curve.gentle, value: selectedTab)
             
-            // Analysis
-            NavigationView {
-                ImageUploadView()
-                    .navigationTitle("Analysis")
+            // Main tab view
+            TabView(selection: $selectedTab) {
+                // Home
+                NavigationView {
+                    Text("Home Screen")
+                        .navigationTitle("Home")
+                        .transition(.opacity.combined(with: .move(edge: .trailing)))
+                }
+                .tabItem {
+                    Label("Home", systemImage: "house.fill")
+                }
+                .tag(0)
+                
+                // Analysis
+                NavigationView {
+                    ImageUploadView()
+                        .navigationTitle("Analysis")
+                }
+                .tabItem {
+                    Label("Analysis", systemImage: "waveform.path.ecg")
+                }
+                .tag(1)
+                
+                // Education
+                NavigationView {
+                    EducationView()
+                        .navigationTitle("Education")
+                }
+                .tabItem {
+                    Label("Education", systemImage: "book.fill")
+                }
+                .tag(2)
+                
+                // Profile
+                NavigationView {
+                    ProfileView()
+                        .navigationTitle("Profile")
+                }
+                .tabItem {
+                    Label("Profile", systemImage: "person.fill")
+                }
+                .tag(3)
             }
-            .tabItem {
-                Label("Analysis", systemImage: "waveform.path.ecg")
+            .onChange(of: selectedTab) { newTab in
+                withAnimation(AnimationUtility.Curve.gentle) {
+                    previousTab = selectedTab
+                    tabChanging = true
+                }
+                
+                // Trigger tab change micro-animations
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    withAnimation(AnimationUtility.Curve.gentle) {
+                        tabChanging = false
+                    }
+                }
             }
-            .tag(1)
-            
-            // Education
-            NavigationView {
-                EducationView()
-                    .navigationTitle("Education")
-            }
-            .tabItem {
-                Label("Education", systemImage: "book.fill")
-            }
-            .tag(2)
-            
-            // Profile
-            NavigationView {
-                ProfileView()
-                    .navigationTitle("Profile")
-            }
-            .tabItem {
-                Label("Profile", systemImage: "person.fill")
-            }
-            .tag(3)
-        }
         .fullScreenCover(isPresented: $tutorialService.shouldShowOnboarding) {
             OnboardingView()
         }

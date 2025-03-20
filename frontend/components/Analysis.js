@@ -62,8 +62,8 @@ function renderAnalysisResults(container, results) {
                 <p class="text-muted mb-4">The following conditions were identified with their confidence scores:</p>
                 
                 ${sortedConditions.length > 0 
-                    ? sortedConditions.map(condition => renderConditionCard(condition)).join('')
-                    : `<div class="alert alert-warning">No potential conditions identified. This could mean the image is clear of visible issues or the image quality wasn't sufficient for analysis.</div>`
+                    ? sortedConditions.map((condition, index) => renderConditionCard(condition, index)).join('')
+                    : `<div class="alert alert-warning staggered-item">No potential conditions identified. This could mean the image is clear of visible issues or the image quality wasn't sufficient for analysis.</div>`
                 }
             </div>
             
@@ -71,7 +71,7 @@ function renderAnalysisResults(container, results) {
                 <h4>What's Next?</h4>
                 <div class="row">
                     <div class="col-md-6 mb-3">
-                        <div class="card h-100">
+                        <div class="card h-100 staggered-item">
                             <div class="card-body">
                                 <h5 class="card-title">
                                     <i class="fas fa-book-medical"></i> Learn More
@@ -84,7 +84,7 @@ function renderAnalysisResults(container, results) {
                         </div>
                     </div>
                     <div class="col-md-6 mb-3">
-                        <div class="card h-100">
+                        <div class="card h-100 staggered-item">
                             <div class="card-body">
                                 <h5 class="card-title">
                                     <i class="fas fa-user-md"></i> Professional Advice
@@ -112,6 +112,36 @@ function renderAnalysisResults(container, results) {
     
     // Update the container with the results
     container.innerHTML = resultsHTML;
+    
+    // Animate the staggered items
+    setTimeout(() => {
+        const staggeredItems = container.querySelectorAll('.staggered-item');
+        staggeredItems.forEach((item, index) => {
+            setTimeout(() => {
+                item.classList.add('show');
+                
+                // Animate the confidence bars after each item appears
+                const confidenceBar = item.querySelector('.confidence-value');
+                if (confidenceBar && confidenceBar.style.width === '0%') {
+                    setTimeout(() => {
+                        // Get the target percentage from the badge
+                        const badge = item.querySelector('.badge');
+                        let percentage = 0;
+                        
+                        if (badge) {
+                            const percentText = badge.textContent.match(/(\d+)%/);
+                            if (percentText && percentText[1]) {
+                                percentage = percentText[1];
+                            }
+                        }
+                        
+                        confidenceBar.style.transition = 'width 1s ease-out';
+                        confidenceBar.style.width = `${percentage}%`;
+                    }, 200);
+                }
+            }, index * 150);
+        });
+    }, 300);
     
     // Add event listeners to the new buttons
     const newAnalysisBtn = container.querySelector('.new-analysis-btn');
@@ -165,7 +195,7 @@ function renderAnalysisResults(container, results) {
     }
 }
 
-function renderConditionCard(condition) {
+function renderConditionCard(condition, index = 0) {
     // Determine confidence level styling
     let confidenceLevel = 'Low';
     let confidenceColor = 'var(--warning-color)';
@@ -181,17 +211,36 @@ function renderConditionCard(condition) {
     // Format confidence as percentage
     const confidencePercentage = Math.round(condition.confidence * 100);
     
+    // Add high confidence indicator with heartbeat animation if needed
+    let indicatorHtml = '';
+    let warningHtml = '';
+    
+    if (condition.confidence >= 0.7) {
+        indicatorHtml = '<span class="high-confidence-indicator pulse me-2"></span>';
+        
+        // Add warning for potentially serious conditions
+        if (condition.isPotentiallySerious) {
+            warningHtml = `
+                <div class="alert alert-danger mt-2 mb-2 p-2 heartbeat">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    This may require medical attention
+                </div>
+            `;
+        }
+    }
+    
     return `
-        <div class="condition-card">
+        <div class="condition-card staggered-item" style="transition-delay: ${index * 150}ms;">
             <div class="d-flex justify-content-between align-items-center">
-                <h5 class="mb-1">${condition.name}</h5>
+                <h5 class="mb-1">${indicatorHtml}${condition.name}</h5>
                 <span class="badge bg-${confidenceLevel === 'High' ? 'danger' : confidenceLevel === 'Medium' ? 'warning' : 'info'}">
                     ${confidenceLevel} ${confidencePercentage}%
                 </span>
             </div>
             <p class="text-muted mb-2">${condition.description || 'No description available'}</p>
+            ${warningHtml}
             <div class="confidence-bar">
-                <div class="confidence-value" style="width: ${confidencePercentage}%; background-color: ${confidenceColor}"></div>
+                <div class="confidence-value" style="width: 0%; background-color: ${confidenceColor}"></div>
             </div>
             <div class="mt-3">
                 <button class="btn btn-sm btn-outline-secondary condition-info-btn" 

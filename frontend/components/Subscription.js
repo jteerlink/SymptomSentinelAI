@@ -18,9 +18,9 @@ function renderSubscriptionUI(container) {
                 <p class="text-muted">Get the most out of SymptomSentryAI with our premium features</p>
             </div>
             
-            <div class="row">
+            <div class="row justify-content-center">
                 <!-- Free Plan -->
-                <div class="col-md-4 mb-4">
+                <div class="col-md-5 mb-4">
                     <div class="subscription-plan h-100">
                         <div class="plan-icon mb-3">
                             <i class="fas fa-user fa-3x text-muted"></i>
@@ -44,7 +44,7 @@ function renderSubscriptionUI(container) {
                 </div>
                 
                 <!-- Premium Plan -->
-                <div class="col-md-4 mb-4">
+                <div class="col-md-5 mb-4">
                     <div class="subscription-plan plan-highlighted h-100">
                         <div class="popular-badge">Most Popular</div>
                         <div class="plan-icon mb-3">
@@ -60,34 +60,10 @@ function renderSubscriptionUI(container) {
                             <li><i class="fas fa-check text-success"></i> Full educational library</li>
                             <li><i class="fas fa-check text-success"></i> Save analysis history</li>
                             <li><i class="fas fa-check text-success"></i> Detailed condition information</li>
-                            <li><i class="fas fa-times text-danger"></i> Priority analysis</li>
+                            <li><i class="fas fa-check text-success"></i> Priority analysis</li>
                         </ul>
                         <button class="btn btn-primary btn-lg w-100 subscribe-btn" data-plan="premium">
                             Get Premium
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Professional Plan -->
-                <div class="col-md-4 mb-4">
-                    <div class="subscription-plan h-100">
-                        <div class="plan-icon mb-3">
-                            <i class="fas fa-crown fa-3x text-info"></i>
-                        </div>
-                        <h4>Professional</h4>
-                        <p class="text-muted">Advanced features for healthcare professionals</p>
-                        <div class="plan-price">
-                            $19.99 <small>/month</small>
-                        </div>
-                        <ul class="feature-list">
-                            <li><i class="fas fa-check text-success"></i> Unlimited analyses</li>
-                            <li><i class="fas fa-check text-success"></i> Full educational library</li>
-                            <li><i class="fas fa-check text-success"></i> Save analysis history</li>
-                            <li><i class="fas fa-check text-success"></i> Detailed condition information</li>
-                            <li><i class="fas fa-check text-success"></i> Priority analysis</li>
-                        </ul>
-                        <button class="btn btn-outline-primary btn-lg w-100 subscribe-btn" data-plan="professional">
-                            Get Professional
                         </button>
                     </div>
                 </div>
@@ -220,16 +196,6 @@ function showSubscriptionModal(planType) {
                 'Unlimited analyses',
                 'Full educational library',
                 'Save analysis history',
-                'Detailed condition information'
-            ]
-        },
-        professional: {
-            name: 'Professional',
-            price: '$19.99/month',
-            features: [
-                'Unlimited analyses',
-                'Full educational library',
-                'Save analysis history',
                 'Detailed condition information',
                 'Priority analysis'
             ]
@@ -249,7 +215,7 @@ function showSubscriptionModal(planType) {
                     </div>
                     <div class="modal-body">
                         <div class="text-center mb-4">
-                            <i class="${planType === 'premium' ? 'fas fa-star fa-3x text-warning' : 'fas fa-crown fa-3x text-info'}"></i>
+                            <i class="fas fa-star fa-3x text-warning"></i>
                             <h4 class="mt-3">${plan.name} Plan</h4>
                             <p class="lead">${plan.price}</p>
                         </div>

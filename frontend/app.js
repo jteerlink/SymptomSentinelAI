@@ -93,9 +93,267 @@ function setupEventListeners() {
     window.addEventListener('resize', () => {
         // Add any responsive layout adjustments here if needed
     });
+    
+    // Sign In / Register button handler
+    const signInRegisterBtn = document.querySelector('.btn.btn-outline-primary.mt-3');
+    if (signInRegisterBtn) {
+        signInRegisterBtn.addEventListener('click', () => {
+            console.log('Sign In / Register button clicked');
+            handleRegistration();
+        });
+    }
 }
 
 
+
+// Handle account registration
+function handleRegistration() {
+    // Create modal container if it doesn't exist
+    let modalContainer = document.getElementById('auth-modal-container');
+    if (!modalContainer) {
+        modalContainer = document.createElement('div');
+        modalContainer.id = 'auth-modal-container';
+        document.body.appendChild(modalContainer);
+    }
+    
+    // Set up the modal content
+    modalContainer.innerHTML = `
+        <div class="modal fade auth-modal" id="authModal" tabindex="-1" aria-labelledby="authModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="authModalLabel">Sign In / Register</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <ul class="nav nav-tabs" id="authTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="login-tab" data-bs-toggle="tab" data-bs-target="#login" type="button" role="tab" aria-controls="login" aria-selected="true">Sign In</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="register-tab" data-bs-toggle="tab" data-bs-target="#register" type="button" role="tab" aria-controls="register" aria-selected="false">Register</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="authTabsContent">
+                            <div class="tab-pane fade show active" id="login" role="tabpanel" aria-labelledby="login-tab">
+                                <form id="login-form" class="mt-3">
+                                    <div class="mb-3">
+                                        <label for="login-email" class="form-label">Email address</label>
+                                        <input type="email" class="form-control" id="login-email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="login-password" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="login-password" required>
+                                    </div>
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="remember-me">
+                                        <label class="form-check-label" for="remember-me">Remember me</label>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <a href="#" class="text-decoration-none small">Forgot password?</a>
+                                        <button type="submit" class="btn btn-primary">Sign In</button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
+                                <form id="register-form" class="mt-3">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="register-first-name" class="form-label">First Name</label>
+                                            <input type="text" class="form-control" id="register-first-name" required>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="register-last-name" class="form-label">Last Name</label>
+                                            <input type="text" class="form-control" id="register-last-name" required>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="register-email" class="form-label">Email address</label>
+                                        <input type="email" class="form-control" id="register-email" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="register-password" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="register-password" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="register-confirm-password" class="form-label">Confirm Password</label>
+                                        <input type="password" class="form-control" id="register-confirm-password" required>
+                                    </div>
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="terms-checkbox" required>
+                                        <label class="form-check-label" for="terms-checkbox">I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></label>
+                                    </div>
+                                    <div class="text-end">
+                                        <button type="submit" class="btn btn-primary">Register</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Get the Bootstrap modal instance
+    const authModal = new bootstrap.Modal(document.getElementById('authModal'));
+    authModal.show();
+    
+    // Add event listeners for form submissions
+    document.getElementById('login-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value;
+        const password = document.getElementById('login-password').value;
+        const rememberMe = document.getElementById('remember-me').checked;
+        
+        console.log('Login attempt:', { email, rememberMe });
+        // TODO: Implement actual login logic with backend API
+        
+        // Update UI to reflect logged in state
+        updateProfileUI(email);
+        
+        // Show success notification and close modal
+        showNotification('Login successful!', 'success');
+        authModal.hide();
+    });
+    
+    document.getElementById('register-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const firstName = document.getElementById('register-first-name').value;
+        const lastName = document.getElementById('register-last-name').value;
+        const email = document.getElementById('register-email').value;
+        const password = document.getElementById('register-password').value;
+        const confirmPassword = document.getElementById('register-confirm-password').value;
+        
+        // Simple validation
+        if (password !== confirmPassword) {
+            showNotification('Passwords do not match!', 'danger');
+            return;
+        }
+        
+        console.log('Registration attempt:', { firstName, lastName, email });
+        // TODO: Implement actual registration logic with backend API
+        
+        // Automatically log the user in after successful registration
+        updateProfileUI(email, `${firstName} ${lastName}`);
+        
+        // Show success notification and close modal
+        showNotification('Account created successfully!', 'success');
+        authModal.hide();
+    });
+    
+    // Helper function to update profile UI after login/registration
+    function updateProfileUI(email, name = null) {
+        // Update the profile page to show logged in state
+        const profileIcon = document.querySelector('.profile-icon');
+        const profileTitle = document.querySelector('.card-title.mt-3');
+        const profilePlan = document.querySelector('.card-text.text-muted');
+        const signInButton = document.querySelector('.btn.btn-outline-primary.mt-3');
+        const accountInfo = document.querySelector('.card-body p');
+        const accountInfoCard = document.querySelector('.card-body');
+        
+        if (profileTitle) {
+            profileTitle.textContent = name || email.split('@')[0];
+        }
+        
+        if (profilePlan) {
+            profilePlan.textContent = 'Basic Plan';
+        }
+        
+        if (signInButton) {
+            signInButton.textContent = 'Manage Account';
+            // Change the functionality of the button to manage account
+            signInButton.removeEventListener('click', handleRegistration);
+            signInButton.addEventListener('click', () => {
+                showNotification('Account management features coming soon!', 'info');
+            });
+        }
+        
+        // Update the account information card with more detailed information
+        if (accountInfoCard) {
+            // Remove existing content
+            while (accountInfoCard.firstChild) {
+                accountInfoCard.removeChild(accountInfoCard.firstChild);
+            }
+            
+            // Create and append new content
+            const dateJoined = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+            
+            const infoHTML = `
+                <h5 class="mb-3">Account Information</h5>
+                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Member since:</strong> ${dateJoined}</p>
+                <p><strong>Subscription:</strong> Basic Plan</p>
+                <p><strong>Images analyzed:</strong> 0</p>
+                <div class="d-grid gap-2 mt-4">
+                    <button class="btn btn-outline-primary btn-sm">Edit Profile</button>
+                    <button class="btn btn-outline-primary btn-sm">Change Password</button>
+                    <button class="btn btn-outline-danger btn-sm">Sign Out</button>
+                </div>
+            `;
+            
+            accountInfoCard.innerHTML = infoHTML;
+            
+            // Add event listener for sign out button
+            const signOutButton = accountInfoCard.querySelector('.btn.btn-outline-danger');
+            if (signOutButton) {
+                signOutButton.addEventListener('click', () => {
+                    // Reset the profile UI
+                    if (profileTitle) profileTitle.textContent = 'Guest User';
+                    if (profilePlan) profilePlan.textContent = 'Free Plan';
+                    if (signInButton) {
+                        signInButton.textContent = 'Sign In / Register';
+                        // Restore the original functionality
+                        signInButton.addEventListener('click', handleRegistration);
+                    }
+                    
+                    // Reset account info
+                    accountInfoCard.innerHTML = `
+                        <p>Sign in to view your account information and analysis history.</p>
+                        <div class="alert alert-info">
+                            <i class="fas fa-lock"></i> All your data is encrypted and securely stored in compliance with HIPAA and GDPR regulations.
+                        </div>
+                    `;
+                    
+                    showNotification('You have been signed out successfully.', 'success');
+                });
+            }
+        }
+    }
+}
+
+// Show a notification to the user
+function showNotification(message, type = 'info') {
+    // Create notification container if it doesn't exist
+    let notificationContainer = document.getElementById('notification-container');
+    if (!notificationContainer) {
+        notificationContainer = document.createElement('div');
+        notificationContainer.id = 'notification-container';
+        notificationContainer.style.position = 'fixed';
+        notificationContainer.style.top = '20px';
+        notificationContainer.style.right = '20px';
+        notificationContainer.style.zIndex = '9999';
+        document.body.appendChild(notificationContainer);
+    }
+    
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.role = 'alert';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Add to container
+    notificationContainer.appendChild(notification);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        notification.classList.remove('show');
+        setTimeout(() => notification.remove(), 300);
+    }, 5000);
+}
 
 // Utility function to make API requests
 export async function apiRequest(endpoint, method = 'GET', data = null) {

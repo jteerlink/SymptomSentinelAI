@@ -264,19 +264,44 @@ function setupUploadEventListeners(container) {
     
     // Analyze button click
     analyzeButton.addEventListener('click', async () => {
-        // Get the canvas element to convert image to base64
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+        // Use the resized image if available (from our previous resizing step)
+        // Otherwise create a new optimized version
+        let imageData;
         
-        // Set canvas dimensions to match the image
-        canvas.width = previewImage.naturalWidth;
-        canvas.height = previewImage.naturalHeight;
-        
-        // Draw the image onto the canvas
-        ctx.drawImage(previewImage, 0, 0);
-        
-        // Get base64 representation (data URL) of the image
-        const imageData = canvas.toDataURL('image/jpeg');
+        if (previewImage.dataset.resizedImage) {
+            // Use already resized image
+            imageData = previewImage.dataset.resizedImage;
+            console.log('Using pre-resized image for analysis');
+        } else {
+            // Create a new optimized version (fallback)
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Set a max size for the image to keep file size reasonable
+            const MAX_SIZE = 800;
+            let width = previewImage.naturalWidth;
+            let height = previewImage.naturalHeight;
+            
+            // Scale down if needed
+            if (width > height && width > MAX_SIZE) {
+                height = Math.round(height * (MAX_SIZE / width));
+                width = MAX_SIZE;
+            } else if (height > MAX_SIZE) {
+                width = Math.round(width * (MAX_SIZE / height));
+                height = MAX_SIZE;
+            }
+            
+            // Set canvas dimensions to the optimized size
+            canvas.width = width;
+            canvas.height = height;
+            
+            // Draw the image onto the canvas
+            ctx.drawImage(previewImage, 0, 0, width, height);
+            
+            // Get optimized base64 representation
+            imageData = canvas.toDataURL('image/jpeg', 0.85);
+            console.log(`Image optimized from ${previewImage.naturalWidth}x${previewImage.naturalHeight} to ${width}x${height}`);
+        }
         
         // Show loading state
         showAnalysisLoading();
@@ -387,8 +412,45 @@ function setupUploadEventListeners(container) {
         const reader = new FileReader();
         
         reader.onload = (e) => {
-            // Display the image preview
-            previewImage.src = e.target.result;
+            // Display the image preview and resize it
+            const img = new Image();
+            img.onload = () => {
+                // Create a canvas to resize the image
+                const canvas = document.createElement('canvas');
+                // Target max width/height (maintain aspect ratio)
+                const MAX_SIZE = 800;
+                let width = img.width;
+                let height = img.height;
+                
+                // Scale down if needed
+                if (width > height && width > MAX_SIZE) {
+                    height = Math.round(height * (MAX_SIZE / width));
+                    width = MAX_SIZE;
+                } else if (height > MAX_SIZE) {
+                    width = Math.round(width * (MAX_SIZE / height));
+                    height = MAX_SIZE;
+                }
+                
+                // Set canvas dimensions and draw the resized image
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Use the resized image for preview and analysis
+                const resizedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
+                previewImage.src = resizedImageUrl;
+                
+                // Store the resized image on the preview element for later use
+                previewImage.dataset.resizedImage = resizedImageUrl;
+                
+                console.log(`Image resized from ${img.width}x${img.height} to ${width}x${height}`);
+            };
+            
+            // Load the original image
+            img.src = e.target.result;
+            
+            // Show the preview container
             previewContainer.style.display = 'block';
             dropArea.style.display = 'none';
         };

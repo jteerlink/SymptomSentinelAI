@@ -97,6 +97,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log('Environment:', process.env.NODE_ENV || 'development');
 });
 
+// Set timeout for server to 2 minutes (120000ms) to handle large image processing
+server.timeout = 120000; // Increase from default 2 minutes to avoid 504 Gateway Timeout errors
+
 // Improve server robustness with proper error handling
 server.on('error', (err) => {
   console.error('Server error:', err);

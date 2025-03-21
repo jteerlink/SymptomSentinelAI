@@ -381,13 +381,14 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
             options.body = JSON.stringify(data);
         }
         
-        // Use absolute URL instead of relative path for Replit environment
-        const baseUrl = window.location.hostname.includes('replit') 
-            ? window.location.origin
+        // For Replit, we need to access the backend server directly on port 5000
+        // not the frontend server on port 8000
+        const backendUrl = window.location.hostname.includes('replit') 
+            ? `${window.location.protocol}//${window.location.hostname}:5000`
             : '';
         
-        const response = await fetch(`${baseUrl}/api/${endpoint}`, options);
-        console.log(`API request to: ${baseUrl}/api/${endpoint}`);
+        const response = await fetch(`${backendUrl}/api/${endpoint}`, options);
+        console.log(`API request to: ${backendUrl}/api/${endpoint}`);
         
         if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);

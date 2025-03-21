@@ -698,6 +698,12 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
             }
         };
         
+        // Add authentication token if available
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            options.headers['Authorization'] = `Bearer ${token}`;
+        }
+        
         if (data && (method === 'POST' || method === 'PUT')) {
             options.body = JSON.stringify(data);
         }
@@ -712,11 +718,12 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
                             endpoint.startsWith('api/') ? `/${endpoint}` : 
                             `/api/${endpoint}`;
         
+        console.log(`API request to: ${apiEndpoint}`, token ? 'with authentication' : 'without authentication');
         const response = await fetch(apiEndpoint, options);
-        console.log(`API request to: ${apiEndpoint}`);
         
         if (!response.ok) {
-            throw new Error(`API request failed with status ${response.status}`);
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.message || `API request failed with status ${response.status}`);
         }
         
         return await response.json();

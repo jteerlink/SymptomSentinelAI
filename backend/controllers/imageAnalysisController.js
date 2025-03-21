@@ -256,6 +256,8 @@ exports.saveAnalysis = async (req, res, next) => {
             });
         }
         
+        console.log('Saving analysis for user:', req.user.id);
+        
         const analysisData = req.body;
         
         if (!analysisData || !analysisData.type || !analysisData.conditions) {
@@ -278,7 +280,7 @@ exports.saveAnalysis = async (req, res, next) => {
             };
             
             // Include subscription info in the test response too
-            const User = require('../models/User');
+            const { User } = require('../db/models');
             const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
             const subscriptionInfo = {
                 subscription: req.user.subscription,
@@ -299,7 +301,8 @@ exports.saveAnalysis = async (req, res, next) => {
         const id = analysisData.id || undefined;
         
         // Increment the user's analysis count
-        req.user.incrementAnalysisCount();
+        await req.user.incrementAnalysisCount();
+        console.log(`Incremented analysis count for user ${req.user.id} to ${req.user.analysisCount}`);
         
         // Create the analysis record
         const savedAnalysis = await Analysis.create({
@@ -310,7 +313,10 @@ exports.saveAnalysis = async (req, res, next) => {
             imageUrl: analysisData.imageUrl || null
         });
         
+        console.log('Analysis saved:', savedAnalysis.id);
+        
         // Include subscription info in the response
+        const { User } = require('../db/models');
         const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
         const subscriptionInfo = {
             subscription: req.user.subscription,
@@ -344,6 +350,8 @@ exports.getAnalysisHistory = async (req, res, next) => {
             });
         }
         
+        console.log('Fetching analysis history for user:', req.user.id);
+        
         // Fetch analyses from database
         const analyses = await Analysis.findByUserId(req.user.id, {
             limit: 20,
@@ -351,7 +359,10 @@ exports.getAnalysisHistory = async (req, res, next) => {
             order: 'desc'
         });
         
+        console.log(`Found ${analyses.length} analyses for user ${req.user.id}`);
+        
         // Include subscription info in the response
+        const { User } = require('../db/models');
         const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
         const subscriptionInfo = {
             subscription: req.user.subscription,

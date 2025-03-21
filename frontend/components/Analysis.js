@@ -135,18 +135,17 @@ function renderAnalysisResults(container, results) {
                 <button class="btn btn-primary new-analysis-btn">
                     <i class="fas fa-redo"></i> Start New Analysis
                 </button>
-                <button class="btn btn-outline-secondary save-results-btn" ${results.user ? '' : 'disabled'}>
+                <button class="btn btn-outline-secondary save-results-btn">
                     <i class="fas fa-save"></i> Save Results
                 </button>
 
-                ${!results.user ? `
-                <div class="login-prompt mt-2">
+                <div class="login-prompt mt-2" id="login-prompt" style="display: none;">
                     <small class="text-muted">
                         <i class="fas fa-lock"></i> 
                         <a href="#" class="login-prompt-link">Sign in or create an account</a> 
                         to save your analysis results
                     </small>
-                </div>` : ''}
+                </div>
             </div>
         </div>
     `;
@@ -203,32 +202,50 @@ function renderAnalysisResults(container, results) {
     
 
     
+    // Check authentication status
+    const authToken = localStorage.getItem('authToken');
+    const loginPrompt = container.querySelector('#login-prompt');
     const saveResultsBtn = container.querySelector('.save-results-btn');
-    if (saveResultsBtn && !saveResultsBtn.disabled) {
+    
+    if (!authToken) {
+        // Not authenticated, disable save button and show login prompt
+        if (saveResultsBtn) {
+            saveResultsBtn.disabled = true;
+        }
+        if (loginPrompt) {
+            loginPrompt.style.display = 'block';
+        }
+    } else {
+        // Authenticated, enable button and hide login prompt
+        if (saveResultsBtn) {
+            saveResultsBtn.disabled = false;
+        }
+        if (loginPrompt) {
+            loginPrompt.style.display = 'none';
+        }
+    }
+    
+    if (saveResultsBtn) {
         saveResultsBtn.addEventListener('click', async () => {
             try {
+                // Check if user is authenticated
+                const authToken = localStorage.getItem('authToken');
+                if (!authToken) {
+                    // Show the login prompt
+                    loginPrompt.style.display = 'block';
+                    showNotification(container, 'Please sign in to save your results', 'warning');
+                    return;
+                }
+                
                 // Show saving state
                 saveResultsBtn.disabled = true;
                 saveResultsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
                 
-                // Call the API to save the results
-                // For Replit, we can't use the port in the URL, so we need a relative URL
-                const apiUrl = '/api/save-analysis';
+                // Import the apiRequest function
+                const { apiRequest } = await import('../app.js');
                 
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(results)
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to save results');
-                }
-                
-                // Parse the response
-                const responseData = await response.json();
+                // Call the API to save the results using our utility function
+                const responseData = await apiRequest('/api/save-analysis', 'POST', results);
                 
                 // Display success message
                 showNotification(container, 'Results saved successfully!', 'success');

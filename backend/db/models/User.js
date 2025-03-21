@@ -11,6 +11,22 @@ const bcrypt = require('bcryptjs');
 const SALT_ROUNDS = 10;
 
 class User {
+  // Subscription plan limits
+  static SUBSCRIPTION_LIMITS = {
+    free: {
+      analysesPerMonth: 5,
+      advancedFeatures: false,
+      highResolutionDownload: false,
+      detailedReports: false
+    },
+    premium: {
+      analysesPerMonth: Infinity, // Unlimited analyses
+      advancedFeatures: true,
+      highResolutionDownload: true,
+      detailedReports: true
+    }
+  };
+
   /**
    * Create a new user
    * 
@@ -30,10 +46,12 @@ class User {
       password: hashedPassword,
       name,
       subscription,
-      email_verified
-    }).returning(['id', 'email', 'name', 'subscription', 'email_verified', 'created_at']);
+      email_verified,
+      analysis_count: 0,
+      last_reset_date: new Date()
+    }).returning(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at']);
     
-    return user;
+    return this.formatUser(user);
   }
 
   /**
@@ -47,7 +65,7 @@ class User {
       .where({ id })
       .first();
     
-    return user || null;
+    return user ? this.formatUser(user) : null;
   }
 
   /**
@@ -61,7 +79,7 @@ class User {
       .where({ email })
       .first();
     
-    return user || null;
+    return user ? this.formatUser(user) : null;
   }
 
   /**
@@ -83,9 +101,9 @@ class User {
     const [user] = await db('users')
       .where({ id })
       .update(updateData)
-      .returning(['id', 'email', 'name', 'subscription', 'email_verified', 'created_at', 'updated_at']);
+      .returning(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at', 'updated_at']);
     
-    return user;
+    return this.formatUser(user);
   }
 
   /**
@@ -120,9 +138,101 @@ class User {
    */
   static async getAll() {
     const users = await db('users')
-      .select(['id', 'email', 'name', 'subscription', 'email_verified', 'created_at', 'updated_at']);
+      .select(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at', 'updated_at']);
     
-    return users;
+    return users.map(user => this.formatUser(user));
+  }
+
+  /**
+   * Increment analysis count for user
+   * 
+   * @param {string} id User ID
+   * @returns {Promise<Object>} Updated user object
+   */
+  static async incrementAnalysisCount(id) {
+    // Get current user data
+    const user = await this.findById(id);
+    if (!user) return null;
+
+    // Check if we need to reset the counter (new month)
+    const now = new Date();
+    const lastReset = new Date(user.lastResetDate);
+    
+    let updateData = {};
+    
+    if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+      // Reset counter for new month
+      updateData = {
+        analysis_count: 1, // Start at 1 for this new analysis
+        last_reset_date: now
+      };
+    } else {
+      // Increment existing counter
+      updateData = {
+        analysis_count: user.analysisCount + 1
+      };
+    }
+    
+    // Update the user
+    return this.update(id, updateData);
+  }
+
+  /**
+   * Check if user has exceeded their analysis limit
+   * 
+   * @param {Object} user User object
+   * @returns {boolean} True if user has exceeded limit, false otherwise
+   */
+  static hasExceededAnalysisLimit(user) {
+    // Reset counter if it's a new month
+    const now = new Date();
+    const lastReset = new Date(user.lastResetDate);
+    
+    if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
+      return false; // New month, so hasn't exceeded limit
+    }
+    
+    const limits = this.SUBSCRIPTION_LIMITS[user.subscription] || this.SUBSCRIPTION_LIMITS.free;
+    return user.analysisCount >= limits.analysesPerMonth;
+  }
+
+  /**
+   * Format database user object to include methods and properties needed by the application
+   * 
+   * @param {Object} dbUser Database user object
+   * @returns {Object} Formatted user object
+   */
+  static formatUser(dbUser) {
+    if (!dbUser) return null;
+    
+    // Make sure we have the right property names (camelCase for the app)
+    const user = {
+      ...dbUser,
+      // Make sure these properties exist with the right casing
+      analysisCount: dbUser.analysis_count || 0,
+      lastResetDate: dbUser.last_reset_date || new Date()
+    };
+    
+    // Add methods to the user object
+    user.hasExceededAnalysisLimit = function() {
+      return User.hasExceededAnalysisLimit(this);
+    };
+    
+    user.incrementAnalysisCount = async function() {
+      const updated = await User.incrementAnalysisCount(this.id);
+      if (updated) {
+        this.analysisCount = updated.analysisCount;
+        this.lastResetDate = updated.lastResetDate;
+      }
+      return this.analysisCount;
+    };
+    
+    // Add subscription info to user object for easy access
+    const subscriptionLimits = User.SUBSCRIPTION_LIMITS[user.subscription] || User.SUBSCRIPTION_LIMITS.free;
+    user.analysisLimit = subscriptionLimits.analysesPerMonth;
+    user.analysisRemaining = Math.max(0, subscriptionLimits.analysesPerMonth - user.analysisCount);
+    
+    return user;
   }
 }
 

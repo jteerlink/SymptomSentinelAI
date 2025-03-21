@@ -16,12 +16,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Monkey-patch fetch to ensure all API calls go through our server
     const originalFetch = window.fetch;
     window.fetch = function(url, options) {
-        if (typeof url === 'string' && url.includes('/api/')) {
-            // Convert any absolute URLs to the domain to relative URLs
-            if (url.includes('://')) {
+        // Check for absolute URLs containing Replit domain or API endpoints
+        if (typeof url === 'string') {
+            if (url.includes('replit.dev') || url.includes('replit.co')) {
+                // If it's a full Replit URL, extract just the path
                 const urlObj = new URL(url);
                 url = urlObj.pathname;
-                console.log('Redirecting API call to relative path:', url);
+                console.log('Converting Replit URL to relative path:', url);
+            } else if (url.includes('://') && url.includes('/api/')) {
+                // Handle any other absolute URL with API endpoint
+                const urlObj = new URL(url);
+                url = urlObj.pathname;
+                console.log('Converting absolute URL to relative path:', url);
             }
         }
         return originalFetch(url, options);

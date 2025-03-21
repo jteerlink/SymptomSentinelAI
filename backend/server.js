@@ -10,11 +10,22 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware setup
+app.use((req, res, next) => {
+  // Log incoming requests for debugging
+  console.log(`Incoming request: ${req.method} ${req.url} from origin: ${req.headers.origin || 'unknown'}`);
+  next();
+});
+
+// Enhanced CORS configuration
 app.use(cors({
-  origin: '*', // Allow all origins for development
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: true, // Reflect the request origin instead of '*' to work better with credentials
+  credentials: true, // Allow cookies and credentials to be sent
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
+
+// Add explicit OPTIONS handling for preflight requests
+app.options('*', cors());
 
 // Configure body parser with increased limits for image handling
 app.use(bodyParser.json({ limit: '50mb' })); 

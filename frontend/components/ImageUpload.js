@@ -282,12 +282,8 @@ function setupUploadEventListeners(container) {
         showAnalysisLoading();
         
         try {
-            // Send the image data to your backend API
-            // For Replit, we can't use the port in the URL, so we need a full URL
-            // or a relative URL to the backend server
-            const apiUrl = window.location.hostname.includes('replit') 
-                ? '/api/analyze' // Use relative URL - will be proxied to the backend
-                : '/api/analyze';
+            // Always use a simple relative URL - our fetch interceptor in app.js will handle any conversion needed
+            const apiUrl = '/api/analyze';
                 
             console.log(`Sending analysis request to: ${apiUrl}`);
             

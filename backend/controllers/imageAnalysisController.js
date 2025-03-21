@@ -14,26 +14,36 @@ let modelLoading = false;
  */
 exports.analyzeImage = async (req, res, next) => {
     try {
-        const { image, type } = req.body;
-
+        console.log('Analyze Image Request Body:', JSON.stringify(req.body, null, 2));
+        
+        // Extract image and type, handling different possible formats
+        let { image, type } = req.body;
+        
+        // Check if the request contains image data
         if (!image) {
+            console.error('No image provided in request body');
             return res.status(400).json({
                 error: true,
                 message: 'No image provided'
             });
         }
 
+        // Validate analysis type
         if (!type || (type !== 'throat' && type !== 'ear')) {
+            console.error('Invalid analysis type provided:', type);
             return res.status(400).json({
                 error: true,
                 message: 'Invalid analysis type. Must be "throat" or "ear"'
             });
         }
 
+        console.log(`Processing ${type} image analysis...`);
+        
         // Process the image data (remove data:image prefix if present)
         let imageData = image;
-        if (image.startsWith('data:image')) {
+        if (typeof image === 'string' && image.startsWith('data:image')) {
             imageData = image.split(',')[1];
+            console.log('Processed base64 image data');
         }
 
         // Load the appropriate model

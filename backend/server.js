@@ -9,29 +9,51 @@ const apiRoutes = require('./routes/api');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware setup
+// === MIDDLEWARE SETUP - ORDER IS IMPORTANT ===
+
+// 1. Basic request logging - for all requests
 app.use((req, res, next) => {
-  // Log incoming requests for debugging
   console.log(`Incoming request: ${req.method} ${req.url} from origin: ${req.headers.origin || 'unknown'}`);
   next();
 });
 
-// Enhanced CORS configuration
+// 2. CORS Configuration - must be before other middleware
 app.use(cors({
   origin: true, // Reflect the request origin instead of '*' to work better with credentials
   credentials: true, // Allow cookies and credentials to be sent
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin'],
+  preflightContinue: false
 }));
 
-// Add explicit OPTIONS handling for preflight requests
+// 3. Explicit OPTIONS handling for preflight requests
 app.options('*', cors());
 
-// Configure body parser with increased limits for image handling
+// 4. Body parser for JSON and URL-encoded data - critical for API requests
 app.use(bodyParser.json({ limit: '50mb' })); 
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
-// Serve static files from the frontend directory with caching disabled for development
+// 5. Request body logging for debugging API requests
+app.use((req, res, next) => {
+  if (req.method === 'POST' && req.path.startsWith('/api/')) {
+    if (req.body) {
+      console.log(`Request body for ${req.method} ${req.path}:`, 
+                  req.body.image ? 
+                  {
+                    ...req.body,
+                    image: req.body.image ? `[Image data: ${typeof req.body.image} of length ${req.body.image.length}]` : undefined
+                  } :
+                  req.body
+      );
+    }
+  }
+  next();
+});
+
+// 6. API routes - define before static file serving to prioritize API requests
+app.use('/api', apiRoutes);
+
+// 7. Static file serving - after API routes to avoid conflicts
 app.use(express.static(path.join(__dirname, '../frontend'), {
   etag: false,
   lastModified: false,
@@ -41,15 +63,6 @@ app.use(express.static(path.join(__dirname, '../frontend'), {
   }
 }));
 console.log('Serving static files from:', path.join(__dirname, '../frontend'));
-
-// API routes
-app.use('/api', apiRoutes);
-
-// Basic logging middleware for debugging
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  next();
-});
 
 // Serve the main index.html file for all other routes (SPA support)
 app.get('*', (req, res) => {

@@ -286,23 +286,54 @@ function setupUploadEventListeners(container) {
             const apiUrl = '/api/analyze';
                 
             console.log(`Sending analysis request to: ${apiUrl}`);
+            console.log(`Analysis type: ${selectedAnalysisType}`);
+            console.log(`Image data length: ${imageData ? imageData.length : 0} characters`);
             
-            const response = await fetch(apiUrl, {
+            // Create the request payload
+            const payload = {
+                image: imageData,
+                type: selectedAnalysisType
+            };
+            
+            const requestOptions = {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    image: imageData,
-                    type: selectedAnalysisType
-                }),
+                body: JSON.stringify(payload),
+            };
+            
+            console.log('Attempting fetch with request options:', {
+                method: requestOptions.method,
+                headers: requestOptions.headers,
+                bodyLength: requestOptions.body ? requestOptions.body.length : 0
             });
             
+            // Make the API request
+            const response = await fetch(apiUrl, requestOptions);
+            
+            console.log(`API Response Status: ${response.status} ${response.statusText}`);
+            
+            // Check for non-200 responses and handle them
             if (!response.ok) {
-                throw new Error('Analysis failed');
+                const errorData = await response.json().catch(() => null);
+                console.error('Error response from server:', errorData);
+                
+                let errorMessage = 'Analysis failed';
+                if (errorData && errorData.message) {
+                    errorMessage = errorData.message;
+                } else if (response.status === 404) {
+                    errorMessage = 'API endpoint not found. Please check server configuration.';
+                } else if (response.status === 500) {
+                    errorMessage = 'Server error occurred. Please try again later.';
+                }
+                
+                throw new Error(errorMessage);
             }
             
+            // Parse successful response
             const results = await response.json();
+            console.log('Analysis results received:', results);
             
             // Emit a custom event with the analysis results
             const analysisEvent = new CustomEvent('imageAnalyzed', {

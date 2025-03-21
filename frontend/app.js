@@ -295,7 +295,19 @@ function handleRegistration() {
     });
     
     // Helper function to update profile UI after login/registration
-    function updateProfileUI(email, name = null) {
+    function updateProfileUI(email, name = null, user = null) {
+        // If user is not provided, create a default user object
+        if (!user) {
+            user = {
+                email: email,
+                name: name,
+                subscription: 'free',
+                analysisCount: 0,
+                analysisLimit: 5,
+                analysisRemaining: 5,
+                lastResetDate: new Date().toISOString()
+            };
+        }
         // Update the navigation menu Account link
         const accountNavLink = document.getElementById('account-nav-link');
         if (accountNavLink) {
@@ -315,7 +327,48 @@ function handleRegistration() {
         }
         
         if (profilePlan) {
-            profilePlan.textContent = 'Basic Plan';
+            // Determine plan display name (capitalize first letter)
+            const planName = user?.subscription ? 
+                user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1) : 
+                'Free';
+            
+            profilePlan.textContent = `${planName} Plan`;
+            
+            // If user has subscription data and is on free plan, add analysis count details
+            if (user?.subscription === 'free' && user.analysisCount !== undefined) {
+                const analysisLimit = user.analysisLimit || 5;
+                const analysisRemaining = user.analysisRemaining !== undefined ? 
+                    user.analysisRemaining : 
+                    (analysisLimit - user.analysisCount);
+                
+                // Add analysis count info
+                profilePlan.textContent += ` • ${analysisRemaining} of ${analysisLimit} analyses remaining`;
+                
+                // If running low on analyses, add upgrade prompt
+                if (analysisRemaining <= 2) {
+                    const upgradePrompt = document.createElement('div');
+                    upgradePrompt.className = 'alert alert-warning mt-2 mb-0';
+                    upgradePrompt.innerHTML = `
+                        <i class="fas fa-exclamation-circle"></i> 
+                        <strong>${analysisRemaining === 0 ? 'You\'ve reached your monthly limit!' : 'Running low on analyses!'}</strong>
+                        <p class="mb-1">Upgrade to Premium for unlimited analyses.</p>
+                        <button class="btn btn-sm btn-warning upgrade-btn mt-1">
+                            <i class="fas fa-arrow-circle-up"></i> Upgrade to Premium
+                        </button>
+                    `;
+                    
+                    // Add after the plan text
+                    profilePlan.parentNode.insertBefore(upgradePrompt, profilePlan.nextSibling);
+                    
+                    // Add event listener to upgrade button
+                    const upgradeBtn = upgradePrompt.querySelector('.upgrade-btn');
+                    if (upgradeBtn) {
+                        upgradeBtn.addEventListener('click', () => {
+                            showPage('subscription');
+                        });
+                    }
+                }
+            }
         }
         
         if (signInButton) {

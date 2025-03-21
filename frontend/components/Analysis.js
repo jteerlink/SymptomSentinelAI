@@ -195,8 +195,46 @@ function renderAnalysisResults(container, results) {
                     throw new Error('Failed to save results');
                 }
                 
-                // Show success message
+                // Parse the response
+                const responseData = await response.json();
+                
+                // Display success message
                 showNotification(container, 'Results saved successfully!', 'success');
+                
+                // Check if subscription info was returned
+                if (responseData.subscription) {
+                    const { subscription, analysisCount, analysisLimit, analysisRemaining } = responseData.subscription;
+                    
+                    // Display subscription info if user is on free plan and getting close to limit
+                    if (subscription === 'free' && analysisRemaining <= 2) {
+                        const remainingMessage = analysisRemaining === 0 
+                            ? 'You have reached your monthly analysis limit.'
+                            : `You have ${analysisRemaining} analysis ${analysisRemaining === 1 ? 'credit' : 'credits'} remaining this month.`;
+                            
+                        // Show subscription alert
+                        const subscriptionAlert = document.createElement('div');
+                        subscriptionAlert.className = 'alert alert-warning mt-3';
+                        subscriptionAlert.innerHTML = `
+                            <strong><i class="fas fa-exclamation-circle"></i> ${remainingMessage}</strong>
+                            <p class="mb-1">Upgrade to Premium for unlimited analyses and advanced features.</p>
+                            <button class="btn btn-sm btn-warning upgrade-btn mt-2">
+                                <i class="fas fa-arrow-circle-up"></i> Upgrade to Premium
+                            </button>
+                        `;
+                        
+                        // Insert before the buttons
+                        const buttonContainer = saveResultsBtn.parentElement;
+                        buttonContainer.parentElement.insertBefore(subscriptionAlert, buttonContainer);
+                        
+                        // Add click event to upgrade button
+                        const upgradeBtn = subscriptionAlert.querySelector('.upgrade-btn');
+                        if (upgradeBtn) {
+                            upgradeBtn.addEventListener('click', () => {
+                                navigateToPage('subscription');
+                            });
+                        }
+                    }
+                }
             } catch (error) {
                 console.error('Error saving results:', error);
                 showNotification(container, 'Failed to save results: ' + error.message, 'danger');

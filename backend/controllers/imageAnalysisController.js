@@ -39,11 +39,39 @@ exports.analyzeImage = async (req, res, next) => {
 
         console.log(`Processing ${type} image analysis...`);
         
-        // Process the image data (remove data:image prefix if present)
+        // Process the image data with improved handling for all possible formats
         let imageData = image;
-        if (typeof image === 'string' && image.startsWith('data:image')) {
-            imageData = image.split(',')[1];
-            console.log('Processed base64 image data');
+        
+        // Case 1: Handle test image mode
+        if (image === 'test_image') {
+            console.log('Using test image data for analysis');
+            imageData = 'test_image';
+        }
+        // Case 2: Handle base64 data URLs (from canvas.toDataURL())
+        else if (typeof image === 'string' && image.startsWith('data:image')) {
+            try {
+                imageData = image.split(',')[1];
+                console.log('Processed base64 image data from data URL, length:', imageData.length);
+            } catch (err) {
+                console.error('Failed to process base64 image data:', err);
+                return res.status(400).json({
+                    error: true,
+                    message: 'Invalid image data format'
+                });
+            }
+        }
+        // Case 3: Handle raw base64 strings (without data:image prefix)
+        else if (typeof image === 'string' && (
+            image.startsWith('/9j/') || // JPEG
+            image.startsWith('iVBOR') || // PNG
+            image.match(/^[A-Za-z0-9+/=]+$/) // Generic base64 check
+        )) {
+            console.log('Detected raw base64 image data, length:', image.length);
+            imageData = image;
+        }
+        // Case 4: Handle other formats
+        else if (image) {
+            console.log(`Image data provided in format: ${typeof image}, handling as-is`);
         }
 
         // Load the appropriate model

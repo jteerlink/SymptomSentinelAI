@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Image Upload Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            white-space: pre-wrap;
+        }
+        img {
+            max-width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Simple Image Upload Test</h1>
+    
+    <div class="container">
+        <h2>Step 1: Choose Test Type</h2>
+        <button id="testJson">Test JSON Upload</button>
+        <button id="testForm">Test Form Upload</button>
+    </div>
+    
+    <div class="container">
+        <h2>Step 2: Select Image</h2>
+        <input type="file" id="imageInput" accept="image/*">
+        <img id="preview" style="display: none;">
+    </div>
+    
+    <div class="container">
+        <h2>Step 3: Upload</h2>
+        <div>
+            <input type="radio" id="throatType" name="analysisType" value="throat" checked>
+            <label for="throatType">Throat</label>
+            
+            <input type="radio" id="earType" name="analysisType" value="ear">
+            <label for="earType">Ear</label>
+        </div>
+        <button id="uploadBtn" disabled>Upload Image</button>
+    </div>
+    
+    <div class="container">
+        <h2>Result</h2>
+        <div id="result">No result yet</div>
+    </div>
+    
+    <script>
+        // Elements
+        const imageInput = document.getElementById('imageInput');
+        const preview = document.getElementById('preview');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const result = document.getElementById('result');
+        const testJsonBtn = document.getElementById('testJson');
+        const testFormBtn = document.getElementById('testForm');
+        
+        // Variables
+        let testMode = null;
+        let imageData = null;
+        
+        // Setup event listeners
+        imageInput.addEventListener('change', handleImageSelect);
+        uploadBtn.addEventListener('click', uploadImage);
+        testJsonBtn.addEventListener('click', () => {
+            testMode = 'json';
+            testJsonBtn.style.backgroundColor = '#4CAF50';
+            testFormBtn.style.backgroundColor = '#ccc';
+            updateUploadButton();
+        });
+        testFormBtn.addEventListener('click', () => {
+            testMode = 'form';
+            testFormBtn.style.backgroundColor = '#4CAF50';
+            testJsonBtn.style.backgroundColor = '#ccc';
+            updateUploadButton();
+        });
+        
+        // Handle file selection
+        function handleImageSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // Resize image for preview and upload
+                    const canvas = document.createElement('canvas');
+                    const MAX_SIZE = 400;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Scale down if needed
+                    if (width > height && width > MAX_SIZE) {
+                        height = Math.round(height * (MAX_SIZE / width));
+                        width = MAX_SIZE;
+                    } else if (height > MAX_SIZE) {
+                        width = Math.round(width * (MAX_SIZE / height));
+                        height = MAX_SIZE;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Get image data
+                    imageData = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // Show preview
+                    preview.src = imageData;
+                    preview.style.display = 'block';
+                    
+                    // Enable upload button if test mode selected
+                    updateUploadButton();
+                    
+                    result.textContent = `Image prepared: ${width}x${height}, size: ${imageData.length} bytes`;
+                };
+                img.src = e.target.result;
+            };
+            
+            reader.readAsDataURL(file);
+        }
+        
+        // Update upload button state
+        function updateUploadButton() {
+            uploadBtn.disabled = !(imageData && testMode);
+        }
+        
+        // Upload image
+        async function uploadImage() {
+            const selectedType = document.querySelector('input[name="analysisType"]:checked').value;
+            
+            result.textContent = 'Uploading...';
+            try {
+                let response;
+                
+                if (testMode === 'json') {
+                    // JSON upload approach (/analyze endpoint)
+                    response = await fetch('/analyze', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Test-Source': 'simple-tester',
+                            'X-Test-Time': new Date().toISOString()
+                        },
+                        body: JSON.stringify({
+                            image: imageData,
+                            type: selectedType
+                        })
+                    });
+                } else {
+                    // Form upload approach (/upload endpoint)
+                    const formData = new FormData();
+                    
+                    // Convert base64 to blob
+                    const fetchRes = await fetch(imageData);
+                    const blob = await fetchRes.blob();
+                    
+                    formData.append('image', blob, 'image.jpg');
+                    formData.append('type', selectedType);
+                    
+                    response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                }
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Server error (${response.status}): ${errorText}`);
+                }
+                
+                const data = await response.json();
+                result.textContent = `Success!\n\nEndpoint: ${testMode === 'json' ? '/analyze' : '/api/upload'}\nResponse:\n${JSON.stringify(data, null, 2)}`;
+                
+            } catch (error) {
+                result.textContent = `Error: ${error.message}`;
+                console.error('Upload error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

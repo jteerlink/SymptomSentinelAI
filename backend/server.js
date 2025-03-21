@@ -30,8 +30,17 @@ app.use(cors({
 app.options('*', cors());
 
 // 4. Body parser for JSON and URL-encoded data - critical for API requests
-app.use(bodyParser.json({ limit: '50mb' })); 
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+// Increase limit and configure to handle large payloads for image data
+app.use(bodyParser.json({ 
+  limit: '50mb', 
+  extended: true,
+  parameterLimit: 100000 // Increased parameter limit for large requests
+})); 
+app.use(bodyParser.urlencoded({ 
+  extended: true, 
+  limit: '50mb',
+  parameterLimit: 100000 // Increased parameter limit for large requests
+}));
 
 // 5. Request body logging for debugging API requests
 app.use((req, res, next) => {
@@ -55,17 +64,53 @@ app.use('/api', apiRoutes);
 
 // 6a. Add direct /analyze endpoint to catch requests that are missing the /api prefix
 // This helps maintain backwards compatibility with any direct API calls
-app.post('/analyze', (req, res, next) => {
+const multer = require('multer');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB size limit
+});
+
+app.post('/analyze', upload.single('image'), (req, res, next) => {
   console.log('Received request to /analyze - processing directly');
+  console.log('Content-Type:', req.headers['content-type']);
   console.log('Request body keys:', Object.keys(req.body));
-  console.log('Request body type:', typeof req.body);
   
-  // Log image data properties if present
-  if (req.body && req.body.image) {
-    console.log('Image data present, type:', typeof req.body.image);
-    console.log('Image data length:', req.body.image.length);
+  // Check if request is multipart/form-data (from FormData)
+  const isMultipart = req.headers['content-type'] && 
+                     req.headers['content-type'].startsWith('multipart/form-data');
+  
+  if (isMultipart) {
+    console.log('Received multipart/form-data request');
+    console.log('File present:', !!req.file);
+    
+    if (req.file) {
+      console.log('File details:', {
+        fieldname: req.file.fieldname,
+        originalname: req.file.originalname,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+        buffer: `Buffer of ${req.file.buffer.length} bytes`
+      });
+      
+      // Extract relevant data and reconstruct the request body
+      req.body.image = req.file.buffer.toString('base64');
+      req.body.type = req.body.type || 'throat'; // Use provided type or default to throat
+      
+      console.log('Reconstructed request body with image data from file upload');
+      console.log('Type:', req.body.type);
+      console.log('Image data length:', req.body.image.length);
+    }
   } else {
-    console.log('No image data in request body');
+    // Original JSON body handling
+    console.log('Received JSON request');
+    
+    // Log image data properties if present
+    if (req.body && req.body.image) {
+      console.log('Image data present, type:', typeof req.body.image);
+      console.log('Image data length:', req.body.image.length);
+    } else {
+      console.log('No image data in request body');
+    }
   }
   
   // Forward to the analyze controller directly instead of using apiRoutes

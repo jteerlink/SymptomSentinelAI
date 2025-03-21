@@ -308,10 +308,11 @@ function setupUploadEventListeners(container) {
         
         try {
             // ===== CRITICAL FIX =====
-            // For testing, let's try the direct endpoint to bypass any proxy issues
+            // Try the direct /analyze endpoint to avoid proxy issues
             const apiUrl = '/analyze';
             
             console.log('[Analysis DEBUG] Using direct endpoint: ' + apiUrl);
+            console.log('[Analysis DEBUG] Current environment:', window.location.hostname);
                 
             console.log(`[Analysis] Sending request to: ${apiUrl}`);
             console.log(`[Analysis] Analysis type: ${selectedAnalysisType}`);
@@ -328,26 +329,39 @@ function setupUploadEventListeners(container) {
                 'X-Request-Time': new Date().toISOString() // Add timestamp for tracking request time
             };
             
-            // Create the request payload
-            const payload = {
-                image: imagePayload,
-                type: selectedAnalysisType
-            };
+            // Try using FormData for better handling of large binary data
+            const formData = new FormData();
+            
+            // First, get a blob from the imagePayload
+            const fetchResponse = await fetch(imagePayload);
+            const blob = await fetchResponse.blob();
+            
+            // Add the data to the FormData
+            formData.append('type', selectedAnalysisType);
+            formData.append('image', blob, 'image.jpg');
+            
+            console.log('[Analysis] Using FormData approach with blob');
+            console.log('[Analysis] FormData contains:', [...formData.entries()].map(entry => entry[0]));
             
             // For easier debugging
             console.log('[Analysis] Request details:', {
                 url: apiUrl,
                 method: 'POST',
-                headers: headers,
-                payloadKeys: Object.keys(payload),
-                imageDataLength: imagePayload.length
+                formDataContents: [...formData.entries()].map(entry => entry[0]),
+                blobSize: blob.size
             });
             
-            // Make the API request with explicit configuration
+            // Don't set Content-Type header with FormData (browser sets it with boundary)
+            const formHeaders = {
+                'X-Request-Source': 'frontend-image-upload',
+                'X-Request-Time': new Date().toISOString()
+            };
+            
+            // Make the API request with FormData
             const response = await fetch(apiUrl, {
                 method: 'POST',
-                headers: headers,
-                body: JSON.stringify(payload),
+                headers: formHeaders,
+                body: formData,
                 credentials: 'same-origin' // Include cookies if needed
             });
             

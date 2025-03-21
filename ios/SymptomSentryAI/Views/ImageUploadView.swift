@@ -144,11 +144,11 @@ struct ImageUploadView: View {
     
     private var instructionsSection: some View {
         VStack(spacing: 12) {
-            Text("Upload a clear image")
+            Text("Select what you want to scan")
                 .font(.title2)
                 .fontWeight(.semibold)
             
-            Text("Position the camera directly in front of the throat or ear to capture a clear image in good lighting.")
+            Text("Choose an area to analyze, then take or upload a clear image for AI analysis.")
                 .font(.body)
                 .multilineTextAlignment(.center)
                 .foregroundColor(.secondary)
@@ -158,9 +158,6 @@ struct ImageUploadView: View {
     
     private var typeSelectionSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Select Analysis Type")
-                .font(.headline)
-            
             HStack(spacing: 15) {
                 ForEach(MLAnalysisService.AnalysisType.allCases) { type in
                     AnalysisTypeButton(
@@ -169,6 +166,65 @@ struct ImageUploadView: View {
                         action: { analysisType = type }
                     )
                 }
+            }
+            
+            // Best practices section - only appears after selection
+            if let selectedType = MLAnalysisService.AnalysisType.allCases.first(where: { $0 == analysisType }) {
+                bestPracticesSection(for: selectedType)
+                    .transition(.opacity)
+                    .animation(.easeInOut, value: analysisType)
+            }
+        }
+    }
+    
+    private func bestPracticesSection(for type: MLAnalysisService.AnalysisType) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Image(systemName: type.iconName)
+                    .foregroundColor(.blue)
+                Text("\(type.displayName) Scan Selected")
+                    .font(.headline)
+            }
+            .padding(.top, 8)
+            
+            Text(type == .throat ? 
+                "Position the camera to clearly show the back of your throat." :
+                "Gently pull your ear up and back to better expose the ear canal."
+            )
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("For best results:")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        BestPracticeBullet(text: "Ensure good lighting")
+                        BestPracticeBullet(text: "Keep the camera steady")
+                        BestPracticeBullet(text: "Focus on the area of concern")
+                    }
+                }
+            }
+            .padding(12)
+            .background(Color.blue.opacity(0.1))
+            .cornerRadius(8)
+            .padding(.top, 4)
+        }
+        .padding(.vertical, 8)
+    }
+    
+    struct BestPracticeBullet: View {
+        let text: String
+        
+        var body: some View {
+            HStack(alignment: .top, spacing: 8) {
+                Text("•")
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+                Text(text)
+                    .font(.subheadline)
             }
         }
     }
@@ -218,9 +274,6 @@ struct ImageUploadView: View {
                         Image(systemName: "camera.fill")
                             .font(.largeTitle)
                             .foregroundColor(.blue)
-                        
-                        Text("Upload an image")
-                            .fontWeight(.medium)
                         
                         Button(action: {
                             showingImageSourceOptions = true
@@ -338,17 +391,31 @@ struct AnalysisTypeButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 Image(systemName: type.iconName)
-                    .font(.system(size: 28))
+                    .font(.system(size: 24))
                     .foregroundColor(isSelected ? .white : .blue)
                 
                 Text(type.displayName)
                     .font(.subheadline)
                     .foregroundColor(isSelected ? .white : .primary)
+                
+                // Only show "Click to Select" text if not selected
+                if !isSelected {
+                    Text("Click to Select")
+                        .font(.caption)
+                        .foregroundColor(isSelected ? .white.opacity(0.8) : .secondary)
+                }
+                
+                Text(type.description)
+                    .font(.caption)
+                    .foregroundColor(isSelected ? .white.opacity(0.9) : .secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 4)
+                    .lineLimit(2)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 20)
+            .frame(width: 150)
+            .padding(.vertical, 16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
                     .fill(isSelected ? Color.blue : Color(.systemGray6))

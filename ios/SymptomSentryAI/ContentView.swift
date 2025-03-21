@@ -9,6 +9,9 @@ struct ContentView: View {
     /// Theme manager
     @ObservedObject private var themeManager = ThemeManager.shared
     
+    /// User authentication service
+    @StateObject private var userService = UserService.shared
+    
     /// Currently selected tab
     @State private var selectedTab = 0
     
@@ -141,8 +144,9 @@ struct ContentView: View {
                 }
             }
         }
-        // Apply the current theme
+        // Apply the current theme and inject environment objects
         .withAppTheme()
+        .environmentObject(userService)
     }
 }
 
@@ -156,13 +160,16 @@ struct ProfileView: View {
     /// Theme manager
     @ObservedObject private var themeManager = ThemeManager.shared
     
+    /// User service
+    @EnvironmentObject private var userService: UserService
+    
     // MARK: - Body
     
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 // User profile section
-                ProfileHeaderView()
+                ProfileHeaderView(showLoginSheet: $showLoginSheet)
                 
                 // Settings sections
                 SettingsSection(title: "App Settings") {
@@ -206,8 +213,14 @@ struct ProfileView: View {
                         // Action
                     }
                     
-                    SettingsRowView(title: "Sign Out", icon: "arrow.right.square.fill", foregroundColor: .red) {
-                        // Action
+                    if userService.isAuthenticated {
+                        SettingsRowView(title: "Sign Out", icon: "arrow.right.square.fill", foregroundColor: .red) {
+                            userService.logout()
+                        }
+                    } else {
+                        SettingsRowView(title: "Sign In", icon: "person.fill.checkmark", foregroundColor: .blue) {
+                            showLoginSheet = true
+                        }
                     }
                 }
             }
@@ -219,12 +232,20 @@ struct ProfileView: View {
         .sheet(isPresented: $showThemePicker) {
             ThemePickerView()
         }
+        .sheet(isPresented: $showLoginSheet) {
+            LoginView(onComplete: { success in
+                if success {
+                    // Refresh user data if needed
+                }
+            })
+        }
     }
     
     // MARK: - State
     
     @State private var showingTutorialsMenu = false
     @State private var showThemePicker = false
+    @State private var showLoginSheet = false
     
     // MARK: - Methods
     
@@ -434,6 +455,9 @@ struct TutorialsMenuView: View {
 
 /// Profile header view
 struct ProfileHeaderView: View {
+    @EnvironmentObject private var userService: UserService
+    @Binding var showLoginSheet: Bool
+    
     var body: some View {
         VStack(spacing: 16) {
             Image(systemName: "person.circle.fill")
@@ -442,40 +466,65 @@ struct ProfileHeaderView: View {
                 .frame(width: 100, height: 100)
                 .foregroundColor(.blue)
             
-            Text("John Doe")
-                .font(.title)
-                .fontWeight(.bold)
-            
-            Text("john.doe@example.com")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            
-            HStack(spacing: 40) {
-                VStack {
-                    Text("5")
-                        .font(.headline)
-                    Text("Analyses")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            if userService.isAuthenticated, let user = userService.currentUser {
+                // Authenticated user
+                Text(user.name)
+                    .font(.title)
+                    .fontWeight(.bold)
                 
-                VStack {
-                    Text("2")
-                        .font(.headline)
-                    Text("Consultations")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                Text(user.email)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
                 
-                VStack {
-                    Text("Free")
-                        .font(.headline)
-                    Text("Plan")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                HStack(spacing: 40) {
+                    VStack {
+                        Text("5")
+                            .font(.headline)
+                        Text("Analyses")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    VStack {
+                        Text("2")
+                            .font(.headline)
+                        Text("Consultations")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    VStack {
+                        Text(user.subscriptionLevel.rawValue.capitalized)
+                            .font(.headline)
+                        Text("Plan")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
+                .padding(.top, 8)
+            } else {
+                // Not authenticated
+                Text("Guest User")
+                    .font(.title)
+                    .fontWeight(.bold)
+                
+                Text("Sign in to access your profile")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                
+                Button(action: {
+                    showLoginSheet = true
+                }) {
+                    Text("Sign In")
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white)
+                        .frame(width: 120)
+                        .padding(.vertical, 8)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                }
+                .padding(.top, 12)
             }
-            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity)
         .padding()

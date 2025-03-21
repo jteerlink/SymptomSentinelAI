@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct AnalysisResultsView: View {
     // MARK: - Properties
@@ -16,6 +17,14 @@ struct AnalysisResultsView: View {
     @State private var animateResults = false
     @State private var pulseHighConfidence = false
     @State private var showHeartbeatEffect = false
+    
+    /// User authentication service
+    @EnvironmentObject var userService: UserService
+    
+    /// State for save operation
+    @State private var isSaving = false
+    @State private var saveMessage: String?
+    @State private var showLoginPrompt = false
     
     // MARK: - Body
     
@@ -220,6 +229,59 @@ struct AnalysisResultsView: View {
     
     private var actionButtons: some View {
         VStack(spacing: 12) {
+            // Save Results Button
+            VStack(spacing: 4) {
+                Button(action: {
+                    if userService.isAuthenticated {
+                        saveAnalysisResults()
+                    } else {
+                        showLoginPrompt = true
+                    }
+                }) {
+                    HStack {
+                        Image(systemName: "square.and.arrow.down")
+                            .imageScale(.large)
+                            .symbolEffect(.pulse, options: .repeating, value: isSaving)
+                        Text(isSaving ? "Saving..." : "Save Results")
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(userService.isAuthenticated ? Color.purple : Color.gray)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+                }
+                .disabled(isSaving || analysis.conditions.isEmpty)
+                .opacity(animateResults ? 1 : 0)
+                .offset(y: animateResults ? 0 : 20)
+                .animation(.easeOut(duration: 0.5).delay(0.5), value: animateResults)
+                
+                // Login prompt if user is not authenticated
+                if !userService.isAuthenticated {
+                    Button(action: {
+                        // Navigate to login screen
+                        showLoginPrompt = true
+                    }) {
+                        Text("Sign in to save results")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    .padding(.top, 2)
+                    .opacity(animateResults ? 1 : 0)
+                    .offset(y: animateResults ? 0 : 10)
+                    .animation(.easeOut(duration: 0.5).delay(0.6), value: animateResults)
+                }
+                
+                // Show message after save attempt
+                if let message = saveMessage {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundColor(message.contains("successfully") ? .green : .red)
+                        .padding(.top, 4)
+                        .transition(.opacity)
+                }
+            }
+            
+            // Learn About This Condition Button
             Button(action: {
                 // This would navigate to educational content for the top condition
             }) {
@@ -251,6 +313,7 @@ struct AnalysisResultsView: View {
                     )
             )
             
+            // Connect With Doctor Button
             Button(action: {
                 // This would connect the user to telemedicine
             }) {
@@ -270,6 +333,42 @@ struct AnalysisResultsView: View {
             .offset(y: animateResults ? 0 : 20)
             .animation(.easeOut(duration: 0.5).delay(0.9), value: animateResults)
             .shadow(color: Color.green.opacity(0.3), radius: 5, x: 0, y: 2)
+        }
+        .sheet(isPresented: $showLoginPrompt) {
+            LoginView(onComplete: { success in
+                showLoginPrompt = false
+                if success && userService.isAuthenticated {
+                    // Automatically save the results if the user just logged in
+                    saveAnalysisResults()
+                }
+            })
+        }
+    }
+    
+    /// Save the analysis results to the user's account
+    private func saveAnalysisResults() {
+        guard userService.isAuthenticated, let authToken = userService.authToken else {
+            saveMessage = "You need to be logged in to save results"
+            return
+        }
+        
+        isSaving = true
+        saveMessage = nil
+        
+        // In a real app, this would make an API request to save the analysis
+        // For this demonstration, we'll simulate a server response
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            // Simulate success
+            self.isSaving = false
+            self.saveMessage = "Results saved successfully!"
+            
+            // Hide the message after a few seconds
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                withAnimation {
+                    self.saveMessage = nil
+                }
+            }
         }
     }
 }

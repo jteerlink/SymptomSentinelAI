@@ -707,6 +707,9 @@ function handleRegistration() {
             const signOutButton = accountInfoCard.querySelector('#sign-out-btn');
             if (signOutButton) {
                 signOutButton.addEventListener('click', () => {
+                    // Clear authentication token from localStorage
+                    localStorage.removeItem('authToken');
+                    
                     // Reset the profile UI
                     if (profileTitle) profileTitle.textContent = 'Guest User';
                     if (profilePlan) profilePlan.textContent = 'Free Plan';
@@ -717,9 +720,9 @@ function handleRegistration() {
                     }
                     
                     // Reset the navigation menu Account link
-                    const accountNavLink = document.getElementById('account-nav-link');
-                    if (accountNavLink) {
-                        accountNavLink.textContent = 'Sign In / Register';
+                    const navLink = document.getElementById('account-nav-link');
+                    if (navLink) {
+                        navLink.textContent = 'Sign In / Register';
                     }
                     
                     // Reset account info

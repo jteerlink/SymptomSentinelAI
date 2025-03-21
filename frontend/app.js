@@ -273,24 +273,75 @@ function handleRegistration() {
     authModal.show();
     
     // Add event listeners for form submissions
-    document.getElementById('login-form').addEventListener('submit', (e) => {
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const email = document.getElementById('login-email').value;
         const password = document.getElementById('login-password').value;
         const rememberMe = document.getElementById('remember-me').checked;
         
-        console.log('Login attempt:', { email, rememberMe });
-        // TODO: Implement actual login logic with backend API
+        // Show loading state
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing in...';
         
-        // Update UI to reflect logged in state
-        updateProfileUI(email);
-        
-        // Show success notification and close modal
-        showNotification('Login successful!', 'success');
-        authModal.hide();
+        try {
+            // Call login API
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Login failed');
+            }
+            
+            const data = await response.json();
+            
+            // Store token in localStorage
+            localStorage.setItem('authToken', data.token);
+            
+            if (rememberMe) {
+                localStorage.setItem('userEmail', email);
+            } else {
+                localStorage.removeItem('userEmail');
+            }
+            
+            // Update UI to reflect logged in state
+            updateProfileUI(data.user.email, data.user.name, data.user);
+            
+            // Check if there were analysis results waiting to be saved
+            const pendingResults = sessionStorage.getItem('pendingAnalysisResults');
+            if (pendingResults) {
+                try {
+                    // Attempt to save the pending results now that user is logged in
+                    const { apiRequest } = await import('./app.js');
+                    await apiRequest('/api/save-analysis', 'POST', JSON.parse(pendingResults));
+                    showNotification('Analysis results saved successfully!', 'success');
+                    sessionStorage.removeItem('pendingAnalysisResults');
+                } catch (saveError) {
+                    console.error('Error saving pending analysis:', saveError);
+                }
+            }
+            
+            // Show success notification and close modal
+            showNotification('Login successful!', 'success');
+            authModal.hide();
+        } catch (error) {
+            console.error('Login error:', error);
+            showNotification(error.message || 'Login failed. Please check your credentials.', 'danger');
+        } finally {
+            // Reset button state
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
     });
     
-    document.getElementById('register-form').addEventListener('submit', (e) => {
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
         e.preventDefault();
         const firstName = document.getElementById('register-first-name').value;
         const lastName = document.getElementById('register-last-name').value;
@@ -304,15 +355,53 @@ function handleRegistration() {
             return;
         }
         
-        console.log('Registration attempt:', { firstName, lastName, email });
-        // TODO: Implement actual registration logic with backend API
+        // Show loading state
+        const submitButton = e.target.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
         
-        // Automatically log the user in after successful registration
-        updateProfileUI(email, `${firstName} ${lastName}`);
-        
-        // Show success notification and close modal
-        showNotification('Account created successfully!', 'success');
-        authModal.hide();
+        try {
+            // Format full name for the API
+            const name = `${firstName} ${lastName}`.trim();
+            
+            // Call register API
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    email, 
+                    password, 
+                    name
+                })
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Registration failed');
+            }
+            
+            const data = await response.json();
+            
+            // Store token in localStorage
+            localStorage.setItem('authToken', data.token);
+            
+            // Automatically log the user in after successful registration
+            updateProfileUI(data.user.email, data.user.name, data.user);
+            
+            // Show success notification and close modal
+            showNotification('Account created successfully!', 'success');
+            authModal.hide();
+        } catch (error) {
+            console.error('Registration error:', error);
+            showNotification(error.message || 'Registration failed. Please try again.', 'danger');
+        } finally {
+            // Reset button state
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        }
     });
     
     // Helper function to update profile UI after login/registration

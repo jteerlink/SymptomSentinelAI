@@ -283,9 +283,12 @@ function setupUploadEventListeners(container) {
         
         try {
             // ===== CRITICAL FIX =====
-            // Always use a simple relative URL that starts with /api/
+            // Use the full correct API URL pattern
             // This ensures it's properly handled by our server configuration
             const apiUrl = '/api/analyze';
+            
+            // As a fallback, the backend also supports /analyze directly
+            // but we'll use the proper /api prefix as the best practice
                 
             console.log(`[Analysis] Sending request to: ${apiUrl}`);
             console.log(`[Analysis] Analysis type: ${selectedAnalysisType}`);

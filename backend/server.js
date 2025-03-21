@@ -53,6 +53,15 @@ app.use((req, res, next) => {
 // 6. API routes - define before static file serving to prioritize API requests
 app.use('/api', apiRoutes);
 
+// 6a. Add direct /analyze endpoint to catch requests that are missing the /api prefix
+// This helps maintain backwards compatibility with any direct API calls
+app.post('/analyze', (req, res) => {
+  console.log('Received request to /analyze - redirecting to /api/analyze');
+  // Forward the request to the proper API endpoint
+  req.url = '/api/analyze';
+  apiRoutes(req, res);
+});
+
 // 7. Static file serving - after API routes to avoid conflicts
 app.use(express.static(path.join(__dirname, '../frontend'), {
   etag: false,

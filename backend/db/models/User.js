@@ -8,6 +8,8 @@ const db = require('../db');
 const { v4: uuidv4 } = require('uuid');
 const bcrypt = require('bcryptjs');
 
+const SALT_ROUNDS = 10;
+
 class User {
   /**
    * Create a new user
@@ -16,20 +18,20 @@ class User {
    * @returns {Promise<Object>} Created user object
    */
   static async create(userData) {
-    const { email, password, name, subscription = 'free' } = userData;
+    const { email, password, name, subscription = 'free', email_verified = false } = userData;
 
     // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
     
     // Insert user into database
     const [user] = await db('users').insert({
       id: uuidv4(),
-      email: email.toLowerCase().trim(),
+      email,
       password: hashedPassword,
       name,
-      subscription
-    }).returning(['id', 'email', 'name', 'subscription', 'created_at']);
+      subscription,
+      email_verified
+    }).returning(['id', 'email', 'name', 'subscription', 'email_verified', 'created_at']);
     
     return user;
   }
@@ -43,7 +45,7 @@ class User {
   static async findById(id) {
     const user = await db('users')
       .where({ id })
-      .first(['id', 'email', 'name', 'subscription', 'email_verified', 'created_at', 'updated_at']);
+      .first();
     
     return user || null;
   }
@@ -56,7 +58,7 @@ class User {
    */
   static async findByEmail(email) {
     const user = await db('users')
-      .where({ email: email.toLowerCase().trim() })
+      .where({ email })
       .first();
     
     return user || null;
@@ -72,8 +74,7 @@ class User {
   static async update(id, updateData) {
     // If password is being updated, hash it
     if (updateData.password) {
-      const salt = await bcrypt.genSalt(10);
-      updateData.password = await bcrypt.hash(updateData.password, salt);
+      updateData.password = await bcrypt.hash(updateData.password, SALT_ROUNDS);
     }
     
     // Update updated_at timestamp
@@ -109,7 +110,7 @@ class User {
    * @returns {Promise<boolean>} True if password is valid, false otherwise
    */
   static async verifyPassword(plainPassword, hashedPassword) {
-    return await bcrypt.compare(plainPassword, hashedPassword);
+    return bcrypt.compare(plainPassword, hashedPassword);
   }
 
   /**
@@ -118,8 +119,10 @@ class User {
    * @returns {Promise<Array>} Array of user objects
    */
   static async getAll() {
-    return await db('users')
+    const users = await db('users')
       .select(['id', 'email', 'name', 'subscription', 'email_verified', 'created_at', 'updated_at']);
+    
+    return users;
   }
 }
 

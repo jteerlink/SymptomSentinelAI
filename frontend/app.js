@@ -13,6 +13,20 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
+    // Monkey-patch fetch to ensure all API calls go through our server
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+        if (typeof url === 'string' && url.includes('/api/')) {
+            // Convert any absolute URLs to the domain to relative URLs
+            if (url.includes('://')) {
+                const urlObj = new URL(url);
+                url = urlObj.pathname;
+                console.log('Redirecting API call to relative path:', url);
+            }
+        }
+        return originalFetch(url, options);
+    };
+    
     // Initialize components
     initializeImageUpload(document.getElementById('image-upload-component'));
     initializeAnalysis(document.getElementById('analysis-results-component'));

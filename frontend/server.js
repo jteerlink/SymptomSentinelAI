@@ -12,6 +12,19 @@ app.use(express.static(__dirname));
 app.use('/api', createProxyMiddleware({ 
   target: 'http://localhost:5000',
   changeOrigin: true,
+  pathRewrite: {
+    '^/api': '/api' // No need to rewrite paths
+  },
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`Proxying ${req.method} ${req.url} to backend`);
+  },
+  onProxyRes: (proxyRes, req, res) => {
+    console.log(`Received response from backend for ${req.method} ${req.url}: ${proxyRes.statusCode}`);
+  },
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err);
+    res.status(500).json({ error: 'Proxy error', message: err.message });
+  }
 }));
 
 // Serve index.html for all other routes

@@ -408,26 +408,214 @@ function handleRegistration() {
                 accountInfoCard.removeChild(accountInfoCard.firstChild);
             }
             
+            // Extract first name for display (with proper case)
+            let firstName = '';
+            let lastName = '';
+            
+            if (user.name) {
+                const nameParts = user.name.trim().split(/\s+/);
+                if (nameParts.length >= 1) {
+                    // Format with proper case (first letter uppercase, rest lowercase)
+                    firstName = formatNameProperCase(nameParts[0]);
+                }
+                if (nameParts.length >= 2) {
+                    lastName = nameParts.slice(1).join(' ');
+                }
+            } else if (email) {
+                // If no name, use the part before @ in email
+                firstName = email.split('@')[0];
+                // Format with proper case
+                firstName = formatNameProperCase(firstName);
+            }
+            
+            // Format subscription plan name (capitalize first letter)
+            const planName = user?.subscription ? 
+                user.subscription.charAt(0).toUpperCase() + user.subscription.slice(1) : 
+                'Free';
+            
+            // Use the specific first name or formatted email username
+            const displayName = firstName || email.split('@')[0];
+            
             // Create and append new content
             const dateJoined = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
             
             const infoHTML = `
                 <h5 class="mb-3">Account Information</h5>
-                <p><strong>Email:</strong> ${email}</p>
+                <p><strong>Name:</strong> <span id="display-name">${displayName}</span> <span id="display-last-name">${lastName}</span></p>
+                <p><strong>Email:</strong> <span id="display-email">${email}</span></p>
                 <p><strong>Member since:</strong> ${dateJoined}</p>
-                <p><strong>Subscription:</strong> Basic Plan</p>
-                <p><strong>Images analyzed:</strong> 0</p>
+                <p><strong>Subscription:</strong> ${planName} Plan</p>
+                <p><strong>Images analyzed:</strong> ${user.analysisCount || 0}</p>
+                
+                <!-- Edit Profile Form - Hidden by default -->
+                <div id="edit-profile-form" class="mt-3 mb-3 border p-3 rounded bg-light" style="display: none;">
+                    <h6 class="mb-3">Edit Profile Information</h6>
+                    <div class="mb-3">
+                        <label for="edit-first-name" class="form-label">First Name</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-first-name" value="${firstName}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-last-name" class="form-label">Last Name</label>
+                        <input type="text" class="form-control form-control-sm" id="edit-last-name" value="${lastName}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-email" class="form-label">Email</label>
+                        <input type="email" class="form-control form-control-sm" id="edit-email" value="${email}">
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button id="cancel-edit-profile" class="btn btn-outline-secondary btn-sm">Cancel</button>
+                        <button id="save-profile" class="btn btn-primary btn-sm">Save Changes</button>
+                    </div>
+                </div>
+                
+                <!-- Change Password Form - Hidden by default -->
+                <div id="change-password-form" class="mt-3 mb-3 border p-3 rounded bg-light" style="display: none;">
+                    <h6 class="mb-3">Change Password</h6>
+                    <div class="mb-3">
+                        <label for="current-password" class="form-label">Current Password</label>
+                        <input type="password" class="form-control form-control-sm" id="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="new-password" class="form-label">New Password</label>
+                        <input type="password" class="form-control form-control-sm" id="new-password">
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm-new-password" class="form-label">Confirm New Password</label>
+                        <input type="password" class="form-control form-control-sm" id="confirm-new-password">
+                    </div>
+                    <div class="d-flex justify-content-end gap-2">
+                        <button id="cancel-change-password" class="btn btn-outline-secondary btn-sm">Cancel</button>
+                        <button id="save-password" class="btn btn-primary btn-sm">Update Password</button>
+                    </div>
+                </div>
+                
                 <div class="d-grid gap-2 mt-4">
-                    <button class="btn btn-outline-primary btn-sm">Edit Profile</button>
-                    <button class="btn btn-outline-primary btn-sm">Change Password</button>
-                    <button class="btn btn-outline-danger btn-sm">Sign Out</button>
+                    <button id="edit-profile-btn" class="btn btn-outline-primary btn-sm">Edit Profile</button>
+                    <button id="change-password-btn" class="btn btn-outline-primary btn-sm">Change Password</button>
+                    <button id="sign-out-btn" class="btn btn-outline-danger btn-sm">Sign Out</button>
                 </div>
             `;
             
             accountInfoCard.innerHTML = infoHTML;
             
-            // Add event listener for sign out button
-            const signOutButton = accountInfoCard.querySelector('.btn.btn-outline-danger');
+            // Add event listeners for the account management buttons
+            
+            // Edit Profile Button
+            const editProfileBtn = accountInfoCard.querySelector('#edit-profile-btn');
+            const editProfileForm = accountInfoCard.querySelector('#edit-profile-form');
+            const cancelEditProfileBtn = accountInfoCard.querySelector('#cancel-edit-profile');
+            const saveProfileBtn = accountInfoCard.querySelector('#save-profile');
+            
+            if (editProfileBtn && editProfileForm) {
+                editProfileBtn.addEventListener('click', () => {
+                    editProfileForm.style.display = 'block';
+                    if (document.getElementById('change-password-form')) {
+                        document.getElementById('change-password-form').style.display = 'none';
+                    }
+                });
+            }
+            
+            if (cancelEditProfileBtn) {
+                cancelEditProfileBtn.addEventListener('click', () => {
+                    editProfileForm.style.display = 'none';
+                });
+            }
+            
+            if (saveProfileBtn) {
+                saveProfileBtn.addEventListener('click', async () => {
+                    const newFirstName = document.getElementById('edit-first-name').value;
+                    const newLastName = document.getElementById('edit-last-name').value;
+                    const newEmail = document.getElementById('edit-email').value;
+                    
+                    try {
+                        // Make API request to update user profile
+                        const response = await apiRequest('/api/update-profile', 'PUT', {
+                            firstName: newFirstName,
+                            lastName: newLastName,
+                            email: newEmail
+                        });
+                        
+                        // Update UI
+                        document.getElementById('display-name').textContent = formatNameProperCase(newFirstName);
+                        document.getElementById('display-last-name').textContent = newLastName;
+                        document.getElementById('display-email').textContent = newEmail;
+                        
+                        if (profileTitle) {
+                            profileTitle.textContent = `${formatNameProperCase(newFirstName)} ${newLastName}`.trim();
+                        }
+                        
+                        // Hide form
+                        editProfileForm.style.display = 'none';
+                        
+                        showNotification('Profile updated successfully', 'success');
+                    } catch (error) {
+                        showNotification('Failed to update profile: ' + (error.message || 'Unknown error'), 'danger');
+                    }
+                });
+            }
+            
+            // Change Password Button
+            const changePasswordBtn = accountInfoCard.querySelector('#change-password-btn');
+            const changePasswordForm = accountInfoCard.querySelector('#change-password-form');
+            const cancelChangePasswordBtn = accountInfoCard.querySelector('#cancel-change-password');
+            const savePasswordBtn = accountInfoCard.querySelector('#save-password');
+            
+            if (changePasswordBtn && changePasswordForm) {
+                changePasswordBtn.addEventListener('click', () => {
+                    changePasswordForm.style.display = 'block';
+                    if (document.getElementById('edit-profile-form')) {
+                        document.getElementById('edit-profile-form').style.display = 'none';
+                    }
+                });
+            }
+            
+            if (cancelChangePasswordBtn) {
+                cancelChangePasswordBtn.addEventListener('click', () => {
+                    changePasswordForm.style.display = 'none';
+                });
+            }
+            
+            if (savePasswordBtn) {
+                savePasswordBtn.addEventListener('click', async () => {
+                    const currentPassword = document.getElementById('current-password').value;
+                    const newPassword = document.getElementById('new-password').value;
+                    const confirmNewPassword = document.getElementById('confirm-new-password').value;
+                    
+                    // Validate passwords
+                    if (!currentPassword || !newPassword || !confirmNewPassword) {
+                        showNotification('All password fields are required', 'warning');
+                        return;
+                    }
+                    
+                    if (newPassword !== confirmNewPassword) {
+                        showNotification('New passwords do not match', 'warning');
+                        return;
+                    }
+                    
+                    try {
+                        // Make API request to update password
+                        const response = await apiRequest('/api/update-password', 'PUT', {
+                            currentPassword,
+                            newPassword
+                        });
+                        
+                        // Reset form fields
+                        document.getElementById('current-password').value = '';
+                        document.getElementById('new-password').value = '';
+                        document.getElementById('confirm-new-password').value = '';
+                        
+                        // Hide form
+                        changePasswordForm.style.display = 'none';
+                        
+                        showNotification('Password updated successfully', 'success');
+                    } catch (error) {
+                        showNotification('Failed to update password: ' + (error.message || 'Unknown error'), 'danger');
+                    }
+                });
+            }
+            
+            // Sign Out Button
+            const signOutButton = accountInfoCard.querySelector('#sign-out-btn');
             if (signOutButton) {
                 signOutButton.addEventListener('click', () => {
                     // Reset the profile UI
@@ -493,6 +681,13 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
+// Helper function to format a name with proper case
+// Converts "john" to "John" or "JOHN" to "John"
+function formatNameProperCase(name) {
+    if (!name) return '';
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+}
+
 // Utility function to make API requests
 export async function apiRequest(endpoint, method = 'GET', data = null) {
     try {
@@ -512,8 +707,13 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
         // This will work in all environments - local dev, Replit, etc.
         const backendUrl = '';
         
-        const response = await fetch(`${backendUrl}/api/${endpoint}`, options);
-        console.log(`API request to: ${backendUrl}/api/${endpoint}`);
+        // Fix endpoint to ensure it doesn't have duplicate /api/ prefix
+        const apiEndpoint = endpoint.startsWith('/api/') ? endpoint : 
+                            endpoint.startsWith('api/') ? `/${endpoint}` : 
+                            `/api/${endpoint}`;
+        
+        const response = await fetch(apiEndpoint, options);
+        console.log(`API request to: ${apiEndpoint}`);
         
         if (!response.ok) {
             throw new Error(`API request failed with status ${response.status}`);

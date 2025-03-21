@@ -17,7 +17,7 @@ const config = {
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
     database: process.env.PGDATABASE,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+    ssl: { rejectUnauthorized: false }
   },
   pool: { min: 0, max: 7 },
   debug: process.env.NODE_ENV === 'development'

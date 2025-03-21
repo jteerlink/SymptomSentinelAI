@@ -433,11 +433,10 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
             options.body = JSON.stringify(data);
         }
         
-        // For Replit, we need to access the backend server directly on port 5000
-        // not the frontend server on port 8000
-        const backendUrl = window.location.hostname.includes('replit') 
-            ? `${window.location.protocol}//${window.location.hostname}:5000`
-            : '';
+        // We've set up our proxy correctly, so we don't need to specify the backend URL directly
+        // The setupProxy.js file already handles routing to the correct backend
+        // This will work in all environments - local dev, Replit, etc.
+        const backendUrl = '';
         
         const response = await fetch(`${backendUrl}/api/${endpoint}`, options);
         console.log(`API request to: ${backendUrl}/api/${endpoint}`);

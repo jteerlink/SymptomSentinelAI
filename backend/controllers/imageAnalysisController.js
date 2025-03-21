@@ -14,7 +14,12 @@ let modelLoading = false;
  */
 exports.analyzeImage = async (req, res, next) => {
     try {
-        console.log('Analyze Image Request Body:', JSON.stringify(req.body, null, 2));
+        console.log('Analyze Image Request Body:', {
+            type: req.body.type,
+            hasImage: !!req.body.image,
+            imageLength: req.body.image ? req.body.image.length : 0,
+            keys: Object.keys(req.body)
+        });
         
         // Extract image and type, handling different possible formats
         let { image, type } = req.body;
@@ -27,6 +32,9 @@ exports.analyzeImage = async (req, res, next) => {
                 message: 'No image provided'
             });
         }
+        
+        // Additional logging for successful image extraction
+        console.log(`Image data received: ${typeof image} of length ${image.length}, type: ${type}`);
 
         // Validate analysis type
         if (!type || (type !== 'throat' && type !== 'ear')) {

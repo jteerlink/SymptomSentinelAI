@@ -13,24 +13,56 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
-    // Monkey-patch fetch to ensure all API calls go through our server
+    // --- FETCH INTERCEPTOR ---
+    // Completely replace fetch globally to fix the issue with Replit domains
     const originalFetch = window.fetch;
-    window.fetch = function(url, options) {
-        // Check for absolute URLs containing Replit domain or API endpoints
-        if (typeof url === 'string') {
-            if (url.includes('replit.dev') || url.includes('replit.co')) {
-                // If it's a full Replit URL, extract just the path
-                const urlObj = new URL(url);
-                url = urlObj.pathname;
-                console.log('Converting Replit URL to relative path:', url);
-            } else if (url.includes('://') && url.includes('/api/')) {
-                // Handle any other absolute URL with API endpoint
-                const urlObj = new URL(url);
-                url = urlObj.pathname;
-                console.log('Converting absolute URL to relative path:', url);
+    window.fetch = function(url, options = {}) {
+        // Always capture the original URL for debugging
+        const originalUrl = url;
+        
+        try {
+            // CRITICAL: Detect and handle Replit URLs by forcing them to be relative
+            // This is needed because even with our previous interceptor, the URL was still being
+            // constructed incorrectly in some cases
+            if (typeof url === 'string') {
+                // Case 1: Full Replit URL with domain (most common issue)
+                if (url.includes('replit.dev') || url.includes('replit.co')) {
+                    const urlObj = new URL(url);
+                    url = urlObj.pathname;
+                    console.log(`[Fetch Interceptor] Converted Replit URL to relative path: ${url}`);
+                } 
+                // Case 2: URL has other absolute protocol
+                else if (url.includes('://')) {
+                    const urlObj = new URL(url);
+                    url = urlObj.pathname;
+                    console.log(`[Fetch Interceptor] Converted absolute URL to relative path: ${url}`);
+                }
+                // Case 3: If it's an API call, make sure it has the /api prefix
+                else if (url.includes('/analyze') && !url.includes('/api/')) {
+                    url = `/api${url}`;
+                    console.log(`[Fetch Interceptor] Added /api prefix to URL: ${url}`);
+                }
+                
+                // Final log of URL transformation if it happened
+                if (url !== originalUrl) {
+                    console.log(`[Fetch Interceptor] URL transformed: ${originalUrl} → ${url}`);
+                }
             }
+            
+            // Add additional debugging headers
+            const enhancedOptions = { ...options };
+            if (!enhancedOptions.headers) {
+                enhancedOptions.headers = {};
+            }
+            enhancedOptions.headers['X-Client-Source'] = 'frontend-interceptor';
+            
+            console.log(`[Fetch] Executing fetch to: ${url}`);
+            return originalFetch(url, enhancedOptions);
+        } catch (error) {
+            console.error('[Fetch Interceptor] Error processing URL:', error);
+            // Still try the original fetch as fallback
+            return originalFetch(originalUrl, options);
         }
-        return originalFetch(url, options);
     };
     
     // Initialize components

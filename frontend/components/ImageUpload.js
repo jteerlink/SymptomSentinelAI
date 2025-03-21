@@ -282,50 +282,66 @@ function setupUploadEventListeners(container) {
         showAnalysisLoading();
         
         try {
-            // Always use a simple relative URL - our fetch interceptor in app.js will handle any conversion needed
+            // ===== CRITICAL FIX =====
+            // Always use a simple relative URL that starts with /api/
+            // This ensures it's properly handled by our server configuration
             const apiUrl = '/api/analyze';
                 
-            console.log(`Sending analysis request to: ${apiUrl}`);
-            console.log(`Analysis type: ${selectedAnalysisType}`);
-            console.log(`Image data length: ${imageData ? imageData.length : 0} characters`);
+            console.log(`[Analysis] Sending request to: ${apiUrl}`);
+            console.log(`[Analysis] Analysis type: ${selectedAnalysisType}`);
+            console.log(`[Analysis] Image data length: ${imageData ? imageData.length : 0} characters`);
+            
+            // Create a more compact version of the image data for testing (if needed)
+            // This helps reduce payload size for debugging
+            let imagePayload = imageData;
+            
+            // Always ensure we have proper content type
+            const headers = {
+                'Content-Type': 'application/json',
+                'X-Request-Source': 'frontend-image-upload'
+            };
             
             // Create the request payload
             const payload = {
-                image: imageData,
+                image: imagePayload,
                 type: selectedAnalysisType
             };
             
-            const requestOptions = {
+            // For easier debugging
+            console.log('[Analysis] Request details:', {
+                url: apiUrl,
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payload),
-            };
-            
-            console.log('Attempting fetch with request options:', {
-                method: requestOptions.method,
-                headers: requestOptions.headers,
-                bodyLength: requestOptions.body ? requestOptions.body.length : 0
+                headers: headers,
+                payloadKeys: Object.keys(payload),
+                imageDataLength: imagePayload.length
             });
             
-            // Make the API request
-            const response = await fetch(apiUrl, requestOptions);
+            // Make the API request with explicit configuration
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(payload),
+                credentials: 'same-origin' // Include cookies if needed
+            });
             
-            console.log(`API Response Status: ${response.status} ${response.statusText}`);
+            console.log(`[Analysis] Response status: ${response.status} ${response.statusText}`);
             
             // Check for non-200 responses and handle them
             if (!response.ok) {
-                const errorData = await response.json().catch(() => null);
-                console.error('Error response from server:', errorData);
+                let errorMessage = `Server error (${response.status})`;
                 
-                let errorMessage = 'Analysis failed';
-                if (errorData && errorData.message) {
-                    errorMessage = errorData.message;
-                } else if (response.status === 404) {
-                    errorMessage = 'API endpoint not found. Please check server configuration.';
-                } else if (response.status === 500) {
-                    errorMessage = 'Server error occurred. Please try again later.';
+                try {
+                    const errorData = await response.json();
+                    console.error('[Analysis] Error details:', errorData);
+                    
+                    if (errorData && errorData.message) {
+                        errorMessage = errorData.message;
+                    } else if (errorData && errorData.error) {
+                        errorMessage = errorData.error;
+                    }
+                } catch (parseError) {
+                    console.error('[Analysis] Could not parse error response:', parseError);
+                    errorMessage = 'Could not communicate with the server properly';
                 }
                 
                 throw new Error(errorMessage);
@@ -333,7 +349,7 @@ function setupUploadEventListeners(container) {
             
             // Parse successful response
             const results = await response.json();
-            console.log('Analysis results received:', results);
+            console.log('[Analysis] Results received:', results);
             
             // Emit a custom event with the analysis results
             const analysisEvent = new CustomEvent('imageAnalyzed', {
@@ -344,11 +360,11 @@ function setupUploadEventListeners(container) {
             // Hide loading state
             hideAnalysisLoading();
         } catch (error) {
-            console.error('Error analyzing image:', error);
+            console.error('[Analysis] Error:', error);
             
             // Hide loading state and show error
             hideAnalysisLoading();
-            showAnalysisError(error.message);
+            showAnalysisError(error.message || 'Unknown error occurred');
         }
     });
     

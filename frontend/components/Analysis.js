@@ -41,6 +41,38 @@ function renderAnalysisResults(container, results) {
     // Sort conditions by confidence score (highest first)
     const sortedConditions = [...results.conditions].sort((a, b) => b.confidence - a.confidence);
     
+    // Check if we have subscription info in the results
+    // This happens when saving analysis results
+    if (results.subscription) {
+        console.log('Analysis includes subscription info:', results.subscription);
+        
+        // Create a custom event to update the profile UI with subscription info
+        const subscriptionEvent = new CustomEvent('subscriptionUpdated', {
+            detail: results.subscription
+        });
+        document.dispatchEvent(subscriptionEvent);
+        
+        // Show a notification if user is running low on analyses
+        const analysisRemaining = results.subscription.analysisRemaining;
+        const analysisLimit = results.subscription.analysisLimit;
+        
+        if (results.subscription.subscription === 'free' && analysisRemaining <= 2) {
+            if (analysisRemaining === 0) {
+                showNotification(
+                    container, 
+                    'You\'ve reached your monthly analysis limit! Upgrade to Premium for unlimited analyses.', 
+                    'warning'
+                );
+            } else {
+                showNotification(
+                    container,
+                    `You have ${analysisRemaining} of ${analysisLimit} analyses remaining this month. Consider upgrading to Premium for unlimited analyses.`,
+                    'info'
+                );
+            }
+        }
+    }
+    
     // Create the results HTML
     const resultsHTML = `
         <div class="analysis-results">

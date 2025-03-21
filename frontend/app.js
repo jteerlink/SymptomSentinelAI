@@ -13,6 +13,27 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
+    // Listen for subscription updated events from Analysis.js
+    document.addEventListener('subscriptionUpdated', (event) => {
+        console.log('Subscription updated event received:', event.detail);
+        
+        // Get the logged in user's email
+        const profileTitle = document.querySelector('.card-title.mt-3');
+        if (profileTitle && profileTitle.textContent !== 'Guest User') {
+            const email = profileTitle.textContent;
+            
+            // Call updateProfileUI with the subscription info
+            updateProfileUI(email, null, {
+                email: email,
+                subscription: event.detail.subscription,
+                analysisCount: event.detail.analysisCount,
+                analysisLimit: event.detail.analysisLimit,
+                analysisRemaining: event.detail.analysisRemaining,
+                lastResetDate: event.detail.lastResetDate
+            });
+        }
+    });
+    
     // --- FETCH INTERCEPTOR ---
     // Completely replace fetch globally to fix the issue with Replit domains
     const originalFetch = window.fetch;

@@ -408,6 +408,39 @@ function setupUploadEventListeners(container) {
             const results = await response.json();
             console.log('[Analysis] Results received:', results);
             
+            // After getting results from the analyze endpoint, save them to the user's record
+            try {
+                // Only try to save if we have a valid ID from the analysis
+                if (results && results.id) {
+                    console.log('[Analysis] Saving analysis results to user account...');
+                    
+                    // Make request to save-analysis endpoint
+                    const saveResponse = await fetch('/api/save-analysis', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(results),
+                        credentials: 'same-origin'
+                    });
+                    
+                    if (saveResponse.ok) {
+                        const saveResult = await saveResponse.json();
+                        console.log('[Analysis] Analysis saved successfully:', saveResult);
+                        
+                        // Include subscription info in the results if available
+                        if (saveResult.subscription) {
+                            results.subscription = saveResult.subscription;
+                        }
+                    } else {
+                        console.log('[Analysis] Not authenticated or could not save analysis');
+                    }
+                }
+            } catch (saveError) {
+                console.error('[Analysis] Error saving analysis:', saveError);
+                // Continue anyway since analysis was successful
+            }
+            
             // Emit a custom event with the analysis results
             const analysisEvent = new CustomEvent('imageAnalyzed', {
                 detail: results

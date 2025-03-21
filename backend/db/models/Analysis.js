@@ -15,11 +15,11 @@ class Analysis {
    * @returns {Promise<Object>} Created analysis object
    */
   static async create(analysisData) {
-    const { userId, type, conditions, imageUrl } = analysisData;
+    const { id, userId, type, conditions, imageUrl } = analysisData;
     
     // Insert analysis into database
     const [analysis] = await db('analyses').insert({
-      id: uuidv4(),
+      id: id || uuidv4(), // Use provided ID or generate a new one
       user_id: userId,
       type,
       conditions: JSON.stringify(conditions),

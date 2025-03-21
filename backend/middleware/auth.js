@@ -25,7 +25,7 @@ const authenticate = async (req, res, next) => {
     // For testing purposes, bypass authentication and use a mock user
     if (isTest) {
       req.user = {
-        id: 'test-user-id',
+        id: '123e4567-e89b-12d3-a456-426614174000', // Valid UUID format
         email: 'test@example.com',
         name: 'Test User',
         subscription: 'premium'
@@ -115,7 +115,7 @@ const optionalAuthenticate = async (req, res, next) => {
     // For testing purposes, provide a mock user
     if (isTest) {
       req.user = {
-        id: 'test-user-id',
+        id: '123e4567-e89b-12d3-a456-426614174000', // Valid UUID format
         email: 'test@example.com',
         name: 'Test User',
         subscription: 'premium'

@@ -93,7 +93,11 @@ exports.saveAnalysis = async (req, res, next) => {
         }
         
         // Create analysis record in database
+        // If we're in a test environment, use the provided ID for testing
+        const id = process.env.NODE_ENV === 'test' && analysisData.id ? analysisData.id : undefined;
+        
         const savedAnalysis = await Analysis.create({
+            id,
             userId: req.user.id,
             type: analysisData.type,
             conditions: analysisData.conditions,

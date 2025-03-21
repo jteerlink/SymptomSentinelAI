@@ -2,6 +2,7 @@
 const tf = require('@tensorflow/tfjs-node');
 const { v4: uuidv4 } = require('uuid');
 const { Analysis } = require('../db/models');
+const User = require('../models/User');
 const modelLoader = require('../utils/modelLoader');
 
 // Initialize model cache
@@ -125,6 +126,29 @@ exports.analyzeImage = async (req, res, next) => {
             }
             console.log('✅ Model loaded successfully');
 
+            // Check if user has exceeded their analysis limit
+            if (req.user) {
+                console.log('👤 Authenticated user detected, checking analysis limits');
+                
+                // Check if user has exceeded their monthly analysis limit
+                if (req.user.hasExceededAnalysisLimit()) {
+                    console.log('❌ User has exceeded their monthly analysis limit');
+                    return res.status(403).json({
+                        error: true,
+                        message: 'Monthly analysis limit reached',
+                        code: 'ANALYSIS_LIMIT_EXCEEDED',
+                        subscription: req.user.subscription,
+                        analysisCount: req.user.analysisCount,
+                        analysisLimit: User.SUBSCRIPTION_LIMITS[req.user.subscription].analysesPerMonth,
+                        upgradeRequired: req.user.subscription === 'free'
+                    });
+                }
+                
+                console.log('✅ User has not exceeded their analysis limit, proceeding');
+            } else {
+                console.log('👤 No authenticated user, proceeding with analysis as guest');
+            }
+            
             // Process the image for model input
             console.log('🔄 Preprocessing image data...');
             const processedImage = await preprocessImage(imageData);
@@ -226,6 +250,10 @@ exports.saveAnalysis = async (req, res, next) => {
         // For non-test environments, create analysis record in database
         const id = analysisData.id || undefined;
         
+        // Increment the user's analysis count
+        req.user.incrementAnalysisCount();
+        
+        // Create the analysis record
         const savedAnalysis = await Analysis.create({
             id,
             userId: req.user.id,
@@ -234,9 +262,20 @@ exports.saveAnalysis = async (req, res, next) => {
             imageUrl: analysisData.imageUrl || null
         });
         
+        // Include subscription info in the response
+        const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
+        const subscriptionInfo = {
+            subscription: req.user.subscription,
+            analysisCount: req.user.analysisCount,
+            analysisLimit: subscriptionLimits.analysesPerMonth,
+            analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
+            lastResetDate: req.user.lastResetDate
+        };
+        
         res.status(200).json({
             message: 'Analysis saved successfully',
-            analysis: savedAnalysis
+            analysis: savedAnalysis,
+            subscription: subscriptionInfo
         });
     } catch (error) {
         console.error('Error saving analysis:', error);
@@ -264,8 +303,19 @@ exports.getAnalysisHistory = async (req, res, next) => {
             order: 'desc'
         });
         
+        // Include subscription info in the response
+        const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
+        const subscriptionInfo = {
+            subscription: req.user.subscription,
+            analysisCount: req.user.analysisCount,
+            analysisLimit: subscriptionLimits.analysesPerMonth,
+            analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
+            lastResetDate: req.user.lastResetDate
+        };
+        
         res.status(200).json({
-            history: analyses
+            history: analyses,
+            subscription: subscriptionInfo
         });
     } catch (error) {
         console.error('Error fetching analysis history:', error);

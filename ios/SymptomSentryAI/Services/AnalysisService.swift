@@ -199,11 +199,11 @@ class AnalysisService: ObservableObject {
         }
     }
     
-    // MARK: - Private Helper Methods
+    // MARK: - Helper Methods
     
     /// Save an analysis response to the local cache
     /// - Parameter analysis: The analysis response to save
-    private func saveAnalysisLocally(_ analysis: AnalysisResponse) {
+    func saveAnalysisLocally(_ analysis: AnalysisResponse) {
         // Add to the beginning for most recent first
         if let index = savedAnalyses.firstIndex(where: { $0.id == analysis.id }) {
             savedAnalyses[index] = analysis
@@ -212,6 +212,22 @@ class AnalysisService: ObservableObject {
         }
         
         saveAnalysesLocally()
+        
+        // If the user is authenticated, save to server as well
+        if UserService.shared.isAuthenticated {
+            saveAnalysisToServer(analysis)
+                .sink(
+                    receiveCompletion: { completion in
+                        if case .failure(let error) = completion {
+                            print("Failed to save analysis to server: \(error.localizedDescription)")
+                        }
+                    },
+                    receiveValue: { _ in
+                        print("Analysis saved to server successfully")
+                    }
+                )
+                .store(in: &cancellables)
+        }
     }
     
     /// Save all analyses to UserDefaults

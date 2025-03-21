@@ -130,12 +130,27 @@ struct AnalysisView: View {
                 // Action buttons
                 if !isLoading {
                     HStack(spacing: 20) {
-                        ActionButton(
-                            title: "Save",
-                            systemImage: "square.and.arrow.down",
-                            color: .blue
-                        ) {
-                            // Save analysis functionality
+                        // Only show save button if not already saved
+                        if let response = analysisResponse, !analysisService.savedAnalyses.contains(where: { $0.id == response.id }) {
+                            ActionButton(
+                                title: "Save",
+                                systemImage: "square.and.arrow.down",
+                                color: .blue
+                            ) {
+                                if let result = analysisResponse {
+                                    // Save to local and server storage
+                                    analysisService.saveAnalysisLocally(result)
+                                }
+                            }
+                        } else {
+                            // Show a disabled "Saved" button
+                            ActionButton(
+                                title: "Saved",
+                                systemImage: "checkmark.circle",
+                                color: .gray
+                            ) {
+                                // Already saved
+                            }
                         }
                         
                         ActionButton(
@@ -143,7 +158,21 @@ struct AnalysisView: View {
                             systemImage: "square.and.arrow.up",
                             color: .green
                         ) {
-                            // Share analysis functionality
+                            // Share using activity sheet
+                            if let analysisResult = analysisResponse {
+                                let text = "Analysis Results for \(type.displayName):\n"
+                                + analysisResult.conditions.map { condition in
+                                    "\(condition.name): \(condition.confidencePercentage)"
+                                }.joined(separator: "\n")
+                                
+                                let activityItems: [Any] = [text, image]
+                                
+                                // Show activity sheet (in real implementation)
+                                // UIApplication.shared.windows.first?.rootViewController?.present(
+                                //    UIActivityViewController(activityItems: activityItems, applicationActivities: nil),
+                                //    animated: true
+                                // )
+                            }
                         }
                     }
                     .padding(.horizontal)
@@ -155,7 +184,7 @@ struct AnalysisView: View {
         .navigationTitle("Analysis Results")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            loadImage()
+            // Start the analysis when the view appears
             performAnalysis()
         }
     }
@@ -211,7 +240,7 @@ struct ConditionCardView: View {
                             .font(.headline)
                             .foregroundColor(.primary)
                         
-                        Text("Confidence: \(Int(condition.confidenceScore * 100))%")
+                        Text("Confidence: \(condition.confidencePercentage)")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
@@ -350,7 +379,10 @@ struct DisclaimerView: View {
 struct AnalysisView_Previews: PreviewProvider {
     static var previews: some View {
         NavigationView {
-            AnalysisView(imageURL: "https://example.com/image.jpg", type: "throat")
+            AnalysisView(
+                image: UIImage(systemName: "photo")!,
+                type: MLAnalysisService.AnalysisType.throat
+            )
         }
     }
 }

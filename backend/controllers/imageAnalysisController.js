@@ -241,9 +241,21 @@ exports.saveAnalysis = async (req, res, next) => {
                 created_at: new Date().toISOString()
             };
             
+            // Include subscription info in the test response too
+            const User = require('../models/User');
+            const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
+            const subscriptionInfo = {
+                subscription: req.user.subscription,
+                analysisCount: req.user.analysisCount,
+                analysisLimit: subscriptionLimits.analysesPerMonth,
+                analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
+                lastResetDate: req.user.lastResetDate
+            };
+            
             return res.status(200).json({
                 message: 'Analysis saved successfully',
-                analysis: mockAnalysis
+                analysis: mockAnalysis,
+                subscription: subscriptionInfo
             });
         }
         

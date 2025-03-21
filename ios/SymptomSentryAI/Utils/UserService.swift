@@ -67,27 +67,34 @@ class UserService: ObservableObject {
             return
         }
         
-        // In a real app, this would make an API request
-        // For this demonstration, we'll simulate a server response
-        
-        // Create API request
+        // Create API request parameters
         let parameters: [String: Any] = [
             "email": email,
             "password": password,
             "name": name
         ]
         
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/auth/register",
-            method: "POST",
+            endpoint: "/api/auth/register", 
+            method: .post,
             parameters: parameters
-        ) { [weak self] result in
-            guard let self = self else { return }
-            
-            self.isLoading = false
-            
-            switch result {
-            case .success(let data):
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completionStatus in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if case .failure(let error) = completionStatus {
+                    self.errorMessage = error.localizedDescription
+                    completion(false, "Registration failed: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] data in
+                guard let self = self else { return }
+                self.isLoading = false
+                
                 do {
                     // Parse JSON response
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -111,6 +118,9 @@ class UserService: ObservableObject {
                         self.authToken = token
                         self.isAuthenticated = true
                         
+                        // Set the auth token in network service
+                        self.networkService.setAuthToken(token)
+                        
                         // Save session
                         self.saveSession()
                         
@@ -123,12 +133,9 @@ class UserService: ObservableObject {
                     self.errorMessage = "Failed to parse response: \(error.localizedDescription)"
                     completion(false, "Registration failed: \(error.localizedDescription)")
                 }
-                
-            case .failure(let error):
-                self.errorMessage = error.localizedDescription
-                completion(false, "Registration failed: \(error.localizedDescription)")
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     /// Login an existing user
@@ -153,23 +160,33 @@ class UserService: ObservableObject {
             return
         }
         
-        // Create API request
+        // Create API request parameters
         let parameters: [String: Any] = [
             "email": email,
             "password": password
         ]
         
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/auth/login",
-            method: "POST",
+            endpoint: "/api/auth/login", 
+            method: .post,
             parameters: parameters
-        ) { [weak self] result in
-            guard let self = self else { return }
-            
-            self.isLoading = false
-            
-            switch result {
-            case .success(let data):
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completionStatus in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if case .failure(let error) = completionStatus {
+                    self.errorMessage = error.localizedDescription
+                    completion(false, "Login failed: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] data in
+                guard let self = self else { return }
+                self.isLoading = false
+                
                 do {
                     // Parse JSON response
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -193,6 +210,9 @@ class UserService: ObservableObject {
                         self.authToken = token
                         self.isAuthenticated = true
                         
+                        // Set the auth token in network service
+                        self.networkService.setAuthToken(token)
+                        
                         // Save session
                         self.saveSession()
                         
@@ -205,12 +225,9 @@ class UserService: ObservableObject {
                     self.errorMessage = "Failed to parse response: \(error.localizedDescription)"
                     completion(false, "Login failed: \(error.localizedDescription)")
                 }
-                
-            case .failure(let error):
-                self.errorMessage = error.localizedDescription
-                completion(false, "Login failed: \(error.localizedDescription)")
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     /// Log out the current user
@@ -240,18 +257,27 @@ class UserService: ObservableObject {
         
         isLoading = true
         
-        // Make API request
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/user/profile",
-            method: "GET",
-            headers: ["Authorization": "Bearer \(authToken)"]
-        ) { [weak self] result in
-            guard let self = self else { return }
-            
-            self.isLoading = false
-            
-            switch result {
-            case .success(let data):
+            endpoint: "/api/user/profile",
+            method: .get,
+            parameters: nil
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completionStatus in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if case .failure(let error) = completionStatus {
+                    self.errorMessage = error.localizedDescription
+                    completion(false, "Failed to get profile: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] data in
+                guard let self = self else { return }
+                self.isLoading = false
+                
                 do {
                     // Parse JSON response
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -281,11 +307,9 @@ class UserService: ObservableObject {
                 } catch {
                     completion(false, "Failed to parse response: \(error.localizedDescription)")
                 }
-                
-            case .failure(let error):
-                completion(false, "Failed to get profile: \(error.localizedDescription)")
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     /// Update the current user's profile
@@ -319,19 +343,27 @@ class UserService: ObservableObject {
             return
         }
         
-        // Make API request
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/user/profile",
-            method: "PUT",
-            parameters: parameters,
-            headers: ["Authorization": "Bearer \(authToken)"]
-        ) { [weak self] result in
-            guard let self = self else { return }
-            
-            self.isLoading = false
-            
-            switch result {
-            case .success(let data):
+            endpoint: "/api/user/profile",
+            method: .put,
+            parameters: parameters
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completionStatus in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if case .failure(let error) = completionStatus {
+                    self.errorMessage = error.localizedDescription
+                    completion(false, "Failed to update profile: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] data in
+                guard let self = self else { return }
+                self.isLoading = false
+                
                 do {
                     // Parse JSON response
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -357,11 +389,9 @@ class UserService: ObservableObject {
                 } catch {
                     completion(false, "Failed to parse response: \(error.localizedDescription)")
                 }
-                
-            case .failure(let error):
-                completion(false, "Failed to update profile: \(error.localizedDescription)")
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     // MARK: - Subscription Methods
@@ -385,19 +415,27 @@ class UserService: ObservableObject {
             "payment_token": paymentToken
         ]
         
-        // Make API request
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/user/subscription",
-            method: "POST",
-            parameters: parameters,
-            headers: ["Authorization": "Bearer \(authToken)"]
-        ) { [weak self] result in
-            guard let self = self else { return }
-            
-            self.isLoading = false
-            
-            switch result {
-            case .success(let data):
+            endpoint: "/api/user/subscription",
+            method: .post,
+            parameters: parameters
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completionStatus in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if case .failure(let error) = completionStatus {
+                    self.errorMessage = error.localizedDescription
+                    completion(false, "Subscription upgrade failed: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] data in
+                guard let self = self else { return }
+                self.isLoading = false
+                
                 do {
                     // Parse JSON response
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -429,11 +467,9 @@ class UserService: ObservableObject {
                 } catch {
                     completion(false, "Failed to parse response: \(error.localizedDescription)")
                 }
-                
-            case .failure(let error):
-                completion(false, "Subscription upgrade failed: \(error.localizedDescription)")
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     // MARK: - Analysis Methods
@@ -476,20 +512,24 @@ class UserService: ObservableObject {
         }
         parameters["conditions"] = conditionsData
         
-        // Make API request
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/analysis/save",
-            method: "POST",
-            parameters: parameters,
-            headers: ["Authorization": "Bearer \(authToken)"]
-        ) { result in
-            switch result {
-            case .success:
+            endpoint: "/api/analysis/save",
+            method: .post,
+            parameters: parameters
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { completionStatus in
+                if case .failure = completionStatus {
+                    completion(false)
+                }
+            },
+            receiveValue: { _ in
                 completion(true)
-            case .failure:
-                completion(false)
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     /// Get the user's analysis history
@@ -504,14 +544,20 @@ class UserService: ObservableObject {
             return
         }
         
-        // Make API request
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/analysis/history",
-            method: "GET",
-            headers: ["Authorization": "Bearer \(authToken)"]
-        ) { result in
-            switch result {
-            case .success(let data):
+            endpoint: "/api/analysis/history",
+            method: .get,
+            parameters: nil
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { completionStatus in
+                if case .failure(let error) = completionStatus {
+                    completion(.failure(error))
+                }
+            },
+            receiveValue: { data in
                 do {
                     // Parse JSON response
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -585,11 +631,9 @@ class UserService: ObservableObject {
                 } catch {
                     completion(.failure(error))
                 }
-                
-            case .failure(let error):
-                completion(.failure(error))
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     // MARK: - Helper Methods
@@ -656,14 +700,20 @@ class UserService: ObservableObject {
             return
         }
         
-        // Make API request to validate token
+        // Send request to backend using NetworkService
         networkService.request(
-            url: "\(baseUrl)/auth/validate",
-            method: "GET",
-            headers: ["Authorization": "Bearer \(authToken)"]
-        ) { result in
-            switch result {
-            case .success(let data):
+            endpoint: "/api/auth/validate",
+            method: .get,
+            parameters: nil
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { completionStatus in
+                if case .failure = completionStatus {
+                    completion(false)
+                }
+            },
+            receiveValue: { data in
                 do {
                     // Parse JSON response
                     if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -675,11 +725,9 @@ class UserService: ObservableObject {
                 } catch {
                     completion(false)
                 }
-                
-            case .failure:
-                completion(false)
             }
-        }
+        )
+        .store(in: &cancellables)
     }
     
     /// Validate email format

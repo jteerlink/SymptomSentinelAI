@@ -8,7 +8,11 @@ class NetworkService {
     static let shared = NetworkService()
     
     /// Base URL for the API
-    private let baseURL = "https://api.symptomsentry.ai" // Replace with your actual API URL
+    #if DEBUG
+    private var baseURL = "http://localhost:5000" // Development server URL
+    #else
+    private var baseURL = "https://api.symptomsentry.ai" // Production API URL
+    #endif
     
     /// HTTP request methods
     enum HTTPMethod: String {
@@ -36,6 +40,14 @@ class NetworkService {
             "User-Agent": "SymptomSentryAI/1.0"
         ]
         session = URLSession(configuration: configuration)
+        
+        // For simulator, update to use correct URL
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != nil {
+            // Use special URL for simulator that can reach the host machine
+            baseURL = "http://localhost:5000"
+        }
+        #endif
     }
     
     /// Set the authentication token

@@ -19,8 +19,8 @@ class UserService: ObservableObject {
     /// User defaults for storing session data
     private let userDefaults = UserDefaults.standard
     
-    /// Base URL for API requests
-    private let baseUrl = "https://api.symptomsentry.com/v1"
+    /// Cancellable store for Combine subscriptions
+    private var cancellables = Set<AnyCancellable>()
     
     /// Authentication status
     @Published var isAuthenticated: Bool = false

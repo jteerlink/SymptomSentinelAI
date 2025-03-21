@@ -332,9 +332,25 @@ function setupUploadEventListeners(container) {
             // Try using FormData for better handling of large binary data
             const formData = new FormData();
             
-            // First, get a blob from the imagePayload
-            const fetchResponse = await fetch(imagePayload);
-            const blob = await fetchResponse.blob();
+            // Convert base64 data URL to a Blob - more reliable approach
+            // Extract the base64 data from the payload
+            const base64Data = imagePayload.split(',')[1];
+            const byteCharacters = atob(base64Data);
+            const byteArrays = [];
+            
+            // Convert base64 to byte array
+            for (let i = 0; i < byteCharacters.length; i += 512) {
+                const slice = byteCharacters.slice(i, i + 512);
+                const byteNumbers = new Array(slice.length);
+                for (let j = 0; j < slice.length; j++) {
+                    byteNumbers[j] = slice.charCodeAt(j);
+                }
+                const byteArray = new Uint8Array(byteNumbers);
+                byteArrays.push(byteArray);
+            }
+            
+            // Create a blob from the byte arrays
+            const blob = new Blob(byteArrays, { type: 'image/jpeg' });
             
             // Add the data to the FormData
             formData.append('type', selectedAnalysisType);

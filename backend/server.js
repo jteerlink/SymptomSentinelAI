@@ -67,7 +67,11 @@ app.use('/api', apiRoutes);
 const multer = require('multer');
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB size limit
+  limits: { 
+    fileSize: 5 * 1024 * 1024, // 5MB size limit
+    files: 1,  // Maximum 1 file 
+    parts: 10  // Maximum 10 parts (fields + files)
+  }
 });
 
 app.post('/analyze', upload.single('image'), (req, res, next) => {

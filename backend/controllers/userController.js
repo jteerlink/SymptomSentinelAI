@@ -156,12 +156,57 @@ exports.updateProfile = async (req, res, next) => {
         // Extract user ID from request (set by auth middleware)
         const userId = req.user.id;
         
-        const { name, email } = req.body;
+        const { firstName, lastName, name, email } = req.body;
         
         // Prepare update data
         const updateData = {};
-        if (name) updateData.name = name;
-        if (email) updateData.email = email;
+        
+        // Handle either combined name or separate first/last name
+        if (firstName || lastName) {
+            // Format the first name with proper case
+            if (firstName) {
+                updateData.firstName = formatNameProperCase(firstName);
+            }
+            
+            if (lastName) {
+                updateData.lastName = lastName;
+            }
+            
+            // If both first and last name provided, update the full name
+            if (firstName && lastName) {
+                updateData.name = `${formatNameProperCase(firstName)} ${lastName}`;
+            }
+            // If only first name, use that with existing last name (if any)
+            else if (firstName) {
+                const user = await User.findById(userId);
+                const existingLastName = user.lastName || '';
+                updateData.name = `${formatNameProperCase(firstName)} ${existingLastName}`.trim();
+            }
+            // If only last name, use that with existing first name
+            else if (lastName) {
+                const user = await User.findById(userId);
+                const existingFirstName = user.firstName || '';
+                updateData.name = `${existingFirstName} ${lastName}`.trim();
+            }
+        } 
+        // For backward compatibility, also accept full name
+        else if (name) {
+            updateData.name = name;
+            
+            // Try to parse first and last name from full name
+            const nameParts = name.trim().split(/\s+/);
+            if (nameParts.length >= 1) {
+                updateData.firstName = formatNameProperCase(nameParts[0]);
+            }
+            if (nameParts.length >= 2) {
+                // Last name could be multiple words, so join the rest
+                updateData.lastName = nameParts.slice(1).join(' ');
+            }
+        }
+        
+        if (email) {
+            updateData.email = email.toLowerCase();
+        }
         
         // Update user in database
         const updatedUser = await User.update(userId, updateData);
@@ -179,6 +224,8 @@ exports.updateProfile = async (req, res, next) => {
                 id: updatedUser.id,
                 email: updatedUser.email,
                 name: updatedUser.name,
+                firstName: updatedUser.firstName,
+                lastName: updatedUser.lastName,
                 subscription: updatedUser.subscription,
                 updated_at: updatedUser.updated_at
             }
@@ -188,3 +235,63 @@ exports.updateProfile = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * Update user password
+ */
+exports.updatePassword = async (req, res, next) => {
+    try {
+        // Extract user ID from request (set by auth middleware)
+        const userId = req.user.id;
+        
+        const { currentPassword, newPassword } = req.body;
+        
+        // Validate request
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({
+                error: true,
+                message: 'Current password and new password are required'
+            });
+        }
+        
+        // Fetch user to verify current password
+        const user = await User.findById(userId);
+        
+        if (!user) {
+            return res.status(404).json({
+                error: true,
+                message: 'User not found'
+            });
+        }
+        
+        // Verify current password
+        const isPasswordValid = await User.verifyPassword(currentPassword, user.password);
+        if (!isPasswordValid) {
+            return res.status(401).json({
+                error: true,
+                message: 'Current password is incorrect'
+            });
+        }
+        
+        // Update password
+        const updatedUser = await User.update(userId, {
+            password: newPassword // Will be hashed in the User model
+        });
+        
+        res.status(200).json({
+            message: 'Password updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating password:', error);
+        next(error);
+    }
+};
+
+/**
+ * Helper function to format a name with proper case
+ * Converts "john" or "JOHN" to "John"
+ */
+function formatNameProperCase(name) {
+    if (!name) return '';
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+}

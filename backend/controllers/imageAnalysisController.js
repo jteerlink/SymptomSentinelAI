@@ -31,15 +31,51 @@ exports.analyzeImage = async (req, res, next) => {
         console.log('Request body keys:', Object.keys(req.body));
         console.log('Request body type:', typeof req.body);
         
+        // Check if this is a multipart/form-data request with files
+        let image;
+        let type;
+        
+        if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+            console.log('Received multipart/form-data request');
+            
+            // Check if multer parsed a file
+            const filePresent = req.file || (req.files && req.files.image);
+            console.log('File present:', !!filePresent);
+            
+            if (filePresent) {
+                // Get the file from multer
+                const file = req.file || req.files.image;
+                console.log('File details:', {
+                    fieldname: file.fieldname,
+                    originalname: file.originalname,
+                    mimetype: file.mimetype,
+                    size: file.size,
+                    buffer: `Buffer of ${file.buffer ? file.buffer.length : 0} bytes`
+                });
+                
+                // Extract image data from the file
+                image = file.buffer;
+                // Get type from body
+                type = req.body.type;
+                
+                console.log('Reconstructed request body with image data from file upload');
+                console.log(`Type: ${type}`);
+                console.log(`Image data length: ${image ? image.length : 0}`);
+            } else {
+                // Try to extract type and image from the regular body if the file wasn't parsed
+                ({ image, type } = req.body);
+            }
+        } else {
+            // Standard JSON request
+            ({ image, type } = req.body);
+        }
+        
         // Debug request object structure (without large data)
         const debugReqCopy = {...req};
         if (debugReqCopy.body && debugReqCopy.body.image) {
             debugReqCopy.body.image = `[Image data, length: ${debugReqCopy.body.image.length}]`;
         }
         console.log('Request structure:', JSON.stringify(debugReqCopy.body, null, 2).substring(0, 500) + '...');
-        
-        // Extract image and type, handling different possible formats
-        let { image, type } = req.body;
         
         // Check if the request contains image data
         if (!image) {

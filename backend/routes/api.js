@@ -1,10 +1,20 @@
 // Import required modules
 const express = require('express');
+const multer = require('multer');
 const router = express.Router();
 const imageAnalysisController = require('../controllers/imageAnalysisController');
 const imageUploadController = require('../controllers/imageUploadController');
 const userController = require('../controllers/userController');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB file size limit
+    }
+});
 
 // Health check route
 router.get('/health', (req, res) => {
@@ -96,7 +106,7 @@ router.get('/sample-analysis', (req, res) => {
 });
 
 // Image Analysis Routes
-router.post('/analyze', optionalAuthenticate, imageAnalysisController.analyzeImage);
+router.post('/analyze', optionalAuthenticate, upload.single('image'), imageAnalysisController.analyzeImage);
 router.post('/save-analysis', authenticate, imageAnalysisController.saveAnalysis);
 router.get('/analysis-history', authenticate, imageAnalysisController.getAnalysisHistory);
 
@@ -111,6 +121,7 @@ router.post('/register', userController.register);
 router.post('/login', userController.login);
 router.get('/user-profile', authenticate, userController.getUserProfile);
 router.put('/update-profile', authenticate, userController.updateProfile);
+router.put('/update-password', authenticate, userController.updatePassword);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

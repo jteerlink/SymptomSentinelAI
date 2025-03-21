@@ -14,18 +14,18 @@ struct AnalysisView: View {
     // MARK: - Properties
     
     // Analysis data
-    let imageURL: String
-    let type: String
+    let image: UIImage
+    let type: MLAnalysisService.AnalysisType
     
-    // ML Analysis Service
-    private let mlAnalysisService = MLAnalysisService()
+    // Services
+    @StateObject private var analysisService = AnalysisService.shared
     
     // State
     @State private var isLoading = true
     @State private var loadingMessage = "Analyzing your image..."
     @State private var analysisResults: [AnalysisCondition] = []
     @State private var errorMessage: String?
-    @State private var loadedImage: UIImage?
+    @State private var analysisResponse: AnalysisResponse?
     
     // MARK: - Body
     
@@ -34,28 +34,17 @@ struct AnalysisView: View {
             VStack(spacing: 20) {
                 // Image section
                 VStack(spacing: 12) {
-                    if let loadedImage = loadedImage {
-                        Image(uiImage: loadedImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxHeight: 250)
-                            .cornerRadius(12)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                            )
-                    } else {
-                        // Image placeholder during loading
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.secondary.opacity(0.1))
-                            .frame(height: 250)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
-                            )
-                    }
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 250)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.secondary.opacity(0.3), lineWidth: 1)
+                        )
                     
-                    Text(type.capitalized)
+                    Text(type.displayName)
                         .font(.headline)
                         .foregroundColor(.secondary)
                 }
@@ -173,34 +162,32 @@ struct AnalysisView: View {
     
     // MARK: - Methods
     
-    /// Load the image from the URL
-    private func loadImage() {
-        // For demonstration, we're using a placeholder loading
-        // In a real app, you would load from the imageURL
-        
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-            // Simulate loading an image
-            let placeholderImage = UIImage(systemName: "photo") ?? UIImage()
-            self.loadedImage = placeholderImage
-        }
-    }
-    
     /// Perform the analysis on the image
     private func performAnalysis() {
-        // In a real app, this would use the actual image data
-        mlAnalysisService.analyzeImage(type: type, imageURL: imageURL) { result in
-            DispatchQueue.main.async {
-                isLoading = false
-                
-                switch result {
-                case .success(let conditions):
-                    self.analysisResults = conditions
-                case .failure(let error):
-                    self.errorMessage = error.localizedDescription
+        // Use our analysis service to analyze and save the image
+        let analysisTask = analysisService.analyzeAndSaveImage(image, type: type)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    guard let self = self else { return }
+                    self.isLoading = false
+                    
+                    if case .failure(let error) = completion {
+                        self.errorMessage = error.localizedDescription
+                    }
+                },
+                receiveValue: { [weak self] response in
+                    guard let self = self else { return }
+                    self.isLoading = false
+                    self.analysisResponse = response
+                    self.analysisResults = response.conditions
                 }
-            }
-        }
+            )
+            .store(in: &cancellables)
     }
+    
+    // For storing cancellables
+    private var cancellables = Set<AnyCancellable>()
 }
 
 // MARK: - Supporting Views

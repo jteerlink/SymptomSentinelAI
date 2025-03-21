@@ -86,27 +86,21 @@ class MLAnalysisService: ObservableObject {
     
     /// Get the history of analyses for the current user
     /// - Returns: A publisher that emits an array of analysis responses or an error
+    /// - Note: This method is maintained for backward compatibility, use AnalysisService instead
     func getAnalysisHistory() -> AnyPublisher<[AnalysisResponse], Error> {
-        return networkService.request(
-            endpoint: "/api/analyses",
-            method: .get,
-            parameters: nil
-        )
-        .decode(type: [AnalysisResponse].self, decoder: JSONDecoder())
-        .eraseToAnyPublisher()
+        // Simply return the current analyses from the AnalysisService wrapped in a publisher
+        return Just(AnalysisService.shared.savedAnalyses)
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
     }
     
     /// Delete an analysis from history
     /// - Parameter id: The ID of the analysis to delete
     /// - Returns: A publisher that completes when the deletion is successful or emits an error
+    /// - Note: This method is maintained for backward compatibility, use AnalysisService instead
     func deleteAnalysis(id: String) -> AnyPublisher<Void, Error> {
-        return networkService.request(
-            endpoint: "/api/analyses/\(id)",
-            method: .delete,
-            parameters: nil
-        )
-        .map { _ in () }
-        .eraseToAnyPublisher()
+        // Delegate to the AnalysisService
+        return AnalysisService.shared.deleteAnalysis(id: id)
     }
 }
 

@@ -4,6 +4,7 @@ const router = express.Router();
 const imageAnalysisController = require('../controllers/imageAnalysisController');
 const imageUploadController = require('../controllers/imageUploadController');
 const userController = require('../controllers/userController');
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 
 // Health check route
 router.get('/health', (req, res) => {
@@ -95,21 +96,21 @@ router.get('/sample-analysis', (req, res) => {
 });
 
 // Image Analysis Routes
-router.post('/analyze', imageAnalysisController.analyzeImage);
-router.post('/save-analysis', imageAnalysisController.saveAnalysis);
-router.get('/analysis-history', imageAnalysisController.getAnalysisHistory);
+router.post('/analyze', optionalAuthenticate, imageAnalysisController.analyzeImage);
+router.post('/save-analysis', authenticate, imageAnalysisController.saveAnalysis);
+router.get('/analysis-history', authenticate, imageAnalysisController.getAnalysisHistory);
 
 // Image Upload Routes
-router.post('/upload', imageUploadController.uploadImage);
-router.post('/upload-multiple', imageUploadController.uploadMultipleImages);
-router.post('/get-presigned-url', imageUploadController.getPresignedUrl);
-router.delete('/images/:key(*)', imageUploadController.deleteImage);
+router.post('/upload', optionalAuthenticate, imageUploadController.uploadImage);
+router.post('/upload-multiple', optionalAuthenticate, imageUploadController.uploadMultipleImages);
+router.post('/get-presigned-url', optionalAuthenticate, imageUploadController.getPresignedUrl);
+router.delete('/images/:key(*)', authenticate, imageUploadController.deleteImage);
 
 // User Routes
 router.post('/register', userController.register);
 router.post('/login', userController.login);
-router.get('/user-profile', userController.getUserProfile);
-router.put('/update-profile', userController.updateProfile);
+router.get('/user-profile', authenticate, userController.getUserProfile);
+router.put('/update-profile', authenticate, userController.updateProfile);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

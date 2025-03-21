@@ -1,7 +1,7 @@
 // Import required modules
 const tf = require('@tensorflow/tfjs-node');
 const { v4: uuidv4 } = require('uuid');
-const Analysis = require('../models/Analysis');
+const { Analysis } = require('../db/models');
 const modelLoader = require('../utils/modelLoader');
 
 // Initialize model cache
@@ -75,23 +75,30 @@ exports.analyzeImage = async (req, res, next) => {
  */
 exports.saveAnalysis = async (req, res, next) => {
     try {
-        // In a real app, this would validate the user is authenticated
-        // and save the analysis to their records
-        
-        const analysisData = req.body;
-        
-        if (!analysisData || !analysisData.id || !analysisData.type || !analysisData.conditions) {
-            return res.status(400).json({
+        // Validate user is authenticated
+        if (!req.user) {
+            return res.status(401).json({
                 error: true,
-                message: 'Invalid analysis data'
+                message: 'Authentication required to save analysis'
             });
         }
         
-        // Mock saving to database
-        const savedAnalysis = {
-            ...analysisData,
-            savedAt: new Date().toISOString()
-        };
+        const analysisData = req.body;
+        
+        if (!analysisData || !analysisData.type || !analysisData.conditions) {
+            return res.status(400).json({
+                error: true,
+                message: 'Invalid analysis data. Type and conditions are required.'
+            });
+        }
+        
+        // Create analysis record in database
+        const savedAnalysis = await Analysis.create({
+            userId: req.user.id,
+            type: analysisData.type,
+            conditions: analysisData.conditions,
+            imageUrl: analysisData.imageUrl || null
+        });
         
         res.status(200).json({
             message: 'Analysis saved successfully',
@@ -108,33 +115,23 @@ exports.saveAnalysis = async (req, res, next) => {
  */
 exports.getAnalysisHistory = async (req, res, next) => {
     try {
-        // In a real app, this would fetch from the database
-        // Based on the authenticated user
+        // Validate user is authenticated
+        if (!req.user) {
+            return res.status(401).json({
+                error: true,
+                message: 'Authentication required to view analysis history'
+            });
+        }
         
-        // Mock response
-        const mockHistory = [
-            {
-                id: '123e4567-e89b-12d3-a456-426614174000',
-                type: 'throat',
-                timestamp: '2023-05-15T10:30:00Z',
-                conditions: [
-                    { name: 'Strep Throat', confidence: 0.82, description: 'Bacterial infection of the throat and tonsils' },
-                    { name: 'Tonsillitis', confidence: 0.67, description: 'Inflammation of the tonsils' }
-                ]
-            },
-            {
-                id: '223e4567-e89b-12d3-a456-426614174001',
-                type: 'ear',
-                timestamp: '2023-05-10T14:15:00Z',
-                conditions: [
-                    { name: 'Otitis Media', confidence: 0.75, description: 'Middle ear infection' },
-                    { name: 'Earwax Buildup', confidence: 0.45, description: 'Excessive cerumen in the ear canal' }
-                ]
-            }
-        ];
+        // Fetch analyses from database
+        const analyses = await Analysis.findByUserId(req.user.id, {
+            limit: 20,
+            orderBy: 'created_at',
+            order: 'desc'
+        });
         
         res.status(200).json({
-            history: mockHistory
+            history: analyses
         });
     } catch (error) {
         console.error('Error fetching analysis history:', error);

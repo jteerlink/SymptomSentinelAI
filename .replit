@@ -118,7 +118,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd frontend && python3 -m http.server 8000"
+args = "cd frontend && node server.js"
 waitForPort = 8000
 
 [deployment]

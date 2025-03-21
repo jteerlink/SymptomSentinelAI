@@ -49,6 +49,13 @@ function renderUploadUI(container) {
                         <h5><i class="fas fa-deaf"></i> Ear Scan Selected</h5>
                         <p>Upload a clear image of your ear canal for analysis. Gently pull your ear up and back to better expose the ear canal.</p>
                     </div>
+                    <div class="alert alert-warning mt-2">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Important Note:</h6>
+                        <p>For proper ear canal images, a digital otoscope is required. Regular phone cameras cannot capture the inner ear canal properly.</p>
+                        <a href="https://www.amazon.com/s?k=digital+otoscope" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
+                            <i class="fas fa-shopping-cart"></i> View Digital Otoscopes on Amazon
+                        </a>
+                    </div>
                 </div>
                 
                 <div class="alert alert-info mt-3">

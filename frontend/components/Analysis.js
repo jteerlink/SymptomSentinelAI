@@ -106,24 +106,7 @@ function renderAnalysisResults(container, results) {
                 <button class="btn btn-outline-secondary save-results-btn" ${results.user ? '' : 'disabled'}>
                     <i class="fas fa-save"></i> Save Results
                 </button>
-                ${results.user ? `
-                <div class="sms-notification-option mt-3">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" id="smsNotificationCheck">
-                        <label class="form-check-label" for="smsNotificationCheck">
-                            Receive analysis results via SMS
-                        </label>
-                    </div>
-                    <div class="phone-input mt-2" style="display: none;">
-                        <div class="input-group">
-                            <input type="tel" class="form-control" id="phoneNumberInput" placeholder="Phone number (e.g., +12345678901)">
-                            <div class="input-group-append">
-                                <span class="input-group-text"><i class="fas fa-phone"></i></span>
-                            </div>
-                        </div>
-                        <small class="form-text text-muted">Enter phone number in international format (e.g., +12345678901)</small>
-                    </div>
-                </div>` : ''}
+
                 ${!results.user ? `
                 <div class="login-prompt mt-2">
                     <small class="text-muted">
@@ -186,19 +169,7 @@ function renderAnalysisResults(container, results) {
         });
     }
     
-    // Set up SMS notification checkbox
-    const smsNotificationCheck = container.querySelector('#smsNotificationCheck');
-    const phoneNumberInput = container.querySelector('.phone-input');
-    
-    if (smsNotificationCheck && phoneNumberInput) {
-        smsNotificationCheck.addEventListener('change', () => {
-            if (smsNotificationCheck.checked) {
-                phoneNumberInput.style.display = 'block';
-            } else {
-                phoneNumberInput.style.display = 'none';
-            }
-        });
-    }
+
     
     const saveResultsBtn = container.querySelector('.save-results-btn');
     if (saveResultsBtn && !saveResultsBtn.disabled) {
@@ -208,44 +179,21 @@ function renderAnalysisResults(container, results) {
                 saveResultsBtn.disabled = true;
                 saveResultsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
                 
-                // Get SMS notification preferences if applicable
-                const notifyBySms = smsNotificationCheck && smsNotificationCheck.checked;
-                const phoneNumber = notifyBySms ? 
-                    document.getElementById('phoneNumberInput').value : null;
-                
-                // Validate the phone number if SMS notification is enabled
-                if (notifyBySms && (!phoneNumber || !phoneNumber.match(/^\+\d{10,15}$/))) {
-                    throw new Error('Please enter a valid phone number in international format (e.g., +12345678901)');
-                }
-                
-                // Prepare the data
-                const analysisData = {
-                    ...results,
-                    notifyBySms,
-                    phoneNumber: notifyBySms ? phoneNumber : null
-                };
-                
                 // Call the API to save the results
                 const response = await fetch('/api/save-analysis', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(analysisData)
+                    body: JSON.stringify(results)
                 });
                 
                 if (!response.ok) {
                     throw new Error('Failed to save results');
                 }
                 
-                const data = await response.json();
-                
-                // Show success message with SMS status if applicable
-                const successMessage = data.smsNotificationSent 
-                    ? 'Results saved successfully! SMS notification sent.' 
-                    : 'Results saved successfully!';
-                
-                showNotification(container, successMessage, 'success');
+                // Show success message
+                showNotification(container, 'Results saved successfully!', 'success');
             } catch (error) {
                 console.error('Error saving results:', error);
                 showNotification(container, 'Failed to save results: ' + error.message, 'danger');

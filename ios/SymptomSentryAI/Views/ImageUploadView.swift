@@ -194,6 +194,43 @@ struct ImageUploadView: View {
             .font(.subheadline)
             .foregroundColor(.secondary)
             
+            // Otoscope warning for ear scans
+            if type == .ear {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.orange)
+                        Text("Important Note:")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.orange)
+                    }
+                    
+                    Text("For proper ear canal images, a digital otoscope is required. Regular phone cameras cannot capture the inner ear canal properly.")
+                        .font(.callout)
+                        .foregroundColor(.secondary)
+                    
+                    Link(destination: URL(string: "https://www.amazon.com/s?k=digital+otoscope")!) {
+                        HStack {
+                            Image(systemName: "cart.fill")
+                                .font(.caption)
+                            Text("View Digital Otoscopes on Amazon")
+                                .font(.caption)
+                                .fontWeight(.medium)
+                        }
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .background(Color.blue.opacity(0.1))
+                        .cornerRadius(6)
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(12)
+                .background(Color.orange.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.top, 4)
+            }
+            
             VStack(alignment: .leading, spacing: 8) {
                 Text("For best results:")
                     .font(.subheadline)

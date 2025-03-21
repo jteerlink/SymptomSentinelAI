@@ -3,7 +3,6 @@ const tf = require('@tensorflow/tfjs-node');
 const { v4: uuidv4 } = require('uuid');
 const Analysis = require('../models/Analysis');
 const modelLoader = require('../utils/modelLoader');
-const { sendAnalysisNotification } = require('../utils/smsNotifier');
 
 // Initialize model cache
 let throatModel = null;
@@ -80,7 +79,6 @@ exports.saveAnalysis = async (req, res, next) => {
         // and save the analysis to their records
         
         const analysisData = req.body;
-        const { phoneNumber, notifyBySms } = req.body;
         
         if (!analysisData || !analysisData.id || !analysisData.type || !analysisData.conditions) {
             return res.status(400).json({
@@ -95,22 +93,9 @@ exports.saveAnalysis = async (req, res, next) => {
             savedAt: new Date().toISOString()
         };
         
-        // Send SMS notification if requested and phone number is provided
-        let smsNotificationSent = false;
-        if (notifyBySms && phoneNumber) {
-            try {
-                await sendAnalysisNotification(phoneNumber, analysisData);
-                smsNotificationSent = true;
-            } catch (smsError) {
-                console.error('Failed to send SMS notification:', smsError);
-                // Continue with the save operation even if SMS fails
-            }
-        }
-        
         res.status(200).json({
             message: 'Analysis saved successfully',
-            analysis: savedAnalysis,
-            smsNotificationSent
+            analysis: savedAnalysis
         });
     } catch (error) {
         console.error('Error saving analysis:', error);

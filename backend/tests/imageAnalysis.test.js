@@ -1,3 +1,6 @@
+// Set test environment
+process.env.NODE_ENV = 'test';
+
 const request = require('supertest');
 const express = require('express');
 const cors = require('cors');

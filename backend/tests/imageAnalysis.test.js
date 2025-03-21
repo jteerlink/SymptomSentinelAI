@@ -7,6 +7,23 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
+
+// Mock the Analysis model
+jest.mock('../db/models/Analysis', () => ({
+  create: jest.fn().mockResolvedValue({
+    id: '123e4567-e89b-12d3-a456-426614174111',
+    type: 'throat',
+    conditions: [
+      {
+        id: 'strep_throat',
+        name: 'Strep Throat',
+        confidence: 0.78,
+      }
+    ],
+    created_at: new Date().toISOString()
+  })
+}));
+
 const apiRoutes = require('../routes/api');
 
 // Create test app

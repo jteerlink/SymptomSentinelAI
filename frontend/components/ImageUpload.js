@@ -308,12 +308,10 @@ function setupUploadEventListeners(container) {
         
         try {
             // ===== CRITICAL FIX =====
-            // Use the full correct API URL pattern
-            // This ensures it's properly handled by our server configuration
-            const apiUrl = '/api/analyze';
+            // For testing, let's try the direct endpoint to bypass any proxy issues
+            const apiUrl = '/analyze';
             
-            // As a fallback, the backend also supports /analyze directly
-            // but we'll use the proper /api prefix as the best practice
+            console.log('[Analysis DEBUG] Using direct endpoint: ' + apiUrl);
                 
             console.log(`[Analysis] Sending request to: ${apiUrl}`);
             console.log(`[Analysis] Analysis type: ${selectedAnalysisType}`);
@@ -326,7 +324,8 @@ function setupUploadEventListeners(container) {
             // Always ensure we have proper content type
             const headers = {
                 'Content-Type': 'application/json',
-                'X-Request-Source': 'frontend-image-upload'
+                'X-Request-Source': 'frontend-image-upload',
+                'X-Request-Time': new Date().toISOString() // Add timestamp for tracking request time
             };
             
             // Create the request payload
@@ -418,7 +417,8 @@ function setupUploadEventListeners(container) {
                 // Create a canvas to resize the image
                 const canvas = document.createElement('canvas');
                 // Target max width/height (maintain aspect ratio)
-                const MAX_SIZE = 800;
+                // Use a smaller size to reduce payload significantly
+                const MAX_SIZE = 400; // Reduced from 800 to 400 for smaller file size
                 let width = img.width;
                 let height = img.height;
                 
@@ -438,7 +438,8 @@ function setupUploadEventListeners(container) {
                 ctx.drawImage(img, 0, 0, width, height);
                 
                 // Use the resized image for preview and analysis
-                const resizedImageUrl = canvas.toDataURL('image/jpeg', 0.85);
+                // More aggressive compression (0.7 quality instead of 0.85)
+                const resizedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
                 previewImage.src = resizedImageUrl;
                 
                 // Store the resized image on the preview element for later use

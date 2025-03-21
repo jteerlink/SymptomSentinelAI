@@ -55,11 +55,22 @@ app.use('/api', apiRoutes);
 
 // 6a. Add direct /analyze endpoint to catch requests that are missing the /api prefix
 // This helps maintain backwards compatibility with any direct API calls
-app.post('/analyze', (req, res) => {
-  console.log('Received request to /analyze - redirecting to /api/analyze');
-  // Forward the request to the proper API endpoint
-  req.url = '/api/analyze';
-  apiRoutes(req, res);
+app.post('/analyze', (req, res, next) => {
+  console.log('Received request to /analyze - processing directly');
+  console.log('Request body keys:', Object.keys(req.body));
+  console.log('Request body type:', typeof req.body);
+  
+  // Log image data properties if present
+  if (req.body && req.body.image) {
+    console.log('Image data present, type:', typeof req.body.image);
+    console.log('Image data length:', req.body.image.length);
+  } else {
+    console.log('No image data in request body');
+  }
+  
+  // Forward to the analyze controller directly instead of using apiRoutes
+  const imageAnalysisController = require('./controllers/imageAnalysisController');
+  imageAnalysisController.analyzeImage(req, res, next);
 });
 
 // 7. Static file serving - after API routes to avoid conflicts

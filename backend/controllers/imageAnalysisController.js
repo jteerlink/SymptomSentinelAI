@@ -14,19 +14,35 @@ let modelLoading = false;
  */
 exports.analyzeImage = async (req, res, next) => {
     try {
-        console.log('Analyze Image Request Body:', {
-            type: req.body.type,
-            hasImage: !!req.body.image,
-            imageLength: req.body.image ? req.body.image.length : 0,
-            keys: Object.keys(req.body)
-        });
+        console.log('📥 INCOMING ANALYZE REQUEST 📥');
+        console.log('==============================');
+        console.log('Request headers:', req.headers);
+        
+        // Check if request body exists
+        if (!req.body) {
+            console.error('❌ Request body is undefined or null');
+            return res.status(400).json({
+                error: true,
+                message: 'Missing request body'
+            });
+        }
+        
+        console.log('Request body keys:', Object.keys(req.body));
+        console.log('Request body type:', typeof req.body);
+        
+        // Debug request object structure (without large data)
+        const debugReqCopy = {...req};
+        if (debugReqCopy.body && debugReqCopy.body.image) {
+            debugReqCopy.body.image = `[Image data, length: ${debugReqCopy.body.image.length}]`;
+        }
+        console.log('Request structure:', JSON.stringify(debugReqCopy.body, null, 2).substring(0, 500) + '...');
         
         // Extract image and type, handling different possible formats
         let { image, type } = req.body;
         
         // Check if the request contains image data
         if (!image) {
-            console.error('No image provided in request body');
+            console.error('❌ No image provided in request body');
             return res.status(400).json({
                 error: true,
                 message: 'No image provided'
@@ -34,34 +50,42 @@ exports.analyzeImage = async (req, res, next) => {
         }
         
         // Additional logging for successful image extraction
-        console.log(`Image data received: ${typeof image} of length ${image.length}, type: ${type}`);
+        console.log(`✅ Image data received: ${typeof image}`);
+        console.log(`📊 Image data length: ${image.length} characters`);
+        console.log(`🔍 Analysis type: ${type}`);
 
         // Validate analysis type
         if (!type || (type !== 'throat' && type !== 'ear')) {
-            console.error('Invalid analysis type provided:', type);
+            console.error('❌ Invalid analysis type provided:', type);
             return res.status(400).json({
                 error: true,
                 message: 'Invalid analysis type. Must be "throat" or "ear"'
             });
         }
 
-        console.log(`Processing ${type} image analysis...`);
+        console.log(`🔄 Processing ${type} image analysis...`);
         
         // Process the image data with improved handling for all possible formats
         let imageData = image;
+        let dataSource = 'unknown';
         
         // Case 1: Handle test image mode
         if (image === 'test_image') {
             console.log('Using test image data for analysis');
             imageData = 'test_image';
+            dataSource = 'test_image';
         }
         // Case 2: Handle base64 data URLs (from canvas.toDataURL())
         else if (typeof image === 'string' && image.startsWith('data:image')) {
             try {
+                console.log('Detected data URL format image');
+                // Extract the data portion from "data:image/jpeg;base64,/9j/4AAQ..."
                 imageData = image.split(',')[1];
-                console.log('Processed base64 image data from data URL, length:', imageData.length);
+                console.log('✅ Processed base64 image data from data URL');
+                console.log(`📊 Extracted base64 length: ${imageData.length}`);
+                dataSource = 'data_url';
             } catch (err) {
-                console.error('Failed to process base64 image data:', err);
+                console.error('❌ Failed to process base64 image data:', err);
                 return res.status(400).json({
                     error: true,
                     message: 'Invalid image data format'
@@ -74,45 +98,88 @@ exports.analyzeImage = async (req, res, next) => {
             image.startsWith('iVBOR') || // PNG
             image.match(/^[A-Za-z0-9+/=]+$/) // Generic base64 check
         )) {
-            console.log('Detected raw base64 image data, length:', image.length);
+            console.log('✅ Detected raw base64 image data');
+            console.log(`📊 Raw base64 length: ${image.length}`);
             imageData = image;
+            dataSource = 'raw_base64';
         }
         // Case 4: Handle other formats
         else if (image) {
-            console.log(`Image data provided in format: ${typeof image}, handling as-is`);
+            console.log(`⚠️ Image data provided in unidentified format: ${typeof image}`);
+            console.log('Attempting to process as-is');
+            dataSource = 'unknown_format';
         }
 
-        // Load the appropriate model
-        const model = await loadModel(type);
-        if (!model) {
+        console.log(`📄 Image data source: ${dataSource}`);
+        
+        try {
+            // Load the appropriate model
+            console.log('🧠 Loading ML model...');
+            const model = await loadModel(type);
+            if (!model) {
+                console.error('❌ Failed to load analysis model');
+                return res.status(500).json({
+                    error: true,
+                    message: 'Failed to load analysis model'
+                });
+            }
+            console.log('✅ Model loaded successfully');
+
+            // Process the image for model input
+            console.log('🔄 Preprocessing image data...');
+            const processedImage = await preprocessImage(imageData);
+            console.log('✅ Image preprocessing complete');
+
+            // Run inference with the model
+            console.log('🔍 Running inference...');
+            const predictions = await runInference(model, processedImage, type);
+            console.log('✅ Inference complete');
+            console.log('📊 Predictions generated:', JSON.stringify(predictions));
+
+            // Generate response
+            const analysisId = uuidv4();
+            const timestamp = new Date().toISOString();
+            
+            const response = {
+                id: analysisId,
+                type,
+                timestamp,
+                conditions: predictions,
+                user: req.user ? req.user.id : null, // Include user ID if authenticated
+                debug_info: {
+                    data_source: dataSource,
+                    image_data_length: imageData.length,
+                    processing_time: new Date().getTime() - new Date(req.headers['x-request-time'] || Date.now()).getTime()
+                }
+            };
+
+            console.log('📤 Sending successful response');
+            return res.status(200).json(response);
+        } catch (error) {
+            console.error('❌ Error during image analysis process:', error);
+            console.error('Stack trace:', error.stack);
+            
+            // Send a detailed error response
             return res.status(500).json({
                 error: true,
-                message: 'Failed to load analysis model'
+                message: 'Internal server error during image analysis',
+                details: process.env.NODE_ENV === 'development' ? {
+                    error_message: error.message,
+                    stage: error.stage || 'unknown',
+                    data_source: dataSource
+                } : undefined
             });
         }
-
-        // Process the image for model input
-        const processedImage = await preprocessImage(imageData);
-
-        // Run inference with the model
-        const predictions = await runInference(model, processedImage, type);
-
-        // Generate response
-        const analysisId = uuidv4();
-        const timestamp = new Date().toISOString();
+    } catch (outer_error) {
+        console.error('❌❌ CRITICAL ERROR IN ANALYZE ENDPOINT:', outer_error);
+        console.error('Stack trace:', outer_error.stack);
         
-        const response = {
-            id: analysisId,
-            type,
-            timestamp,
-            conditions: predictions,
-            user: req.user ? req.user.id : null // Include user ID if authenticated
-        };
-
-        res.status(200).json(response);
-    } catch (error) {
-        console.error('Error analyzing image:', error);
-        next(error);
+        // Create a safe error response
+        return res.status(500).json({
+            error: true,
+            message: 'A critical error occurred while processing your request',
+            errorId: uuidv4() // For tracking in logs
+        });
     }
 };
 
@@ -270,15 +337,39 @@ async function createMockModel() {
  */
 async function preprocessImage(imageData) {
     try {
+        console.log('➡️ BEGIN IMAGE PREPROCESSING');
+        
+        // Log image data info without printing the actual data
+        if (typeof imageData === 'string') {
+            console.log(`📊 Image data type: string, length: ${imageData.length}`);
+            if (imageData === 'test_image') {
+                console.log('🔍 Using test image data');
+            } else {
+                console.log(`🔍 First 20 chars: ${imageData.substring(0, 20)}...`);
+                console.log(`🔍 Last 20 chars: ...${imageData.substring(imageData.length - 20)}`);
+            }
+        } else {
+            console.log(`📊 Image data type: ${typeof imageData}`);
+        }
+        
         // In a real app, this would process the image for the specific model
-        // For the demo, we'll return a mock tensor
+        // For the demo, we'll return a mock tensor with a forced delay to simulate processing
+        
+        console.log('⏳ Simulating image tensor creation...');
         
         // Create a mock tensor with the right shape for a typical image model
         const mockTensor = tf.zeros([1, 224, 224, 3]);
         
+        console.log('✅ Created tensor with shape:', mockTensor.shape);
+        console.log('⬅️ END IMAGE PREPROCESSING');
+        
         return mockTensor;
     } catch (error) {
-        console.error('Error preprocessing image:', error);
+        console.error('❌ ERROR IN IMAGE PREPROCESSING:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Add debugging info to the error
+        error.stage = 'image_preprocessing';
         throw error;
     }
 }

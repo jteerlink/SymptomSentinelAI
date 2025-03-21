@@ -283,15 +283,15 @@ function setupUploadEventListeners(container) {
         
         try {
             // Send the image data to your backend API
-            // For Replit, we need to access the backend server directly on port 5000
-            // not the frontend server on port 8000
-            const backendUrl = window.location.hostname.includes('replit') 
-                ? `${window.location.protocol}//${window.location.hostname}:5000`
-                : '';
+            // For Replit, we can't use the port in the URL, so we need a full URL
+            // or a relative URL to the backend server
+            const apiUrl = window.location.hostname.includes('replit') 
+                ? '/api/analyze' // Use relative URL - will be proxied to the backend
+                : '/api/analyze';
                 
-            console.log(`Sending analysis request to: ${backendUrl}/api/analyze`);
+            console.log(`Sending analysis request to: ${apiUrl}`);
             
-            const response = await fetch(`${backendUrl}/api/analyze`, {
+            const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

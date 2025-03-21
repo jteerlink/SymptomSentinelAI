@@ -180,12 +180,10 @@ function renderAnalysisResults(container, results) {
                 saveResultsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
                 
                 // Call the API to save the results
-                // For Replit, we need to access the backend server directly on port 5000
-                const backendUrl = window.location.hostname.includes('replit') 
-                    ? `${window.location.protocol}//${window.location.hostname}:5000`
-                    : '';
+                // For Replit, we can't use the port in the URL, so we need a relative URL
+                const apiUrl = '/api/save-analysis';
                 
-                const response = await fetch(`${backendUrl}/api/save-analysis`, {
+                const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

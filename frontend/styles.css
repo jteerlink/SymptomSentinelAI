@@ -846,6 +846,48 @@ main {
     background-color: var(--info-color);
 }
 
+/* Button tooltips need special positioning */
+button .help-tooltip-icon .help-tooltip {
+    bottom: 150%;
+    left: 50%;
+}
+
+/* Adjusted tooltip positions for different contexts */
+.scan-option-label .help-tooltip-icon .help-tooltip {
+    width: 240px;
+    left: -120px;
+    transform: scale(0.9);
+}
+
+.scan-option-label .help-tooltip-icon:hover .help-tooltip {
+    transform: scale(1);
+}
+
+/* For tooltips in buttons */
+button .help-tooltip {
+    width: 250px;
+    left: auto;
+    right: 0;
+    transform: translateX(0) scale(0.9);
+}
+
+button .help-tooltip-icon:hover .help-tooltip {
+    transform: translateX(0) scale(1);
+}
+
+button .help-tooltip::after {
+    left: auto;
+    right: 10px;
+}
+
+.medical-icon.warning {
+    background-color: var(--warning-color);
+}
+
+.medical-icon.info {
+    background-color: var(--info-color);
+}
+
 .medical-icon.danger {
     background-color: var(--danger-color);
 }

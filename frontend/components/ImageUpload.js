@@ -18,20 +18,62 @@ function renderUploadUI(container) {
             </div>
             
             <div class="scan-type-selection mb-4">
-                <h5 class="text-center mb-4">Select what you want to scan:</h5>
+                <h5 class="text-center mb-4">
+                    Select what you want to scan
+                    <span class="help-tooltip-icon">
+                        <i class="fas fa-question"></i>
+                        <div class="help-tooltip">
+                            <div class="tooltip-title">
+                                <i class="fas fa-info-circle"></i>
+                                Analysis Selection
+                            </div>
+                            <div class="tooltip-content">
+                                Choose the area you want to analyze. Our AI model is trained for specific conditions related to each area.
+                            </div>
+                        </div>
+                    </span>
+                </h5>
                 <div class="scan-options">
                     <div class="scan-option-card" id="throat-option">
                         <div class="scan-option-icon">
                             <i class="fas fa-head-side-cough fa-2x"></i>
                         </div>
-                        <h5 class="scan-option-label">Throat</h5>
+                        <h5 class="scan-option-label">
+                            Throat
+                            <span class="help-tooltip-icon">
+                                <i class="fas fa-question"></i>
+                                <div class="help-tooltip">
+                                    <div class="tooltip-title">
+                                        <span class="medical-icon throat"><i class="fas fa-head-side-cough"></i></span>
+                                        Throat Analysis
+                                    </div>
+                                    <div class="tooltip-content">
+                                        Detects potential signs of strep throat, tonsillitis, and pharyngitis. Use good lighting and focus on the back of the throat.
+                                    </div>
+                                </div>
+                            </span>
+                        </h5>
                         <p class="scan-option-description">Strep throat, tonsillitis, pharyngitis</p>
                     </div>
                     <div class="scan-option-card" id="ear-option">
                         <div class="scan-option-icon">
                             <i class="fas fa-deaf fa-2x"></i>
                         </div>
-                        <h5 class="scan-option-label">Ear</h5>
+                        <h5 class="scan-option-label">
+                            Ear
+                            <span class="help-tooltip-icon">
+                                <i class="fas fa-question"></i>
+                                <div class="help-tooltip">
+                                    <div class="tooltip-title">
+                                        <span class="medical-icon ear"><i class="fas fa-deaf"></i></span>
+                                        Ear Analysis
+                                    </div>
+                                    <div class="tooltip-content">
+                                        Identifies potential ear infections, earwax buildup, and other ear canal issues. Proper lighting and positioning are crucial.
+                                    </div>
+                                </div>
+                            </span>
+                        </h5>
                         <p class="scan-option-description">Ear infections, earwax buildup, otitis</p>
                     </div>
                 </div>
@@ -40,17 +82,59 @@ function renderUploadUI(container) {
             <div id="analysis-type-info" style="display: none;" class="mb-4">
                 <div id="throat-instructions" style="display: none;">
                     <div class="alert alert-primary">
-                        <h5><i class="fas fa-head-side-cough"></i> Throat Scan Selected</h5>
+                        <h5>
+                            <i class="fas fa-head-side-cough"></i> Throat Scan Selected
+                            <span class="help-tooltip-icon">
+                                <i class="fas fa-question"></i>
+                                <div class="help-tooltip">
+                                    <div class="tooltip-title">
+                                        <span class="medical-icon throat"><i class="fas fa-head-side-cough"></i></span>
+                                        Imaging Tips
+                                    </div>
+                                    <div class="tooltip-content">
+                                        Use the phone's flashlight or a good light source. Open your mouth wide and say "Ahh" while taking the photo to expose the throat area fully.
+                                    </div>
+                                </div>
+                            </span>
+                        </h5>
                         <p>Upload a clear image of your throat area for analysis. Position the camera to show the back of your throat.</p>
                     </div>
                 </div>
                 <div id="ear-instructions" style="display: none;">
                     <div class="alert alert-primary">
-                        <h5><i class="fas fa-deaf"></i> Ear Scan Selected</h5>
+                        <h5>
+                            <i class="fas fa-deaf"></i> Ear Scan Selected
+                            <span class="help-tooltip-icon">
+                                <i class="fas fa-question"></i>
+                                <div class="help-tooltip">
+                                    <div class="tooltip-title">
+                                        <span class="medical-icon ear"><i class="fas fa-deaf"></i></span>
+                                        Imaging Tips
+                                    </div>
+                                    <div class="tooltip-content">
+                                        For adults, pull the ear up and back gently. For children, pull down and back. Use good lighting and hold the camera steady for best results.
+                                    </div>
+                                </div>
+                            </span>
+                        </h5>
                         <p>Upload a clear image of your ear canal for analysis. Gently pull your ear up and back to better expose the ear canal.</p>
                     </div>
                     <div class="alert alert-warning mt-2">
-                        <h6><i class="fas fa-exclamation-triangle"></i> Important Note:</h6>
+                        <h6>
+                            <i class="fas fa-exclamation-triangle"></i> Important Note:
+                            <span class="help-tooltip-icon">
+                                <i class="fas fa-question"></i>
+                                <div class="help-tooltip">
+                                    <div class="tooltip-title">
+                                        <span class="medical-icon warning"><i class="fas fa-exclamation-triangle"></i></span>
+                                        Equipment Recommendation
+                                    </div>
+                                    <div class="tooltip-content">
+                                        Digital otoscopes connect to your smartphone and provide proper lighting and magnification for visualizing the ear canal. They're relatively inexpensive and improve analysis accuracy.
+                                    </div>
+                                </div>
+                            </span>
+                        </h6>
                         <p>For proper ear canal images, a digital otoscope is required. Regular phone cameras cannot capture the inner ear canal properly.</p>
                         <a href="https://www.amazon.com/s?k=digital+otoscope" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
                             <i class="fas fa-shopping-cart"></i> View Digital Otoscopes on Amazon
@@ -59,7 +143,21 @@ function renderUploadUI(container) {
                 </div>
                 
                 <div class="alert alert-info mt-3">
-                    <strong>For best results:</strong>
+                    <strong>
+                        For best results:
+                        <span class="help-tooltip-icon">
+                            <i class="fas fa-question"></i>
+                            <div class="help-tooltip">
+                                <div class="tooltip-title">
+                                    <span class="medical-icon info"><i class="fas fa-lightbulb"></i></span>
+                                    Quality Matters
+                                </div>
+                                <div class="tooltip-content">
+                                    The AI analysis relies on clear, well-lit images. Poor quality photos can lead to inaccurate results. Use natural daylight or bright indoor lighting when possible.
+                                </div>
+                            </div>
+                        </span>
+                    </strong>
                     <ul class="mb-0">
                         <li>Ensure good lighting</li>
                         <li>Keep the camera steady</li>
@@ -70,7 +168,21 @@ function renderUploadUI(container) {
             
             <div class="drop-area" id="dropArea" style="display: none;">
                 <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
-                <p>Drag and drop an image here, or click to browse</p>
+                <p>
+                    Drag and drop an image here, or click to browse
+                    <span class="help-tooltip-icon">
+                        <i class="fas fa-question"></i>
+                        <div class="help-tooltip">
+                            <div class="tooltip-title">
+                                <span class="medical-icon info"><i class="fas fa-file-image"></i></span>
+                                Image Requirements
+                            </div>
+                            <div class="tooltip-content">
+                                For accurate analysis, only JPEG or PNG images under 5MB are accepted. Higher resolution images provide better results but will be resized automatically.
+                            </div>
+                        </div>
+                    </span>
+                </p>
                 <input type="file" class="file-input" id="fileInput" accept="image/*">
                 <div class="mt-3">
                     <button class="btn btn-primary" id="browseButton">
@@ -78,6 +190,18 @@ function renderUploadUI(container) {
                     </button>
                     <button class="btn btn-secondary ms-2" id="cameraButton">
                         <i class="fas fa-camera"></i> Take Photo
+                        <span class="help-tooltip-icon">
+                            <i class="fas fa-question"></i>
+                            <div class="help-tooltip">
+                                <div class="tooltip-title">
+                                    <span class="medical-icon info"><i class="fas fa-camera"></i></span>
+                                    Photo Tips
+                                </div>
+                                <div class="tooltip-content">
+                                    Using your device's camera directly often provides better quality images. Hold still and ensure the area is well-lit for best results.
+                                </div>
+                            </div>
+                        </span>
                     </button>
                 </div>
                 <div class="mt-3">
@@ -96,6 +220,18 @@ function renderUploadUI(container) {
                     </button>
                     <button class="btn btn-success" id="analyzeButton">
                         <i class="fas fa-microscope"></i> Analyze Image
+                        <span class="help-tooltip-icon">
+                            <i class="fas fa-question"></i>
+                            <div class="help-tooltip">
+                                <div class="tooltip-title">
+                                    <span class="medical-icon info"><i class="fas fa-brain"></i></span>
+                                    Analysis Process
+                                </div>
+                                <div class="tooltip-content">
+                                    Your image will be securely processed by our AI model to detect potential conditions. This typically takes 5-10 seconds depending on image complexity.
+                                </div>
+                            </div>
+                        </span>
                     </button>
                 </div>
             </div>

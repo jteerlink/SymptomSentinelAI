@@ -279,6 +279,8 @@ function handleRegistration() {
         const password = document.getElementById('login-password').value;
         const rememberMe = document.getElementById('remember-me').checked;
         
+        console.log('Login form submitted for email:', email);
+        
         // Show loading state
         const submitButton = e.target.querySelector('button[type="submit"]');
         const originalButtonText = submitButton.innerHTML;
@@ -286,22 +288,56 @@ function handleRegistration() {
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing in...';
         
         try {
+            // Create the payload
+            const payload = JSON.stringify({ email, password });
+            console.log('[Fetch] Executing fetch to: /api/login');
+            console.log('[Fetch] Request payload:', { email, password: '********' });
+            
             // Call login API
             const response = await fetch('/api/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ email, password })
+                body: payload
             });
             
-            // Parse the response JSON data
-            const data = await response.json();
+            console.log('[Fetch] Response status:', response.status, response.statusText);
+            console.log('[Fetch] Response headers:', Object.fromEntries([...response.headers.entries()]));
+            
+            // Get the response text first to debug any parsing issues
+            const responseText = await response.text();
+            console.log('[Fetch] Raw response text:', responseText);
+            
+            // Try to parse the response as JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log('[Fetch] Parsed response data:', data);
+            } catch (parseError) {
+                console.error('[Fetch] JSON parse error:', parseError);
+                console.error('[Fetch] Failed to parse response text:', responseText);
+                throw new Error('Server response format error. Please try again.');
+            }
             
             // Check if the response contains an error 
             if (!response.ok) {
+                console.error('[Fetch] Error response:', data);
                 throw new Error(data.message || 'Login failed');
             }
+            
+            // Validate the response structure
+            if (!data.token) {
+                console.error('[Fetch] Missing token in response:', data);
+                throw new Error('Invalid server response: Missing authentication token');
+            }
+            
+            if (!data.user) {
+                console.error('[Fetch] Missing user data in response:', data);
+                throw new Error('Invalid server response: Missing user data');
+            }
+            
+            console.log('[Auth] Login successful, storing token and user data');
             
             // Store token in localStorage
             localStorage.setItem('authToken', data.token);
@@ -313,19 +349,26 @@ function handleRegistration() {
             }
             
             // Update UI to reflect logged in state
+            console.log('[UI] Updating profile with user data:', {
+                email: data.user.email,
+                name: data.user.name,
+                subscription: data.user.subscription
+            });
+            
             updateProfileUI(data.user.email, data.user.name, data.user);
             
             // Check if there were analysis results waiting to be saved
             const pendingResults = sessionStorage.getItem('pendingAnalysisResults');
             if (pendingResults) {
                 try {
+                    console.log('[Analysis] Saving pending analysis results');
                     // Attempt to save the pending results now that user is logged in
                     const { apiRequest } = await import('./app.js');
                     await apiRequest('/api/save-analysis', 'POST', JSON.parse(pendingResults));
                     showNotification('Analysis results saved successfully!', 'success');
                     sessionStorage.removeItem('pendingAnalysisResults');
                 } catch (saveError) {
-                    console.error('Error saving pending analysis:', saveError);
+                    console.error('[Analysis] Error saving pending analysis:', saveError);
                 }
             }
             

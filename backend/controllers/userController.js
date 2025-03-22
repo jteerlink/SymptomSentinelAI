@@ -64,41 +64,58 @@ exports.register = async (req, res, next) => {
  * User login
  */
 exports.login = async (req, res, next) => {
+    console.log('📥 LOGIN REQUEST RECEIVED 📥');
+    console.log('==============================');
+    console.log('Request headers:', req.headers);
+    console.log('Request body:', req.body);
+    
     try {
         const { email, password } = req.body;
 
         // Basic validation
         if (!email || !password) {
+            console.log('❌ Login validation failed: Missing email or password');
             return res.status(400).json({
                 error: true,
                 message: 'Please provide email and password'
             });
         }
 
+        console.log('👤 Attempting to find user with email:', email);
+        
         // Find user
         const user = await User.findByEmail(email);
         if (!user) {
+            console.log('❌ User not found with email:', email);
             return res.status(401).json({
                 error: true,
                 message: 'Invalid credentials'
             });
         }
 
+        console.log('✅ User found:', { id: user.id, email: user.email });
+        console.log('🔐 Verifying password...');
+        
         // Verify password
         const isPasswordValid = await User.verifyPassword(password, user.password);
         if (!isPasswordValid) {
+            console.log('❌ Password verification failed for user:', email);
             return res.status(401).json({
                 error: true,
                 message: 'Invalid credentials'
             });
         }
 
+        console.log('✅ Password verified successfully');
+        console.log('🔑 Generating JWT token...');
+        
         // Generate JWT token
         const token = jwt.sign({ id: user.id }, JWT_SECRET, {
             expiresIn: JWT_EXPIRES_IN
         });
 
-        res.status(200).json({
+        // Prepare response object
+        const responseObject = {
             message: 'Login successful',
             user: {
                 id: user.id,
@@ -107,9 +124,14 @@ exports.login = async (req, res, next) => {
                 subscription: user.subscription
             },
             token
-        });
+        };
+        
+        console.log('✅ Login successful for user:', email);
+        console.log('📤 Response structure:', JSON.stringify(responseObject, null, 2));
+        
+        res.status(200).json(responseObject);
     } catch (error) {
-        console.error('Error logging in:', error);
+        console.error('❌ Error logging in:', error);
         next(error);
     }
 };

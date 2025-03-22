@@ -290,11 +290,11 @@ function handleRegistration() {
         try {
             // Create the payload
             const payload = JSON.stringify({ email, password });
-            console.log('[Fetch] Executing fetch to: /api/login');
+            console.log('[Fetch] Executing fetch to: /login');
             console.log('[Fetch] Request payload:', { email, password: '********' });
             
             // Call login API
-            const response = await fetch('/api/login', {
+            const response = await fetch('/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -410,7 +410,7 @@ function handleRegistration() {
             const name = `${firstName} ${lastName}`.trim();
             
             // Call register API
-            const response = await fetch('/api/register', {
+            const response = await fetch('/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -851,9 +851,10 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
         const backendUrl = '';
         
         // Fix endpoint to ensure it doesn't have duplicate /api/ prefix
-        const apiEndpoint = endpoint.startsWith('/api/') ? endpoint : 
-                            endpoint.startsWith('api/') ? `/${endpoint}` : 
-                            `/api/${endpoint}`;
+        // Remove the /api/ prefix because the backend expects paths without it
+        const apiEndpoint = endpoint.startsWith('/api/') ? endpoint.substring(4) : 
+                            endpoint.startsWith('api/') ? `/${endpoint.substring(4)}` : 
+                            endpoint;
         
         console.log(`API request to: ${apiEndpoint}`, token ? 'with authentication' : 'without authentication');
         const response = await fetch(apiEndpoint, options);

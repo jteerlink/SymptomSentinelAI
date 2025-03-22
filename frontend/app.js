@@ -295,12 +295,13 @@ function handleRegistration() {
                 body: JSON.stringify({ email, password })
             });
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Login failed');
-            }
-            
+            // Parse the response JSON data
             const data = await response.json();
+            
+            // Check if the response contains an error 
+            if (!response.ok) {
+                throw new Error(data.message || 'Login failed');
+            }
             
             // Store token in localStorage
             localStorage.setItem('authToken', data.token);
@@ -378,12 +379,13 @@ function handleRegistration() {
                 })
             });
             
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Registration failed');
-            }
-            
+            // Parse the response JSON data
             const data = await response.json();
+            
+            // Check if the response contains an error
+            if (!response.ok) {
+                throw new Error(data.message || 'Registration failed');
+            }
             
             // Store token in localStorage
             localStorage.setItem('authToken', data.token);

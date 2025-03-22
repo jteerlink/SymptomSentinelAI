@@ -96,39 +96,30 @@ class UserService: ObservableObject {
                 self.isLoading = false
                 
                 do {
-                    // Parse JSON response
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let token = json["token"] as? String,
-                       let userData = json["user"] as? [String: Any],
-                       let userId = userData["id"] as? String,
-                       let userEmail = userData["email"] as? String,
-                       let userName = userData["name"] as? String,
-                       let subscription = userData["subscription"] as? String {
-                        
-                        // Create user object
-                        let user = User(
-                            id: userId,
-                            email: userEmail,
-                            name: userName,
-                            subscriptionLevel: SubscriptionLevel(rawValue: subscription) ?? .free
-                        )
-                        
-                        // Store user and token
-                        self.currentUser = user
-                        self.authToken = token
-                        self.isAuthenticated = true
-                        
-                        // Set the auth token in network service
-                        self.networkService.setAuthToken(token)
-                        
-                        // Save session
-                        self.saveSession()
-                        
-                        completion(true, nil)
-                    } else {
-                        self.errorMessage = "Invalid server response"
-                        completion(false, "Invalid server response")
-                    }
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let authResponse = try decoder.decode(AuthResponse.self, from: data)
+                    
+                    // Create user object from decoded response
+                    let user = User(
+                        id: authResponse.user.id,
+                        email: authResponse.user.email,
+                        name: authResponse.user.name,
+                        subscriptionLevel: SubscriptionLevel(rawValue: authResponse.user.subscription) ?? .free
+                    )
+                    
+                    // Store user and token
+                    self.currentUser = user
+                    self.authToken = authResponse.token
+                    self.isAuthenticated = true
+                    
+                    // Set the auth token in network service
+                    self.networkService.setAuthToken(authResponse.token)
+                    
+                    // Save session
+                    self.saveSession()
+                    
+                    completion(true, nil)
                 } catch {
                     self.errorMessage = "Failed to parse response: \(error.localizedDescription)"
                     completion(false, "Registration failed: \(error.localizedDescription)")
@@ -188,39 +179,30 @@ class UserService: ObservableObject {
                 self.isLoading = false
                 
                 do {
-                    // Parse JSON response
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let token = json["token"] as? String,
-                       let userData = json["user"] as? [String: Any],
-                       let userId = userData["id"] as? String,
-                       let userEmail = userData["email"] as? String,
-                       let userName = userData["name"] as? String,
-                       let subscription = userData["subscription"] as? String {
-                        
-                        // Create user object
-                        let user = User(
-                            id: userId,
-                            email: userEmail,
-                            name: userName,
-                            subscriptionLevel: SubscriptionLevel(rawValue: subscription) ?? .free
-                        )
-                        
-                        // Store user and token
-                        self.currentUser = user
-                        self.authToken = token
-                        self.isAuthenticated = true
-                        
-                        // Set the auth token in network service
-                        self.networkService.setAuthToken(token)
-                        
-                        // Save session
-                        self.saveSession()
-                        
-                        completion(true, nil)
-                    } else {
-                        self.errorMessage = "Invalid server response"
-                        completion(false, "Invalid server response")
-                    }
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let authResponse = try decoder.decode(AuthResponse.self, from: data)
+                    
+                    // Create user object from decoded response
+                    let user = User(
+                        id: authResponse.user.id,
+                        email: authResponse.user.email,
+                        name: authResponse.user.name,
+                        subscriptionLevel: SubscriptionLevel(rawValue: authResponse.user.subscription) ?? .free
+                    )
+                    
+                    // Store user and token
+                    self.currentUser = user
+                    self.authToken = authResponse.token
+                    self.isAuthenticated = true
+                    
+                    // Set the auth token in network service
+                    self.networkService.setAuthToken(authResponse.token)
+                    
+                    // Save session
+                    self.saveSession()
+                    
+                    completion(true, nil)
                 } catch {
                     self.errorMessage = "Failed to parse response: \(error.localizedDescription)"
                     completion(false, "Login failed: \(error.localizedDescription)")
@@ -279,31 +261,24 @@ class UserService: ObservableObject {
                 self.isLoading = false
                 
                 do {
-                    // Parse JSON response
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let userData = json["user"] as? [String: Any],
-                       let userId = userData["id"] as? String,
-                       let userEmail = userData["email"] as? String,
-                       let userName = userData["name"] as? String,
-                       let subscription = userData["subscription"] as? String {
-                        
-                        // Update user object
-                        let user = User(
-                            id: userId,
-                            email: userEmail,
-                            name: userName,
-                            subscriptionLevel: SubscriptionLevel(rawValue: subscription) ?? .free
-                        )
-                        
-                        self.currentUser = user
-                        
-                        // Save updated user data
-                        self.saveSession()
-                        
-                        completion(true, nil)
-                    } else {
-                        completion(false, "Invalid server response")
-                    }
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let profileResponse = try decoder.decode(ProfileResponse.self, from: data)
+                    
+                    // Create user object from decoded response
+                    let user = User(
+                        id: profileResponse.user.id,
+                        email: profileResponse.user.email,
+                        name: profileResponse.user.name,
+                        subscriptionLevel: SubscriptionLevel(rawValue: profileResponse.user.subscription) ?? .free
+                    )
+                    
+                    self.currentUser = user
+                    
+                    // Save updated user data
+                    self.saveSession()
+                    
+                    completion(true, nil)
                 } catch {
                     completion(false, "Failed to parse response: \(error.localizedDescription)")
                 }
@@ -365,27 +340,24 @@ class UserService: ObservableObject {
                 self.isLoading = false
                 
                 do {
-                    // Parse JSON response
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let userData = json["user"] as? [String: Any] {
-                        
-                        // Update user object with new data
-                        let updatedUser = User(
-                            id: currentUser.id,
-                            email: (email ?? currentUser.email),
-                            name: (name ?? currentUser.name),
-                            subscriptionLevel: currentUser.subscriptionLevel
-                        )
-                        
-                        self.currentUser = updatedUser
-                        
-                        // Save updated user data
-                        self.saveSession()
-                        
-                        completion(true, nil)
-                    } else {
-                        completion(false, "Invalid server response")
-                    }
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let profileResponse = try decoder.decode(ProfileResponse.self, from: data)
+                    
+                    // Update user object with new data from response
+                    let updatedUser = User(
+                        id: profileResponse.user.id,
+                        email: profileResponse.user.email,
+                        name: profileResponse.user.name,
+                        subscriptionLevel: SubscriptionLevel(rawValue: profileResponse.user.subscription) ?? .free
+                    )
+                    
+                    self.currentUser = updatedUser
+                    
+                    // Save updated user data
+                    self.saveSession()
+                    
+                    completion(true, nil)
                 } catch {
                     completion(false, "Failed to parse response: \(error.localizedDescription)")
                 }

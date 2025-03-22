@@ -25,7 +25,7 @@ jest.mock('../db/models/Analysis', () => ({
 }));
 
 // Mock the User model
-jest.mock('../models/User', () => {
+jest.mock('../db/models/User', () => {
   // Mock subscription limits
   const SUBSCRIPTION_LIMITS = {
     free: {
@@ -50,19 +50,24 @@ jest.mock('../models/User', () => {
     analysisCount: 3,
     lastResetDate: new Date().toISOString(),
     hasExceededAnalysisLimit: jest.fn().mockReturnValue(false),
-    incrementAnalysisCount: jest.fn().mockReturnValue(4)
+    incrementAnalysisCount: jest.fn().mockResolvedValue(4)
   };
   
-  // Return mock class and properties
+  // Return mock class and methods
   return {
     SUBSCRIPTION_LIMITS,
-    mockUser
+    mockUser,
+    findById: jest.fn().mockResolvedValue(mockUser),
+    incrementAnalysisCount: jest.fn().mockResolvedValue({
+      ...mockUser,
+      analysisCount: 4
+    })
   };
 });
 
 // Mock the auth middleware
 jest.mock('../middleware/auth', () => {
-  const User = require('../models/User');
+  const User = require('../db/models/User');
   
   return {
     // Mock the authenticate middleware to always provide the mock user

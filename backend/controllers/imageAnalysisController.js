@@ -258,6 +258,7 @@ exports.saveAnalysis = async (req, res, next) => {
         console.log('Saving analysis for user:', req.user.id);
         
         const analysisData = req.body;
+        console.log('Analysis data received:', JSON.stringify(analysisData));
         
         if (!analysisData || !analysisData.type || !analysisData.conditions) {
             return res.status(400).json({
@@ -268,6 +269,7 @@ exports.saveAnalysis = async (req, res, next) => {
         
         // In test environment, bypass actual database call and return mock data
         if (process.env.NODE_ENV === 'test') {
+            console.log('Test environment detected, using mock data');
             // Create a mock saved analysis object
             const mockAnalysis = {
                 id: analysisData.id || '123e4567-e89b-12d3-a456-426614174111',
@@ -295,43 +297,66 @@ exports.saveAnalysis = async (req, res, next) => {
             });
         }
         
+        console.log('Live environment, saving to database');
         // For non-test environments, create analysis record in database
         const id = analysisData.id || undefined;
         
-        // Increment the user's analysis count
-        await req.user.incrementAnalysisCount();
-        console.log(`Incremented analysis count for user ${req.user.id} to ${req.user.analysisCount}`);
-        
-        // Create the analysis record
-        const savedAnalysis = await Analysis.create({
-            id,
-            userId: req.user.id,
-            type: analysisData.type,
-            conditions: analysisData.conditions,
-            imageUrl: analysisData.imageUrl || null
-        });
-        
-        console.log('Analysis saved:', savedAnalysis.id);
-        
-        // Include subscription info in the response
-        const { User } = require('../db/models');
-        const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
-        const subscriptionInfo = {
-            subscription: req.user.subscription,
-            analysisCount: req.user.analysisCount,
-            analysisLimit: subscriptionLimits.analysesPerMonth,
-            analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
-            lastResetDate: req.user.lastResetDate
-        };
-        
-        res.status(200).json({
-            message: 'Analysis saved successfully',
-            analysis: savedAnalysis,
-            subscription: subscriptionInfo
-        });
+        try {
+            // Increment the user's analysis count
+            console.log('About to increment analysis count');
+            await User.incrementAnalysisCount(req.user.id);
+            console.log(`Incremented analysis count for user ${req.user.id}`);
+            
+            // Get updated user data
+            const updatedUser = await User.findById(req.user.id);
+            console.log(`Updated analysis count: ${updatedUser.analysisCount}`);
+            
+            // Update the req.user object with the latest data
+            req.user.analysisCount = updatedUser.analysisCount;
+            req.user.lastResetDate = updatedUser.lastResetDate;
+            
+            // Create the analysis record
+            console.log('Creating analysis record');
+            const savedAnalysis = await Analysis.create({
+                id,
+                userId: req.user.id,
+                type: analysisData.type,
+                conditions: analysisData.conditions,
+                imageUrl: analysisData.imageUrl || null
+            });
+            
+            console.log('Analysis saved:', savedAnalysis.id);
+            
+            // Include subscription info in the response
+            const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
+            const subscriptionInfo = {
+                subscription: req.user.subscription,
+                analysisCount: req.user.analysisCount,
+                analysisLimit: subscriptionLimits.analysesPerMonth,
+                analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
+                lastResetDate: req.user.lastResetDate
+            };
+            
+            return res.status(200).json({
+                message: 'Analysis saved successfully',
+                analysis: savedAnalysis,
+                subscription: subscriptionInfo
+            });
+        } catch (dbError) {
+            console.error('Database operation error:', dbError);
+            return res.status(500).json({
+                error: true,
+                message: 'Error saving analysis to database',
+                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+            });
+        }
     } catch (error) {
         console.error('Error saving analysis:', error);
-        next(error);
+        return res.status(500).json({
+            error: true,
+            message: 'Error processing analysis save request',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 
@@ -360,7 +385,6 @@ exports.getAnalysisHistory = async (req, res, next) => {
         console.log(`Found ${analyses.length} analyses for user ${req.user.id}`);
         
         // Include subscription info in the response
-        const { User } = require('../db/models');
         const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
         const subscriptionInfo = {
             subscription: req.user.subscription,
@@ -370,13 +394,17 @@ exports.getAnalysisHistory = async (req, res, next) => {
             lastResetDate: req.user.lastResetDate
         };
         
-        res.status(200).json({
+        return res.status(200).json({
             history: analyses,
             subscription: subscriptionInfo
         });
     } catch (error) {
         console.error('Error fetching analysis history:', error);
-        next(error);
+        return res.status(500).json({
+            error: true,
+            message: 'Error retrieving analysis history',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 

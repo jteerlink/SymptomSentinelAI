@@ -467,6 +467,8 @@ function handleRegistration() {
         const accountNavLink = document.getElementById('account-nav-link');
         if (accountNavLink) {
             accountNavLink.textContent = 'Manage Account';
+            // Make sure it navigates to the profile page when clicked
+            accountNavLink.setAttribute('data-page', 'profile');
         }
         
         // Update the profile page to show logged in state
@@ -531,7 +533,7 @@ function handleRegistration() {
             // Change the functionality of the button to manage account
             signInButton.removeEventListener('click', handleRegistration);
             signInButton.addEventListener('click', () => {
-                showPage('profile-page');
+                showPage('profile');
             });
         }
         
@@ -770,6 +772,8 @@ function handleRegistration() {
                     const navLink = document.getElementById('account-nav-link');
                     if (navLink) {
                         navLink.textContent = 'Sign In / Register';
+                        // Reset the data-page attribute to trigger sign-in modal
+                        navLink.removeAttribute('data-page');
                     }
                     
                     // Reset account info

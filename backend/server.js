@@ -144,6 +144,14 @@ app.get('*', (req, res) => {
 // Handle errors
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
+  
+  // Check if this is an ApiError instance
+  if (err.isApiError) {
+    // Use the status and response format from the ApiError
+    return res.status(err.status).json(err.toResponse());
+  }
+  
+  // Default error handling for non-ApiError errors
   res.status(500).json({
     error: true,
     message: 'Internal server error',

@@ -260,7 +260,16 @@ exports.analyzeImage = async (req, res, next) => {
         console.error('❌❌ CRITICAL ERROR IN ANALYZE ENDPOINT:', outer_error);
         console.error('Stack trace:', outer_error.stack);
         
-        // Create a safe error response
+        // Handle specific API errors from our utility
+        if (outer_error.isApiError) {
+            return res.status(outer_error.status || 500).json({
+                error: true,
+                message: outer_error.message,
+                code: outer_error.code || 'SERVER_ERROR'
+            });
+        }
+        
+        // Create a safe error response for other errors
         return res.status(500).json({
             error: true,
             message: 'A critical error occurred while processing your request',

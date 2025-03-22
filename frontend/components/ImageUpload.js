@@ -20,18 +20,6 @@ function renderUploadUI(container) {
             <div class="scan-type-selection mb-4">
                 <h5 class="text-center mb-4">
                     Select what you want to scan
-                    <span class="help-tooltip-icon">
-                        <i class="fas fa-question"></i>
-                        <div class="help-tooltip">
-                            <div class="tooltip-title">
-                                <i class="fas fa-info-circle"></i>
-                                Analysis Selection
-                            </div>
-                            <div class="tooltip-content">
-                                Choose the area you want to analyze. Our AI model is trained for specific conditions related to each area.
-                            </div>
-                        </div>
-                    </span>
                 </h5>
                 <div class="scan-options">
                     <div class="scan-option-card" id="throat-option">
@@ -40,18 +28,6 @@ function renderUploadUI(container) {
                         </div>
                         <h5 class="scan-option-label">
                             Throat
-                            <span class="help-tooltip-icon">
-                                <i class="fas fa-question"></i>
-                                <div class="help-tooltip">
-                                    <div class="tooltip-title">
-                                        <span class="medical-icon throat"><i class="fas fa-head-side-cough"></i></span>
-                                        Throat Analysis
-                                    </div>
-                                    <div class="tooltip-content">
-                                        Detects potential signs of strep throat, tonsillitis, and pharyngitis. Use good lighting and focus on the back of the throat.
-                                    </div>
-                                </div>
-                            </span>
                         </h5>
                         <p class="scan-option-description">Strep throat, tonsillitis, pharyngitis</p>
                     </div>
@@ -61,18 +37,6 @@ function renderUploadUI(container) {
                         </div>
                         <h5 class="scan-option-label">
                             Ear
-                            <span class="help-tooltip-icon">
-                                <i class="fas fa-question"></i>
-                                <div class="help-tooltip">
-                                    <div class="tooltip-title">
-                                        <span class="medical-icon ear"><i class="fas fa-deaf"></i></span>
-                                        Ear Analysis
-                                    </div>
-                                    <div class="tooltip-content">
-                                        Identifies potential ear infections, earwax buildup, and other ear canal issues. Proper lighting and positioning are crucial.
-                                    </div>
-                                </div>
-                            </span>
                         </h5>
                         <p class="scan-option-description">Ear infections, earwax buildup, otitis</p>
                     </div>
@@ -84,18 +48,6 @@ function renderUploadUI(container) {
                     <div class="alert alert-primary">
                         <h5>
                             <i class="fas fa-head-side-cough"></i> Throat Scan Selected
-                            <span class="help-tooltip-icon">
-                                <i class="fas fa-question"></i>
-                                <div class="help-tooltip">
-                                    <div class="tooltip-title">
-                                        <span class="medical-icon throat"><i class="fas fa-head-side-cough"></i></span>
-                                        Imaging Tips
-                                    </div>
-                                    <div class="tooltip-content">
-                                        Use the phone's flashlight or a good light source. Open your mouth wide and say "Ahh" while taking the photo to expose the throat area fully.
-                                    </div>
-                                </div>
-                            </span>
                         </h5>
                         <p>Upload a clear image of your throat area for analysis. Position the camera to show the back of your throat.</p>
                     </div>
@@ -104,36 +56,12 @@ function renderUploadUI(container) {
                     <div class="alert alert-primary">
                         <h5>
                             <i class="fas fa-deaf"></i> Ear Scan Selected
-                            <span class="help-tooltip-icon">
-                                <i class="fas fa-question"></i>
-                                <div class="help-tooltip">
-                                    <div class="tooltip-title">
-                                        <span class="medical-icon ear"><i class="fas fa-deaf"></i></span>
-                                        Imaging Tips
-                                    </div>
-                                    <div class="tooltip-content">
-                                        For adults, pull the ear up and back gently. For children, pull down and back. Use good lighting and hold the camera steady for best results.
-                                    </div>
-                                </div>
-                            </span>
                         </h5>
                         <p>Upload a clear image of your ear canal for analysis. Gently pull your ear up and back to better expose the ear canal.</p>
                     </div>
                     <div class="alert alert-warning mt-2">
                         <h6>
                             <i class="fas fa-exclamation-triangle"></i> Important Note:
-                            <span class="help-tooltip-icon">
-                                <i class="fas fa-question"></i>
-                                <div class="help-tooltip">
-                                    <div class="tooltip-title">
-                                        <span class="medical-icon warning"><i class="fas fa-exclamation-triangle"></i></span>
-                                        Equipment Recommendation
-                                    </div>
-                                    <div class="tooltip-content">
-                                        Digital otoscopes connect to your smartphone and provide proper lighting and magnification for visualizing the ear canal. They're relatively inexpensive and improve analysis accuracy.
-                                    </div>
-                                </div>
-                            </span>
                         </h6>
                         <p>For proper ear canal images, a digital otoscope is required. Regular phone cameras cannot capture the inner ear canal properly.</p>
                         <a href="https://www.amazon.com/s?k=digital+otoscope" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
@@ -145,18 +73,6 @@ function renderUploadUI(container) {
                 <div class="alert alert-info mt-3">
                     <strong>
                         For best results:
-                        <span class="help-tooltip-icon">
-                            <i class="fas fa-question"></i>
-                            <div class="help-tooltip">
-                                <div class="tooltip-title">
-                                    <span class="medical-icon info"><i class="fas fa-lightbulb"></i></span>
-                                    Quality Matters
-                                </div>
-                                <div class="tooltip-content">
-                                    The AI analysis relies on clear, well-lit images. Poor quality photos can lead to inaccurate results. Use natural daylight or bright indoor lighting when possible.
-                                </div>
-                            </div>
-                        </span>
                     </strong>
                     <ul class="mb-0">
                         <li>Ensure good lighting</li>
@@ -170,18 +86,6 @@ function renderUploadUI(container) {
                 <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
                 <p>
                     Drag and drop an image here, or click to browse
-                    <span class="help-tooltip-icon">
-                        <i class="fas fa-question"></i>
-                        <div class="help-tooltip">
-                            <div class="tooltip-title">
-                                <span class="medical-icon info"><i class="fas fa-file-image"></i></span>
-                                Image Requirements
-                            </div>
-                            <div class="tooltip-content">
-                                For accurate analysis, only JPEG or PNG images under 5MB are accepted. Higher resolution images provide better results but will be resized automatically.
-                            </div>
-                        </div>
-                    </span>
                 </p>
                 <input type="file" class="file-input" id="fileInput" accept="image/*">
                 <div class="mt-3">
@@ -190,18 +94,6 @@ function renderUploadUI(container) {
                     </button>
                     <button class="btn btn-secondary ms-2" id="cameraButton">
                         <i class="fas fa-camera"></i> Take Photo
-                        <span class="help-tooltip-icon">
-                            <i class="fas fa-question"></i>
-                            <div class="help-tooltip">
-                                <div class="tooltip-title">
-                                    <span class="medical-icon info"><i class="fas fa-camera"></i></span>
-                                    Photo Tips
-                                </div>
-                                <div class="tooltip-content">
-                                    Using your device's camera directly often provides better quality images. Hold still and ensure the area is well-lit for best results.
-                                </div>
-                            </div>
-                        </span>
                     </button>
                 </div>
                 <div class="mt-3">
@@ -220,18 +112,6 @@ function renderUploadUI(container) {
                     </button>
                     <button class="btn btn-success" id="analyzeButton">
                         <i class="fas fa-microscope"></i> Analyze Image
-                        <span class="help-tooltip-icon">
-                            <i class="fas fa-question"></i>
-                            <div class="help-tooltip">
-                                <div class="tooltip-title">
-                                    <span class="medical-icon info"><i class="fas fa-brain"></i></span>
-                                    Analysis Process
-                                </div>
-                                <div class="tooltip-content">
-                                    Your image will be securely processed by our AI model to detect potential conditions. This typically takes 5-10 seconds depending on image complexity.
-                                </div>
-                            </div>
-                        </span>
                     </button>
                 </div>
             </div>
@@ -600,180 +480,158 @@ function setupUploadEventListeners(container) {
             
             // Hide loading state and show error
             hideAnalysisLoading();
-            showAnalysisError(error.message || 'Unknown error occurred');
+            showAnalysisError(error.message || 'An unexpected error occurred during analysis.');
         }
     });
     
-    // Handle files selected either via drop or input
+    // Function to handle files after they are selected
     function handleFiles(files) {
-        if (files.length === 0) return;
-        
-        const file = files[0];
-        
-        // Validate file is an image
-        if (!file.type.match('image.*')) {
-            alert('Please select an image file (jpg, png, etc.)');
-            return;
-        }
-        
-        // Create FileReader to read the file
-        const reader = new FileReader();
-        
-        reader.onload = (e) => {
-            // Display the image preview and resize it
-            const img = new Image();
-            img.onload = () => {
-                // Create a canvas to resize the image
-                const canvas = document.createElement('canvas');
-                // Target max width/height (maintain aspect ratio)
-                // Use a smaller size to reduce payload significantly
-                const MAX_SIZE = 400; // Reduced from 800 to 400 for smaller file size
-                let width = img.width;
-                let height = img.height;
+        if (files && files.length > 0) {
+            const file = files[0];
+            
+            // Validate file type
+            if (!file.type.match('image.*')) {
+                alert('Please select an image file.');
+                return;
+            }
+            
+            // Validate file size (max 5MB)
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Please select an image smaller than 5MB.');
+                return;
+            }
+            
+            // Create a FileReader to read the image
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                // Show preview
+                previewImage.src = e.target.result;
+                previewContainer.style.display = 'block';
                 
-                // Scale down if needed
-                if (width > height && width > MAX_SIZE) {
-                    height = Math.round(height * (MAX_SIZE / width));
-                    width = MAX_SIZE;
-                } else if (height > MAX_SIZE) {
-                    width = Math.round(width * (MAX_SIZE / height));
-                    height = MAX_SIZE;
-                }
-                
-                // Set canvas dimensions and draw the resized image
-                canvas.width = width;
-                canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                
-                // Use the resized image for preview and analysis
-                // More aggressive compression (0.7 quality instead of 0.85)
-                const resizedImageUrl = canvas.toDataURL('image/jpeg', 0.7);
-                previewImage.src = resizedImageUrl;
-                
-                // Store the resized image on the preview element for later use
-                previewImage.dataset.resizedImage = resizedImageUrl;
-                
-                console.log(`Image resized from ${img.width}x${img.height} to ${width}x${height}`);
+                // Create a pre-resized version now to optimize later upload
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    // Set a reasonable max size
+                    const MAX_SIZE = 800;
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    // Scale down if needed
+                    if (width > height && width > MAX_SIZE) {
+                        height = Math.round(height * (MAX_SIZE / width));
+                        width = MAX_SIZE;
+                    } else if (height > MAX_SIZE) {
+                        width = Math.round(width * (MAX_SIZE / height));
+                        height = MAX_SIZE;
+                    }
+                    
+                    // Set canvas size and draw resized image
+                    canvas.width = width;
+                    canvas.height = height;
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    // Store the resized image data in the preview image element
+                    previewImage.dataset.resizedImage = canvas.toDataURL('image/jpeg', 0.85);
+                };
+                img.src = e.target.result;
             };
             
-            // Load the original image
-            img.src = e.target.result;
-            
-            // Show the preview container
-            previewContainer.style.display = 'block';
-            dropArea.style.display = 'none';
-        };
-        
-        reader.readAsDataURL(file);
-    }
-    
-    // Reset the upload form
-    function resetUpload() {
-        fileInput.value = '';
-        previewImage.src = '';
-        previewContainer.style.display = 'none';
-
-        // If we're already in an analysis session, just show the drop area again
-        if (selectedAnalysisType) {
-            dropArea.style.display = 'block';
-        } else {
-            // Reset the entire selection if no analysis type is selected
-            analysisTypeInfo.style.display = 'none';
-            throatInstructions.style.display = 'none';
-            earInstructions.style.display = 'none';
-            dropArea.style.display = 'none';
-            
-            // Reset the selection UI
-            throatOption.classList.remove('selected');
-            earOption.classList.remove('selected');
+            reader.readAsDataURL(file);
         }
     }
     
-    // Show loading state during analysis with a healthcare animation
-    function showAnalysisLoading() {
-        analyzeButton.disabled = true;
-        
-        // Create a custom loading overlay
-        const loadingOverlay = document.createElement('div');
-        loadingOverlay.className = 'analysis-loading-overlay';
-        loadingOverlay.innerHTML = `
-            <div class="analysis-loading-content">
-                <div class="heartbeat-loader"></div>
-                <div class="analysis-loading-text">
-                    <span class="analyzing-text">Analyzing</span>
-                    <span class="dot-animation">.</span>
-                    <span class="dot-animation">.</span>
-                    <span class="dot-animation">.</span>
-                </div>
-                <div class="analysis-steps slide-transition">
-                    <span class="badge bg-primary processing-step">Processing Image</span>
-                    <span class="badge bg-info detection-step">Detecting Patterns</span>
-                    <span class="badge bg-success diagnosis-step">Generating Results</span>
-                </div>
-            </div>
-        `;
-        
-        // Add the overlay to the container
-        container.appendChild(loadingOverlay);
-        
-        // Show the animation stages with a staggered effect
-        setTimeout(() => {
-            const steps = loadingOverlay.querySelectorAll('.slide-transition');
-            steps.forEach(step => step.classList.add('show'));
-            
-            // Animate the steps sequentially
-            const badges = loadingOverlay.querySelectorAll('.badge');
-            badges.forEach((badge, index) => {
-                setTimeout(() => {
-                    badge.classList.add('active');
-                }, index * 1200);
-            });
-        }, 300);
+    function resetUpload() {
+        previewImage.src = '#';
+        previewContainer.style.display = 'none';
+        fileInput.value = '';
+        delete previewImage.dataset.resizedImage;
     }
     
-    // Hide loading state after analysis
-    function hideAnalysisLoading() {
-        analyzeButton.disabled = false;
-        analyzeButton.innerHTML = '<i class="fas fa-microscope"></i> Analyze Image';
+    function showAnalysisLoading() {
+        // Create loading overlay if it doesn't exist
+        let loadingOverlay = document.querySelector('.analysis-loading-overlay');
         
-        // Remove the loading overlay with a fade-out effect
-        const loadingOverlay = container.querySelector('.analysis-loading-overlay');
-        if (loadingOverlay) {
-            loadingOverlay.style.opacity = '0';
-            
-            // Remove from DOM after animation completes
+        if (!loadingOverlay) {
+            loadingOverlay = document.createElement('div');
+            loadingOverlay.className = 'analysis-loading-overlay';
+            loadingOverlay.innerHTML = `
+                <div class="analysis-loading-content">
+                    <div class="heartbeat-loader"></div>
+                    <div class="analysis-loading-text">
+                        Analyzing Image<span class="dot-animation">.</span><span class="dot-animation">.</span><span class="dot-animation">.</span>
+                    </div>
+                    <div class="analysis-steps">
+                        <div class="processing-step">
+                            <i class="fas fa-cogs"></i> Processing image...
+                        </div>
+                        <div class="detection-step">
+                            <i class="fas fa-search"></i> Detecting features...
+                        </div>
+                        <div class="diagnosis-step">
+                            <i class="fas fa-stethoscope"></i> Analyzing conditions...
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loadingOverlay);
+        }
+        
+        // Show the loading overlay
+        loadingOverlay.style.display = 'flex';
+        
+        // Animate the steps sequentially
+        const steps = loadingOverlay.querySelectorAll('.analysis-steps > div');
+        steps.forEach((step, index) => {
             setTimeout(() => {
-                if (loadingOverlay.parentNode) {
-                    loadingOverlay.parentNode.removeChild(loadingOverlay);
-                }
+                step.classList.add('active');
+            }, index * 1000 + 500);
+        });
+    }
+    
+    function hideAnalysisLoading() {
+        const loadingOverlay = document.querySelector('.analysis-loading-overlay');
+        if (loadingOverlay) {
+            // Fade out for a smoother experience
+            loadingOverlay.style.opacity = '0';
+            setTimeout(() => {
+                loadingOverlay.style.display = 'none';
+                loadingOverlay.style.opacity = '1';
+                
+                // Reset steps for next time
+                const steps = loadingOverlay.querySelectorAll('.analysis-steps > div');
+                steps.forEach(step => step.classList.remove('active'));
             }, 500);
         }
     }
     
-    // Show error message if analysis fails
     function showAnalysisError(message) {
-        const errorAlert = document.createElement('div');
-        errorAlert.className = 'alert alert-danger mt-3';
-        errorAlert.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> 
-            Analysis Error: ${message || 'Failed to analyze image. Please try again.'}
+        // Create a notification
+        const notification = document.createElement('div');
+        notification.className = 'alert alert-danger';
+        notification.innerHTML = `
+            <strong><i class="fas fa-exclamation-triangle"></i> Analysis Error</strong>
+            <p>${message}</p>
+            <p>Please try again or select a different image.</p>
         `;
         
-        // Remove any existing error messages
-        const existingError = container.querySelector('.alert-danger');
-        if (existingError) {
-            existingError.remove();
+        // Check if the notification container exists, if not create it
+        let notificationContainer = document.getElementById('notification-container');
+        if (!notificationContainer) {
+            notificationContainer = document.createElement('div');
+            notificationContainer.id = 'notification-container';
+            document.body.appendChild(notificationContainer);
         }
         
-        // Add the error message to the container
-        previewContainer.appendChild(errorAlert);
+        // Add the notification
+        notificationContainer.appendChild(notification);
         
-        // Auto-remove the error after 5 seconds
+        // Auto-remove after 10 seconds
         setTimeout(() => {
-            if (errorAlert.parentNode) {
-                errorAlert.remove();
-            }
-        }, 5000);
+            notification.remove();
+        }, 10000);
     }
 }

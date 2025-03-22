@@ -741,104 +741,7 @@ main {
     }
 }
 
-/* Help Tooltip Styles */
-.help-tooltip-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background-color: var(--info-color);
-    color: white;
-    font-size: 12px;
-    cursor: pointer;
-    margin-left: 6px;
-    transition: all 0.2s ease;
-    position: relative;
-    z-index: 200;
-}
-
-.help-tooltip-icon:hover {
-    background-color: var(--primary-color);
-    transform: scale(1.1);
-}
-
-.help-tooltip {
-    position: absolute;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%) scale(0.9);
-    padding: 12px 15px;
-    width: 220px;
-    background-color: white;
-    border-radius: 6px;
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
-    text-align: left;
-    color: var(--text-color);
-    font-size: 0.875rem;
-    font-weight: normal;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 500;
-    border-left: 3px solid var(--info-color);
-    pointer-events: none;
-}
-
-.help-tooltip-icon:hover .help-tooltip {
-    opacity: 1;
-    visibility: visible;
-    transform: translateX(-50%) scale(1);
-}
-
-.help-tooltip::after {
-    content: '';
-    position: absolute;
-    top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    border-width: 6px;
-    border-style: solid;
-    border-color: white transparent transparent transparent;
-}
-
-/* Special handling for instruction section tooltips */
-.alert h5 .help-tooltip-icon .help-tooltip,
-.alert h6 .help-tooltip-icon .help-tooltip,
-.alert strong .help-tooltip-icon .help-tooltip {
-    bottom: 150%;
-    left: -100px;
-    z-index: 1000;
-}
-
-/* Remove overflow restrictions for alert containers */
-.alert {
-    overflow: visible !important;
-}
-
-/* Ensure tooltip question marks are clickable */
-.alert h5, .alert h6, .alert strong {
-    position: relative;
-    z-index: 100;
-}
-
-.help-tooltip .tooltip-title {
-    display: flex;
-    align-items: center;
-    font-weight: bold;
-    margin-bottom: 6px;
-    color: var(--info-color);
-}
-
-.help-tooltip .tooltip-title i {
-    margin-right: 6px;
-}
-
-.help-tooltip .tooltip-content {
-    line-height: 1.4;
-}
-
+/* Medical Icons - Kept for use in other components */
 .medical-icon {
     display: inline-flex;
     align-items: center;
@@ -857,59 +760,6 @@ main {
 
 .medical-icon.ear {
     background-color: #20c997;
-}
-
-.medical-icon.warning {
-    background-color: var(--warning-color);
-}
-
-.medical-icon.info {
-    background-color: var(--info-color);
-}
-
-/* Button tooltips need special positioning */
-button .help-tooltip-icon .help-tooltip {
-    bottom: 150%;
-    left: 50%;
-}
-
-/* Adjusted tooltip positions for different contexts */
-.scan-option-label .help-tooltip-icon .help-tooltip {
-    width: 240px;
-    left: -90px;
-    transform: scale(0.9) translateY(-10px);
-    z-index: 1000;
-}
-
-.scan-option-label .help-tooltip-icon:hover .help-tooltip {
-    transform: scale(1) translateY(0);
-}
-
-/* Fix for scan option tooltips to appear outside container */
-.scan-option-card {
-    overflow: visible !important; /* Ensure tooltips aren't cut off */
-}
-
-.scan-option-label {
-    position: relative;
-    z-index: 100; /* Ensure label is above card body but below tooltip */
-}
-
-/* For tooltips in buttons */
-button .help-tooltip {
-    width: 250px;
-    left: auto;
-    right: 0;
-    transform: translateX(0) scale(0.9);
-}
-
-button .help-tooltip-icon:hover .help-tooltip {
-    transform: translateX(0) scale(1);
-}
-
-button .help-tooltip::after {
-    left: auto;
-    right: 10px;
 }
 
 .medical-icon.warning {
@@ -951,9 +801,5 @@ button .help-tooltip::after {
         padding: 10px 5px;
     }
     
-    .help-tooltip {
-        width: 180px;
-        font-size: 0.8rem;
-        padding: 8px 10px;
-    }
+    /* Removed tooltip styles */
 }

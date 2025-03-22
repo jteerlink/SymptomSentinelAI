@@ -1,6 +1,11 @@
-const express = require('express');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-const path = require('path');
+import express from 'express';
+import { createProxyMiddleware } from 'http-proxy-middleware';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent in ES module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -13,7 +18,7 @@ app.use('/api', createProxyMiddleware({
   target: 'http://localhost:5000',
   changeOrigin: true,
   pathRewrite: {
-    '^/api': '/api' // No need to rewrite paths
+    '^/api': '/api' // Keep the /api prefix when forwarding to backend
   },
   onProxyReq: (proxyReq, req, res) => {
     console.log(`Proxying ${req.method} ${req.url} to backend`);

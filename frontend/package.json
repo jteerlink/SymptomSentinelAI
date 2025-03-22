@@ -1,0 +1,16 @@
+{
+  "name": "symptom-sentry-ai-frontend",
+  "version": "1.0.0",
+  "description": "Frontend for SymptomSentryAI",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-api-proxy.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "http-proxy-middleware": "^2.0.6",
+    "node-fetch": "^3.3.1"
+  }
+}

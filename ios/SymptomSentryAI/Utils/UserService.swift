@@ -76,7 +76,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/auth/register", 
+            endpoint: "/api/register", 
             method: .post,
             parameters: parameters
         )
@@ -185,7 +185,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/auth/login", 
+            endpoint: "/api/login", 
             method: .post,
             parameters: parameters
         )

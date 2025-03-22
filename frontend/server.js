@@ -13,12 +13,15 @@ const PORT = process.env.PORT || 8000;
 // Static file serving
 app.use(express.static(__dirname));
 
-// API proxy middleware
+// API proxy middleware for /api routes
 app.use('/api', createProxyMiddleware({ 
   target: 'http://localhost:5000',
   changeOrigin: true,
-  // Don't rewrite paths - just leave as is since we want /api/login to go to backend /api/login
-  // pathRewrite removed to ensure paths stay intact
+  // Keep the /api prefix when forwarding to backend
+  pathRewrite: {
+    '^/api': '/api' // Keep the /api prefix - explicit mapping
+  },
+  logLevel: 'debug',
   onProxyReq: (proxyReq, req, res) => {
     console.log(`Proxying ${req.method} ${req.url} to backend`);
   },

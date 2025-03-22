@@ -26,6 +26,7 @@ async function testApiProxy() {
     // Log the full URL we're sending to
     console.log(`📤 Sending POST to ${FRONTEND_URL}/api/login`);
     console.log(`📤 Request payload:`, JSON.stringify(loginPayload));
+    console.log(`📤 Target backend should be: http://localhost:5000/api/login`);
     
     const response = await fetch(`${FRONTEND_URL}/api/login`, {
       method: 'POST',

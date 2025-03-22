@@ -741,39 +741,6 @@ main {
     }
 }
 
-/* Medical Icons - Kept for use in other components */
-.medical-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    margin-right: 8px;
-    background-color: var(--info-color);
-    color: white;
-}
-
-.medical-icon.throat {
-    background-color: #fd7e14;
-}
-
-.medical-icon.ear {
-    background-color: #20c997;
-}
-
-.medical-icon.warning {
-    background-color: var(--warning-color);
-}
-
-.medical-icon.info {
-    background-color: var(--info-color);
-}
-
-.medical-icon.danger {
-    background-color: var(--danger-color);
-}
-
 /* Responsive Adjustments */
 @media (max-width: 767px) {
     .jumbotron {
@@ -800,6 +767,4 @@ main {
         width: 140px;
         padding: 10px 5px;
     }
-    
-    /* Removed tooltip styles */
 }

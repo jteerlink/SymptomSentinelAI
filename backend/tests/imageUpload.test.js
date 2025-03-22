@@ -160,9 +160,9 @@ describe('Image Upload API', () => {
       .field('type', 'throat')
       .attach('image', largeImagePath);
     
-    // Multer returns 413 Payload Too Large for files exceeding the size limit
-    expect(response.statusCode).toBe(413);
-    // Additional validation on response body not needed as Multer handles this automatically
+    expect(response.statusCode).toBe(400);
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toContain('size');
   });
   
   // Test file format validation

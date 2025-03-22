@@ -23,7 +23,10 @@ async function testApiProxy() {
       password: 'password123'
     };
     
+    // Log the full URL we're sending to
     console.log(`📤 Sending POST to ${FRONTEND_URL}/api/login`);
+    console.log(`📤 Request payload:`, JSON.stringify(loginPayload));
+    
     const response = await fetch(`${FRONTEND_URL}/api/login`, {
       method: 'POST',
       headers: {

@@ -17,9 +17,8 @@ app.use(express.static(__dirname));
 app.use('/api', createProxyMiddleware({ 
   target: 'http://localhost:5000',
   changeOrigin: true,
-  pathRewrite: {
-    '^/api': '/api' // Keep the /api prefix when forwarding to backend
-  },
+  // Don't rewrite paths - just leave as is since we want /api/login to go to backend /api/login
+  // pathRewrite removed to ensure paths stay intact
   onProxyReq: (proxyReq, req, res) => {
     console.log(`Proxying ${req.method} ${req.url} to backend`);
   },

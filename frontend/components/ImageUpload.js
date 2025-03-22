@@ -411,6 +411,8 @@ function setupUploadEventListeners(container) {
                 // Special handling for auth errors to provide a better message
                 if (response.status === 401) {
                     errorMessage = 'You need to be logged in to analyze images. Please sign in to continue.';
+                } else if (response.status === 413) {
+                    errorMessage = 'The image file is too large. Please use an image smaller than 5MB.';
                 } else if (response.status === 429 && responseData && responseData.code === 'ANALYSIS_LIMIT_EXCEEDED') {
                     errorMessage = 'You have reached your monthly analysis limit. Please upgrade to Premium for unlimited analyses.';
                 } else if (responseData && responseData.message) {
@@ -666,6 +668,26 @@ function setupUploadEventListeners(container) {
                 }
             }, 100);
         } 
+        // If this is a file size error, add a try again button with helpful info
+        else if (message.includes('file is too large') || message.includes('5MB limit')) {
+            errorAlert.innerHTML = `
+                <i class="fas fa-file-alt"></i> 
+                <div class="mb-2">Analysis Error: ${message || 'Failed to analyze image. Please try again.'}</div>
+                <div class="small text-muted mb-2">Try reducing the image resolution or compressing the file before uploading.</div>
+                <button class="btn btn-primary btn-sm try-again-btn mt-2">
+                    <i class="fas fa-redo"></i> Try Another Image
+                </button>
+            `;
+            
+            setTimeout(() => {
+                const tryAgainBtn = errorAlert.querySelector('.try-again-btn');
+                if (tryAgainBtn) {
+                    tryAgainBtn.addEventListener('click', function() {
+                        resetUpload();
+                    });
+                }
+            }, 100);
+        }
         // If this is a subscription limit error, add an upgrade button
         else if (message.includes('upgrade to Premium') || message.includes('analysis limit')) {
             errorAlert.innerHTML = `
@@ -703,8 +725,11 @@ function setupUploadEventListeners(container) {
         // Add the error message to the container
         previewContainer.appendChild(errorAlert);
         
-        // Auto-remove standard errors after 5 seconds, but leave auth/subscription errors
-        if (!message.includes('sign in') && !message.includes('upgrade to Premium')) {
+        // Auto-remove standard errors after 5 seconds, but leave auth/subscription/file size errors
+        if (!message.includes('sign in') && 
+            !message.includes('upgrade to Premium') && 
+            !message.includes('file is too large') && 
+            !message.includes('5MB limit')) {
             setTimeout(() => {
                 if (errorAlert.parentNode) {
                     errorAlert.remove();

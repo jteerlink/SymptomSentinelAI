@@ -160,9 +160,9 @@ describe('Image Upload API', () => {
       .field('type', 'throat')
       .attach('image', largeImagePath);
     
-    expect(response.statusCode).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toContain('size');
+    expect(response.statusCode).toBe(413);
+    expect(response.body.error).toBe(true);
+    expect(response.body.message).toContain('File size exceeds the 5MB limit');
   });
   
   // Test file format validation

@@ -9,10 +9,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8000;
+const BACKEND_URL = 'http://localhost:5000';
 
-// Add a request logging middleware
+// Request logging middleware
 app.use((req, res, next) => {
-  console.log(`[Frontend Server] ${req.method} ${req.originalUrl}`);
+  console.log(`[Frontend] ${req.method} ${req.originalUrl}`);
   next();
 });
 
@@ -20,51 +21,74 @@ app.use((req, res, next) => {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Static file serving
-app.use(express.static(__dirname));
-
-// API proxy middleware for /api routes 
-app.use('/api', createProxyMiddleware({
-  target: 'http://localhost:5000',
-  changeOrigin: true,
-  // DO NOT rewrite the path - critical for the proxy to work correctly
-  pathRewrite: null,
-  // Increase timeouts for image uploads
-  proxyTimeout: 120000,
-  // Log proxy activity
-  logLevel: 'debug',
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`[Proxy] Forwarding ${req.method} ${req.originalUrl} → http://localhost:5000${req.url}`);
+// Redirect /api/login to the backend directly without using proxy middleware
+app.all('/api/*', (req, res) => {
+  const backendPath = req.originalUrl;
+  const fullBackendUrl = `${BACKEND_URL}${backendPath}`;
+  
+  console.log(`[Direct Proxy] ${req.method} ${req.originalUrl} → ${fullBackendUrl}`);
+  
+  // Create a new fetch request to the backend
+  import('node-fetch').then(({ default: fetch }) => {
+    const fetchOptions = {
+      method: req.method,
+      headers: {
+        'Content-Type': req.headers['content-type'] || 'application/json',
+      }
+    };
     
-    // If there's a body, log it (but truncate large data)
-    if (req.body && Object.keys(req.body).length > 0) {
-      const safeBody = { ...req.body };
-      // Don't log full image data
-      if (safeBody.image) safeBody.image = `[Image data: ${safeBody.image.length} chars]`;
-      console.log(`[Proxy] Request body keys: ${Object.keys(safeBody).join(', ')}`);
+    // Add body for POST/PUT requests
+    if (['POST', 'PUT'].includes(req.method) && req.body) {
+      fetchOptions.body = JSON.stringify(req.body);
+      console.log(`[Direct Proxy] Request body keys: ${Object.keys(req.body).join(', ')}`);
     }
-  },
-  onProxyRes: (proxyRes, req, res) => {
-    console.log(`[Proxy] Response from backend: ${proxyRes.statusCode} for ${req.method} ${req.originalUrl}`);
-  },
-  onError: (err, req, res) => {
-    console.error(`[Proxy] Error: ${err.message} for ${req.method} ${req.originalUrl}`);
-    if (!res.headersSent) {
-      res.status(502).json({ 
-        error: 'Backend connection error', 
-        message: err.message,
-        url: req.originalUrl 
+    
+    // Forward the request to backend
+    fetch(fullBackendUrl, fetchOptions)
+      .then(backendRes => {
+        // Copy status code
+        res.status(backendRes.status);
+        
+        // Copy headers
+        for (const [key, value] of backendRes.headers.entries()) {
+          res.set(key, value);
+        }
+        
+        console.log(`[Direct Proxy] Response from backend: ${backendRes.status}`);
+        
+        // Return response body
+        return backendRes.text();
+      })
+      .then(bodyText => {
+        res.send(bodyText);
+      })
+      .catch(error => {
+        console.error(`[Direct Proxy] Error: ${error.message}`);
+        res.status(502).json({
+          error: 'Backend connection error',
+          message: error.message,
+          url: req.originalUrl
+        });
       });
-    }
-  }
-}));
+  }).catch(error => {
+    console.error(`[Direct Proxy] Module error: ${error.message}`);
+    res.status(500).json({
+      error: 'Server error',
+      message: 'Could not load required modules'
+    });
+  });
+});
+
+// Static file serving - after API routes to avoid conflicts
+app.use(express.static(__dirname));
 
 // Serve index.html for all other routes
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Frontend server running on http://0.0.0.0:${PORT}`);
-  console.log(`API requests will be proxied to http://localhost:5000`);
+  console.log(`API requests will be forwarded to ${BACKEND_URL}`);
 });

@@ -329,6 +329,12 @@ function setupUploadEventListeners(container) {
                 'X-Request-Time': new Date().toISOString() // Add timestamp for tracking request time
             };
             
+            // Add authentication token if available
+            const token = localStorage.getItem('authToken');
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
             // Try using FormData for better handling of large binary data
             const formData = new FormData();
             
@@ -373,6 +379,11 @@ function setupUploadEventListeners(container) {
                 'X-Request-Time': new Date().toISOString()
             };
             
+            // Add authentication token to FormData request headers if available
+            if (token) {
+                formHeaders['Authorization'] = `Bearer ${token}`;
+            }
+            
             // Make the API request with FormData
             const response = await fetch(apiUrl, {
                 method: 'POST',
@@ -397,7 +408,12 @@ function setupUploadEventListeners(container) {
             if (!response.ok) {
                 let errorMessage = `Server error (${response.status})`;
                 
-                if (responseData && responseData.message) {
+                // Special handling for auth errors to provide a better message
+                if (response.status === 401) {
+                    errorMessage = 'You need to be logged in to analyze images. Please sign in to continue.';
+                } else if (response.status === 429 && responseData && responseData.code === 'ANALYSIS_LIMIT_EXCEEDED') {
+                    errorMessage = 'You have reached your monthly analysis limit. Please upgrade to Premium for unlimited analyses.';
+                } else if (responseData && responseData.message) {
                     errorMessage = responseData.message;
                 } else if (responseData && responseData.error) {
                     errorMessage = responseData.error;
@@ -422,6 +438,7 @@ function setupUploadEventListeners(container) {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
+                            'Authorization': token ? `Bearer ${token}` : ''
                         },
                         body: JSON.stringify(results),
                         credentials: 'same-origin'
@@ -619,10 +636,63 @@ function setupUploadEventListeners(container) {
     function showAnalysisError(message) {
         const errorAlert = document.createElement('div');
         errorAlert.className = 'alert alert-danger mt-3';
-        errorAlert.innerHTML = `
-            <i class="fas fa-exclamation-circle"></i> 
-            Analysis Error: ${message || 'Failed to analyze image. Please try again.'}
-        `;
+        
+        // If this is an authentication error, add a login button
+        if (message.includes('need to be logged in') || message.includes('sign in')) {
+            errorAlert.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i> 
+                <div class="mb-2">Analysis Error: ${message || 'Failed to analyze image. Please try again.'}</div>
+                <button class="btn btn-primary btn-sm login-btn mt-2">
+                    <i class="fas fa-sign-in-alt"></i> Sign In / Register
+                </button>
+            `;
+            
+            // Add a timeout to attach the event listener after the DOM is updated
+            setTimeout(() => {
+                const loginBtn = errorAlert.querySelector('.login-btn');
+                if (loginBtn) {
+                    loginBtn.addEventListener('click', function() {
+                        // Trigger login modal - this assumes a global function or event
+                        // that can be used to show the login modal
+                        const authModal = new bootstrap.Modal(document.getElementById('authModal'));
+                        authModal.show();
+                        
+                        // Select the login tab
+                        const loginTab = document.querySelector('a[href="#login-tab"]');
+                        if (loginTab) {
+                            loginTab.click();
+                        }
+                    });
+                }
+            }, 100);
+        } 
+        // If this is a subscription limit error, add an upgrade button
+        else if (message.includes('upgrade to Premium') || message.includes('analysis limit')) {
+            errorAlert.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i> 
+                <div class="mb-2">Analysis Error: ${message || 'Failed to analyze image. Please try again.'}</div>
+                <button class="btn btn-warning btn-sm upgrade-btn mt-2">
+                    <i class="fas fa-crown"></i> Upgrade to Premium
+                </button>
+            `;
+            
+            setTimeout(() => {
+                const upgradeBtn = errorAlert.querySelector('.upgrade-btn');
+                if (upgradeBtn) {
+                    upgradeBtn.addEventListener('click', function() {
+                        // Navigate to subscription page
+                        document.getElementById('subscription-nav-item').click();
+                    });
+                }
+            }, 100);
+        }
+        // Standard error message for other errors
+        else {
+            errorAlert.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i> 
+                Analysis Error: ${message || 'Failed to analyze image. Please try again.'}
+            `;
+        }
         
         // Remove any existing error messages
         const existingError = container.querySelector('.alert-danger');
@@ -633,11 +703,13 @@ function setupUploadEventListeners(container) {
         // Add the error message to the container
         previewContainer.appendChild(errorAlert);
         
-        // Auto-remove the error after 5 seconds
-        setTimeout(() => {
-            if (errorAlert.parentNode) {
-                errorAlert.remove();
-            }
-        }, 5000);
+        // Auto-remove standard errors after 5 seconds, but leave auth/subscription errors
+        if (!message.includes('sign in') && !message.includes('upgrade to Premium')) {
+            setTimeout(() => {
+                if (errorAlert.parentNode) {
+                    errorAlert.remove();
+                }
+            }, 5000);
+        }
     }
 }

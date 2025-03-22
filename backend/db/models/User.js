@@ -1,450 +1,388 @@
 /**
  * User Model
  * 
- * Represents a user in the database with methods for CRUD operations
+ * This model handles user-related database operations and includes
+ * authentication, password management, and profile operations.
  */
 
-const db = require('../db');
-const { v4: uuidv4 } = require('uuid');
+const knex = require('../knex');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { validatePassword, generateResetToken, calculateTokenExpiration } = require('../../utils/passwordValidator');
+const { ApiError } = require('../../utils/apiError');
 
-const SALT_ROUNDS = 10;
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
+const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 class User {
-  // Subscription plan limits
-  static SUBSCRIPTION_LIMITS = {
-    free: {
-      analysesPerMonth: 5,
-      advancedFeatures: false,
-      highResolutionDownload: false,
-      detailedReports: false
-    },
-    premium: {
-      analysesPerMonth: Infinity, // Unlimited analyses
-      advancedFeatures: true,
-      highResolutionDownload: true,
-      detailedReports: true
-    }
-  };
-
-  /**
-   * Create a new user
-   * 
-   * @param {Object} userData User data
-   * @returns {Promise<Object>} Created user object
-   */
-  static async create(userData) {
-    const { email, password, name, subscription = 'free', email_verified = false } = userData;
-
-    // Hash the password
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    
-    // Insert user into database
-    const [user] = await db('users').insert({
-      id: uuidv4(),
-      email,
-      password: hashedPassword,
-      name,
-      subscription,
-      email_verified,
-      analysis_count: 0,
-      last_reset_date: new Date()
-    }).returning(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at']);
-    
-    return this.formatUser(user);
-  }
-
-  /**
-   * Find a user by ID
-   * 
-   * @param {string} id User ID
-   * @returns {Promise<Object|null>} User object or null if not found
-   */
-  static async findById(id) {
-    try {
-      const user = await db('users')
-        .where({ id })
-        .first();
-      
-      return user ? this.formatUser(user) : null;
-    } catch (error) {
-      console.error('Error finding user by ID:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Find a user by email
-   * 
-   * @param {string} email User email
-   * @returns {Promise<Object|null>} User object or null if not found
-   */
-  static async findByEmail(email) {
-    try {
-      const user = await db('users')
-        .where({ email })
-        .first();
-      
-      return user ? this.formatUser(user) : null;
-    } catch (error) {
-      console.error('Error finding user by email:', error);
-      return null;
-    }
-  }
-
-  /**
-   * Update a user
-   * 
-   * @param {string} id User ID
-   * @param {Object} updateData Update data
-   * @returns {Promise<Object>} Updated user object
-   */
-  static async update(id, updateData) {
-    // Make a copy of the update data to avoid modifying the original
-    const updates = { ...updateData };
-    
-    // If password is being updated and it's not already hashed, hash it
-    if (updates.password && !updates.password.startsWith('$2b$')) {
-      console.log('Hashing password before update');
-      updates.password = await bcrypt.hash(updates.password, SALT_ROUNDS);
+    /**
+     * Create a new user
+     * 
+     * @param {Object} userData - User data including email, password, name
+     * @returns {Object} Created user object (without password)
+     */
+    static async create(userData) {
+        const { email, password, name } = userData;
+        
+        // Check if user already exists
+        const existingUser = await knex('users').where({ email }).first();
+        if (existingUser) {
+            throw new ApiError('Email already in use', 'EMAIL_IN_USE', 409);
+        }
+        
+        // Validate password
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.isValid) {
+            throw new ApiError(passwordValidation.message, 'INVALID_PASSWORD', 400);
+        }
+        
+        // Generate password hash
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+        
+        // Create user
+        const [userId] = await knex('users').insert({
+            email,
+            password: passwordHash,
+            name,
+            subscription_type: 'basic',
+            created_at: knex.fn.now(),
+            updated_at: knex.fn.now()
+        }).returning('id');
+        
+        // Get created user
+        const user = await knex('users')
+            .select('id', 'email', 'name', 'subscription_type', 'created_at')
+            .where({ id: userId })
+            .first();
+            
+        return user;
     }
     
-    // Update updated_at timestamp
-    updates.updated_at = db.fn.now();
-    
-    try {
-      const [user] = await db('users')
-        .where({ id })
-        .update(updates)
-        .returning(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at', 'updated_at', 'password']);
-      
-      // Check if update was successful
-      if (!user) {
-        console.error(`Failed to update user with ID: ${id}`);
-        return null;
-      }
-      
-      // Log password update for debugging
-      if (updates.password) {
-        console.log('✅ Password updated successfully');
-      }
-      
-      return this.formatUser(user);
-    } catch (error) {
-      console.error('Error updating user:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Delete a user
-   * 
-   * @param {string} id User ID
-   * @returns {Promise<boolean>} True if user was deleted, false otherwise
-   */
-  static async delete(id) {
-    const deleted = await db('users')
-      .where({ id })
-      .delete();
-    
-    return deleted > 0;
-  }
-
-  /**
-   * Verify a user's password
-   * 
-   * @param {string} plainPassword Plain text password
-   * @param {string} hashedPassword Hashed password
-   * @returns {Promise<boolean>} True if password is valid, false otherwise
-   */
-  static async verifyPassword(plainPassword, hashedPassword) {
-    // Add validation to prevent errors with undefined/null values
-    if (!plainPassword || !hashedPassword) {
-      console.log('❌ Invalid password verification attempt - missing password or hash');
-      return false;
-    }
-    
-    try {
-      return await bcrypt.compare(plainPassword, hashedPassword);
-    } catch (error) {
-      console.error('❌ Error during password verification:', error.message);
-      return false;
-    }
-  }
-
-  /**
-   * Get all users
-   * 
-   * @returns {Promise<Array>} Array of user objects
-   */
-  static async getAll() {
-    const users = await db('users')
-      .select(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at', 'updated_at']);
-    
-    return users.map(user => this.formatUser(user));
-  }
-
-  /**
-   * Increment analysis count for user
-   * 
-   * @param {string} id User ID
-   * @returns {Promise<Object>} Updated user object
-   */
-  static async incrementAnalysisCount(id) {
-    // Get current user data
-    const user = await this.findById(id);
-    if (!user) return null;
-
-    // Check if we need to reset the counter (new month)
-    const now = new Date();
-    const lastReset = new Date(user.lastResetDate);
-    
-    let updateData = {};
-    
-    if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
-      // Reset counter for new month
-      updateData = {
-        analysis_count: 1, // Start at 1 for this new analysis
-        last_reset_date: now
-      };
-    } else {
-      // Increment existing counter
-      updateData = {
-        analysis_count: user.analysisCount + 1
-      };
-    }
-    
-    // Update the user
-    return this.update(id, updateData);
-  }
-
-  /**
-   * Check if user has exceeded their analysis limit
-   * 
-   * @param {Object} user User object
-   * @returns {boolean} True if user has exceeded limit, false otherwise
-   */
-  static hasExceededAnalysisLimit(user) {
-    // Reset counter if it's a new month
-    const now = new Date();
-    const lastReset = new Date(user.lastResetDate);
-    
-    if (now.getMonth() !== lastReset.getMonth() || now.getFullYear() !== lastReset.getFullYear()) {
-      return false; // New month, so hasn't exceeded limit
-    }
-    
-    const limits = this.SUBSCRIPTION_LIMITS[user.subscription] || this.SUBSCRIPTION_LIMITS.free;
-    return user.analysisCount >= limits.analysesPerMonth;
-  }
-
-  /**
-   * Create a password reset token for a user
-   * 
-   * @param {string} email User email
-   * @returns {Promise<Object>} Object with reset token and expiration
-   */
-  static async createPasswordResetToken(email) {
-    try {
-      // Find the user by email
-      const user = await this.findByEmail(email);
-      if (!user) {
-        return null;
-      }
-      
-      // Generate a reset token and expiration
-      const resetToken = generateResetToken();
-      const resetExpires = calculateTokenExpiration();
-      
-      // Update the user with the reset token
-      await db('users')
-        .where({ id: user.id })
-        .update({
-          reset_token: resetToken,
-          reset_token_expires: resetExpires,
-          updated_at: db.fn.now()
-        });
-      
-      return {
-        email,
-        resetToken,
-        resetExpires
-      };
-    } catch (error) {
-      console.error('Error creating password reset token:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Find a user by reset token
-   * 
-   * @param {string} token Reset token
-   * @returns {Promise<Object|null>} User object or null if not found/expired
-   */
-  static async findByResetToken(token) {
-    try {
-      const user = await db('users')
-        .where({ reset_token: token })
-        .where('reset_token_expires', '>', new Date())
-        .first();
-      
-      return user ? this.formatUser(user) : null;
-    } catch (error) {
-      console.error('Error finding user by reset token:', error);
-      return null;
-    }
-  }
-  
-  /**
-   * Reset a user's password using a valid reset token
-   * 
-   * @param {string} token Reset token
-   * @param {string} newPassword New password
-   * @returns {Promise<boolean>} True if password was reset successfully
-   */
-  static async resetPasswordWithToken(token, newPassword) {
-    try {
-      // Validate the new password
-      const validationResult = validatePassword(newPassword);
-      if (!validationResult.isValid) {
-        console.error('Password validation failed:', validationResult.message);
+    /**
+     * Authenticate a user with email and password
+     * 
+     * @param {string} email - User email
+     * @param {string} password - User password
+     * @returns {Object} User data and tokens
+     */
+    static async authenticate(email, password) {
+        // Find user
+        const user = await knex('users').where({ email }).first();
+        if (!user) {
+            throw new ApiError('Invalid email or password', 'INVALID_CREDENTIALS', 401);
+        }
+        
+        // Verify password
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+        if (!isPasswordValid) {
+            throw new ApiError('Invalid email or password', 'INVALID_CREDENTIALS', 401);
+        }
+        
+        // Generate tokens
+        const accessToken = jwt.sign(
+            { userId: user.id, email: user.email },
+            JWT_SECRET,
+            { expiresIn: JWT_EXPIRES_IN }
+        );
+        
+        const refreshToken = jwt.sign(
+            { userId: user.id, tokenType: 'refresh' },
+            JWT_SECRET,
+            { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
+        );
+        
+        // Return user data and tokens
         return {
-          success: false,
-          message: validationResult.message
+            user: {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                subscription_type: user.subscription_type
+            },
+            tokens: {
+                accessToken,
+                refreshToken
+            }
         };
-      }
-      
-      // Find the user by reset token
-      const user = await this.findByResetToken(token);
-      if (!user) {
-        return {
-          success: false,
-          message: 'Invalid or expired reset token'
-        };
-      }
-      
-      // Hash the new password
-      const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
-      
-      // Update the user with the new password and clear the reset token
-      await db('users')
-        .where({ id: user.id })
-        .update({
-          password: hashedPassword,
-          reset_token: null,
-          reset_token_expires: null,
-          updated_at: db.fn.now()
-        });
-      
-      return {
-        success: true,
-        message: 'Password reset successful'
-      };
-    } catch (error) {
-      console.error('Error resetting password with token:', error);
-      return {
-        success: false,
-        message: 'Server error while resetting password'
-      };
     }
-  }
-  
-  /**
-   * Change a user's password with current password verification
-   * 
-   * @param {string} userId User ID
-   * @param {string} currentPassword Current password
-   * @param {string} newPassword New password
-   * @returns {Promise<Object>} Result with success flag and message
-   */
-  static async changePassword(userId, currentPassword, newPassword) {
-    try {
-      // Find the user
-      const user = await this.findById(userId);
-      if (!user) {
-        return {
-          success: false,
-          message: 'User not found'
-        };
-      }
-      
-      // Verify current password
-      const isValid = await this.verifyPassword(currentPassword, user.password);
-      if (!isValid) {
-        return {
-          success: false,
-          message: 'Current password is incorrect'
-        };
-      }
-      
-      // Validate the new password
-      const validationResult = validatePassword(newPassword);
-      if (!validationResult.isValid) {
-        return {
-          success: false,
-          message: validationResult.message
-        };
-      }
-      
-      // Update the password
-      await this.update(userId, { password: newPassword });
-      
-      return {
-        success: true,
-        message: 'Password changed successfully'
-      };
-    } catch (error) {
-      console.error('Error changing password:', error);
-      return {
-        success: false,
-        message: 'Server error while changing password'
-      };
+    
+    /**
+     * Get user by ID
+     * 
+     * @param {string} userId - User ID
+     * @returns {Object} User object
+     */
+    static async getById(userId) {
+        const user = await knex('users')
+            .select('id', 'email', 'name', 'subscription_type', 'created_at', 'updated_at', 'analysis_count', 'last_reset_date')
+            .where({ id: userId })
+            .first();
+            
+        if (!user) {
+            throw new ApiError('User not found', 'USER_NOT_FOUND', 404);
+        }
+        
+        return user;
     }
-  }
-
-  /**
-   * Format database user object to include methods and properties needed by the application
-   * 
-   * @param {Object} dbUser Database user object
-   * @returns {Object} Formatted user object
-   */
-  static formatUser(dbUser) {
-    if (!dbUser) return null;
     
-    // Make sure we have the right property names (camelCase for the app)
-    const user = {
-      ...dbUser,
-      // Make sure these properties exist with the right casing
-      analysisCount: dbUser.analysis_count || 0,
-      lastResetDate: dbUser.last_reset_date || new Date(),
-      resetToken: dbUser.reset_token,
-      resetTokenExpires: dbUser.reset_token_expires,
-      // Ensure password is preserved if it exists
-      password: dbUser.password
-    };
+    /**
+     * Update user profile
+     * 
+     * @param {string} userId - User ID
+     * @param {Object} profileData - Profile data to update
+     * @returns {Object} Updated user object
+     */
+    static async updateProfile(userId, profileData) {
+        const { name, email } = profileData;
+        
+        // Verify user exists
+        const user = await this.getById(userId);
+        
+        // Check if email is changing and if it's already in use
+        if (email && email !== user.email) {
+            const existingUser = await knex('users').where({ email }).first();
+            if (existingUser) {
+                throw new ApiError('Email already in use', 'EMAIL_IN_USE', 409);
+            }
+        }
+        
+        // Update fields
+        const updateData = {};
+        if (name) updateData.name = name;
+        if (email) updateData.email = email;
+        updateData.updated_at = knex.fn.now();
+        
+        // Update in database
+        await knex('users')
+            .where({ id: userId })
+            .update(updateData);
+            
+        // Get updated user
+        return await this.getById(userId);
+    }
     
-    // Add methods to the user object
-    user.hasExceededAnalysisLimit = function() {
-      return User.hasExceededAnalysisLimit(this);
-    };
+    /**
+     * Update user password
+     * 
+     * @param {string} userId - User ID
+     * @param {string} currentPassword - Current password
+     * @param {string} newPassword - New password
+     * @returns {boolean} Success indicator
+     */
+    static async updatePassword(userId, currentPassword, newPassword) {
+        // Get user with password
+        const user = await knex('users')
+            .where({ id: userId })
+            .first();
+            
+        if (!user) {
+            throw new ApiError('User not found', 'USER_NOT_FOUND', 404);
+        }
+        
+        // Verify current password
+        const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+        if (!isPasswordValid) {
+            throw new ApiError('Current password is incorrect', 'INVALID_PASSWORD', 400);
+        }
+        
+        // Validate new password
+        const passwordValidation = validatePassword(newPassword);
+        if (!passwordValidation.isValid) {
+            throw new ApiError(passwordValidation.message, 'INVALID_PASSWORD', 400);
+        }
+        
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(newPassword, salt);
+        
+        // Update password
+        await knex('users')
+            .where({ id: userId })
+            .update({
+                password: passwordHash,
+                updated_at: knex.fn.now()
+            });
+            
+        return true;
+    }
     
-    user.incrementAnalysisCount = async function() {
-      const updated = await User.incrementAnalysisCount(this.id);
-      if (updated) {
-        this.analysisCount = updated.analysisCount;
-        this.lastResetDate = updated.lastResetDate;
-      }
-      return this.analysisCount;
-    };
+    /**
+     * Update user subscription
+     * 
+     * @param {string} userId - User ID
+     * @param {string} subscriptionType - Subscription type (basic or premium)
+     * @returns {Object} Updated user object
+     */
+    static async updateSubscription(userId, subscriptionType) {
+        // Verify subscription type
+        if (!['basic', 'premium'].includes(subscriptionType)) {
+            throw new ApiError('Invalid subscription type', 'INVALID_SUBSCRIPTION', 400);
+        }
+        
+        // Verify user exists
+        const user = await this.getById(userId);
+        
+        // Update subscription
+        await knex('users')
+            .where({ id: userId })
+            .update({
+                subscription_type: subscriptionType,
+                updated_at: knex.fn.now()
+            });
+            
+        // Get updated user
+        return await this.getById(userId);
+    }
     
-    // Add subscription info to user object for easy access
-    const subscriptionLimits = User.SUBSCRIPTION_LIMITS[user.subscription] || User.SUBSCRIPTION_LIMITS.free;
-    user.analysisLimit = subscriptionLimits.analysesPerMonth;
-    user.analysisRemaining = Math.max(0, subscriptionLimits.analysesPerMonth - user.analysisCount);
+    /**
+     * Generate password reset token
+     * 
+     * @param {string} email - User email
+     * @returns {Object} Reset token info
+     */
+    static async generatePasswordResetToken(email) {
+        // Find user
+        const user = await knex('users').where({ email }).first();
+        if (!user) {
+            // For security, we don't want to reveal if email exists or not
+            return {
+                success: true,
+                message: 'If your email is registered, you will receive a password reset link'
+            };
+        }
+        
+        // Generate reset token
+        const resetToken = generateResetToken();
+        const tokenExpires = calculateTokenExpiration();
+        
+        // Save token to database
+        await knex('users')
+            .where({ id: user.id })
+            .update({
+                reset_token: resetToken,
+                reset_token_expires: tokenExpires,
+                updated_at: knex.fn.now()
+            });
+            
+        return {
+            success: true,
+            token: resetToken,
+            expires: tokenExpires,
+            userId: user.id
+        };
+    }
     
-    return user;
-  }
+    /**
+     * Reset password with token
+     * 
+     * @param {string} token - Reset token
+     * @param {string} newPassword - New password
+     * @returns {Object} Result object
+     */
+    static async resetPasswordWithToken(token, newPassword) {
+        // Find user with token
+        const user = await knex('users')
+            .where({ reset_token: token })
+            .first();
+            
+        if (!user) {
+            return {
+                success: false,
+                message: 'Invalid or expired reset token'
+            };
+        }
+        
+        // Check if token is expired
+        const now = new Date();
+        const tokenExpiry = new Date(user.reset_token_expires);
+        
+        if (now > tokenExpiry) {
+            return {
+                success: false,
+                message: 'Reset token has expired'
+            };
+        }
+        
+        // Validate new password
+        const passwordValidation = validatePassword(newPassword);
+        if (!passwordValidation.isValid) {
+            return {
+                success: false,
+                message: passwordValidation.message
+            };
+        }
+        
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(newPassword, salt);
+        
+        // Update password and clear token
+        await knex('users')
+            .where({ id: user.id })
+            .update({
+                password: passwordHash,
+                reset_token: null,
+                reset_token_expires: null,
+                updated_at: knex.fn.now()
+            });
+            
+        return {
+            success: true,
+            message: 'Password has been reset successfully'
+        };
+    }
+    
+    /**
+     * Track user analysis count
+     * 
+     * @param {string} userId - User ID
+     * @returns {Object} Updated analysis count info
+     */
+    static async trackAnalysis(userId) {
+        // Get user
+        const user = await this.getById(userId);
+        
+        // Check if we need to reset counter (new month)
+        const lastReset = new Date(user.last_reset_date);
+        const now = new Date();
+        
+        let analysisCount = user.analysis_count;
+        
+        // Reset counter if it's a new month
+        if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+            analysisCount = 1; // This is the first analysis of the new month
+            
+            await knex('users')
+                .where({ id: userId })
+                .update({
+                    analysis_count: analysisCount,
+                    last_reset_date: now,
+                    updated_at: now
+                });
+        } else {
+            // Increment counter
+            analysisCount += 1;
+            
+            await knex('users')
+                .where({ id: userId })
+                .update({
+                    analysis_count: analysisCount,
+                    updated_at: now
+                });
+        }
+        
+        // Check if user has exceeded limit (basic = 5 per month, premium = unlimited)
+        const isLimitExceeded = user.subscription_type === 'basic' && analysisCount > 5;
+        
+        return {
+            analysisCount,
+            isLimitExceeded,
+            subscriptionType: user.subscription_type
+        };
+    }
 }
 
 module.exports = User;

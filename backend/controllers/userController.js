@@ -468,3 +468,43 @@ exports.resetPassword = async (req, res, next) => {
         next(error);
     }
 };
+
+/**
+ * Refresh access token using refresh token
+ */
+exports.refreshToken = async (req, res, next) => {
+    try {
+        const { refreshToken } = req.body;
+        
+        if (!refreshToken) {
+            return res.status(400).json({
+                error: true,
+                message: 'Refresh token is required'
+            });
+        }
+        
+        // Import the refreshAccessToken function from auth middleware
+        const { refreshAccessToken } = require('../middleware/auth');
+        
+        const result = await refreshAccessToken(refreshToken);
+        
+        if (!result.success) {
+            return res.status(401).json({
+                error: true,
+                message: result.message
+            });
+        }
+        
+        return res.json({
+            error: false,
+            accessToken: result.accessToken,
+            refreshToken: result.refreshToken
+        });
+    } catch (error) {
+        console.error('Token refresh error:', error);
+        return res.status(500).json({
+            error: true,
+            message: 'Internal server error during token refresh'
+        });
+    }
+};

@@ -5,7 +5,7 @@ const router = express.Router();
 const imageAnalysisController = require('../controllers/imageAnalysisController');
 const imageUploadController = require('../controllers/imageUploadController');
 const userController = require('../controllers/userController');
-const { authenticate, optionalAuthenticate, refreshToken } = require('../middleware/auth');
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 
 // Configure multer for memory storage
 const storage = multer.memoryStorage();
@@ -128,7 +128,7 @@ router.post('/update-subscription', authenticate, userController.updateSubscript
 // Password Reset and Token Routes
 router.post('/request-password-reset', userController.requestPasswordReset);
 router.post('/reset-password', userController.resetPassword);
-router.post('/refresh-token', refreshToken);
+router.post('/refresh-token', userController.refreshToken);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

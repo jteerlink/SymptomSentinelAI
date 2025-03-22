@@ -69,7 +69,7 @@ const authenticate = async (req, res, next) => {
     }
     
     // Find the user
-    const user = await User.findById(decoded.id);
+    const user = await User.getById(decoded.id);
     
     if (!user) {
       return res.status(401).json({
@@ -152,11 +152,13 @@ const optionalAuthenticate = async (req, res, next) => {
     }
     
     // Find the user
-    const user = await User.findById(decoded.id);
-    
-    if (user) {
-      // Attach user to request object
+    try {
+      const user = await User.getById(decoded.id);
+      // Attach user to request object if found
       req.user = user;
+    } catch (findError) {
+      // If user not found, just continue
+      console.log('User not found for optional authentication', findError.message);
     }
     
     // Move to the next middleware
@@ -177,10 +179,10 @@ const optionalAuthenticate = async (req, res, next) => {
 const generateTokens = (user) => {
   // Create payload with user information
   const payload = {
-    id: user.id,
+    userId: user.id,
     email: user.email,
     name: user.name,
-    subscription: user.subscription
+    subscription_type: user.subscription_type || 'basic'
   };
   
   // Generate access token with short expiration
@@ -218,9 +220,17 @@ const refreshAccessToken = async (refreshToken) => {
     }
     
     // Find the user
-    const user = await User.findById(decoded.id);
-    
-    if (!user) {
+    let user;
+    try {
+      user = await User.getById(decoded.id);
+      
+      if (!user) {
+        return {
+          success: false,
+          message: 'User not found'
+        };
+      }
+    } catch (error) {
       return {
         success: false,
         message: 'User not found'

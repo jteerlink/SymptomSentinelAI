@@ -10,7 +10,7 @@ const { User } = require('../db/models');
 // Test user email and password
 const testUser = {
     email: 'test-user@example.com',
-    password: 'password123'
+    password: 'newpassword123'
 };
 
 async function registerTestUser() {

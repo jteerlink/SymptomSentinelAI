@@ -44,8 +44,8 @@ jest.mock('aws-sdk', () => {
 
 // Create a test app instance instead of using the running server
 const app = express();
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(bodyParser.json({ limit: '5mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
 app.use('/api', apiRoutes);
 
 describe('Image Upload API', () => {
@@ -86,8 +86,8 @@ describe('Image Upload API', () => {
     
     // Create a large sample image (> 5MB)
     if (!fs.existsSync(largeImagePath)) {
-      // Create a file just over 5MB
-      const buffer = Buffer.alloc(5 * 1024 * 1024 + 100, 0);
+      // Create a file significantly over 5MB to ensure it exceeds limits
+      const buffer = Buffer.alloc(6 * 1024 * 1024, 0);
       fs.writeFileSync(largeImagePath, buffer);
     }
     

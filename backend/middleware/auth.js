@@ -61,7 +61,7 @@ const authenticate = async (req, res, next) => {
     // Verify the token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    if (!decoded || !decoded.id) {
+    if (!decoded || !decoded.userId) {
       return res.status(401).json({
         error: true,
         message: 'Invalid token. Please log in again.'
@@ -69,7 +69,7 @@ const authenticate = async (req, res, next) => {
     }
     
     // Find the user
-    const user = await User.getById(decoded.id);
+    const user = await User.getById(decoded.userId);
     
     if (!user) {
       return res.status(401).json({
@@ -147,13 +147,13 @@ const optionalAuthenticate = async (req, res, next) => {
     // Verify the token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    if (!decoded || !decoded.id) {
+    if (!decoded || !decoded.userId) {
       return next();
     }
     
     // Find the user
     try {
-      const user = await User.getById(decoded.id);
+      const user = await User.getById(decoded.userId);
       // Attach user to request object if found
       req.user = user;
     } catch (findError) {
@@ -212,7 +212,7 @@ const refreshAccessToken = async (refreshToken) => {
     // Verify the refresh token
     const decoded = jwt.verify(refreshToken, JWT_SECRET);
     
-    if (!decoded || !decoded.id) {
+    if (!decoded || !decoded.userId) {
       return {
         success: false,
         message: 'Invalid refresh token'
@@ -222,7 +222,7 @@ const refreshAccessToken = async (refreshToken) => {
     // Find the user
     let user;
     try {
-      user = await User.getById(decoded.id);
+      user = await User.getById(decoded.userId);
       
       if (!user) {
         return {

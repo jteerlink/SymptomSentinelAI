@@ -720,7 +720,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/auth/validate",
+            endpoint: "/api/validate-token",
             method: .get,
             parameters: nil
         )

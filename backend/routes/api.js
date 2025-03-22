@@ -122,6 +122,8 @@ router.post('/login', userController.login);
 router.get('/user-profile', authenticate, userController.getUserProfile);
 router.put('/update-profile', authenticate, userController.updateProfile);
 router.put('/update-password', authenticate, userController.updatePassword);
+router.get('/validate-token', authenticate, userController.validateToken);
+router.post('/update-subscription', authenticate, userController.updateSubscription);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

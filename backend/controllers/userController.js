@@ -317,3 +317,91 @@ function formatNameProperCase(name) {
     if (!name) return '';
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 }
+
+/**
+ * Validate user's authentication token
+ */
+exports.validateToken = async (req, res, next) => {
+    try {
+        // The authenticate middleware has already verified the token
+        // and attached the user to the request object
+        // So if we've reached this point, the token is valid
+        
+        return res.status(200).json({
+            valid: true,
+            user: {
+                id: req.user.id,
+                email: req.user.email,
+                name: req.user.name,
+                subscription: req.user.subscription
+            }
+        });
+    } catch (error) {
+        console.error('Error validating token:', error);
+        return res.status(401).json({
+            valid: false,
+            error: true,
+            message: 'Invalid token'
+        });
+    }
+};
+
+/**
+ * Update user's subscription
+ */
+exports.updateSubscription = async (req, res, next) => {
+    try {
+        // Extract user ID from request (set by auth middleware)
+        const userId = req.user.id;
+        
+        const { subscription_level, payment_token } = req.body;
+        
+        // Validate request
+        if (!subscription_level || !payment_token) {
+            return res.status(400).json({
+                error: true,
+                message: 'Subscription level and payment token are required'
+            });
+        }
+        
+        // Validate subscription level
+        if (!['free', 'premium'].includes(subscription_level)) {
+            return res.status(400).json({
+                error: true,
+                message: 'Invalid subscription level'
+            });
+        }
+        
+        // In a real app, we would process the payment here
+        // using a payment processor like Stripe
+        
+        // Update user's subscription
+        const updateData = {
+            subscription: subscription_level
+        };
+        
+        // Update user in database
+        const updatedUser = await User.update(userId, updateData);
+        
+        if (!updatedUser) {
+            return res.status(404).json({
+                error: true,
+                message: 'User not found'
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Subscription updated successfully',
+            user: {
+                id: updatedUser.id,
+                email: updatedUser.email,
+                name: updatedUser.name,
+                subscription: updatedUser.subscription
+            }
+        });
+    } catch (error) {
+        console.error('Error updating subscription:', error);
+        next(error);
+    }
+};

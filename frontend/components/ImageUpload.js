@@ -383,29 +383,32 @@ function setupUploadEventListeners(container) {
             
             console.log(`[Analysis] Response status: ${response.status} ${response.statusText}`);
             
+            // Parse the response JSON data - do this only once
+            let responseData;
+            try {
+                responseData = await response.json();
+                console.log('[Analysis] Response data:', responseData);
+            } catch (parseError) {
+                console.error('[Analysis] Could not parse response:', parseError);
+                throw new Error('Could not communicate with the server properly');
+            }
+            
             // Check for non-200 responses and handle them
             if (!response.ok) {
                 let errorMessage = `Server error (${response.status})`;
                 
-                try {
-                    const errorData = await response.json();
-                    console.error('[Analysis] Error details:', errorData);
-                    
-                    if (errorData && errorData.message) {
-                        errorMessage = errorData.message;
-                    } else if (errorData && errorData.error) {
-                        errorMessage = errorData.error;
-                    }
-                } catch (parseError) {
-                    console.error('[Analysis] Could not parse error response:', parseError);
-                    errorMessage = 'Could not communicate with the server properly';
+                if (responseData && responseData.message) {
+                    errorMessage = responseData.message;
+                } else if (responseData && responseData.error) {
+                    errorMessage = responseData.error;
                 }
                 
+                console.error('[Analysis] Error details:', responseData);
                 throw new Error(errorMessage);
             }
             
-            // Parse successful response
-            const results = await response.json();
+            // Use the already parsed response data
+            const results = responseData;
             console.log('[Analysis] Results received:', results);
             
             // After getting results from the analyze endpoint, save them to the user's record
@@ -424,16 +427,23 @@ function setupUploadEventListeners(container) {
                         credentials: 'same-origin'
                     });
                     
+                    // Try to parse the response data
+                    let saveResult;
+                    try {
+                        saveResult = await saveResponse.json();
+                    } catch (parseError) {
+                        console.error('[Analysis] Could not parse save response:', parseError);
+                    }
+                    
                     if (saveResponse.ok) {
-                        const saveResult = await saveResponse.json();
                         console.log('[Analysis] Analysis saved successfully:', saveResult);
                         
                         // Include subscription info in the results if available
-                        if (saveResult.subscription) {
+                        if (saveResult && saveResult.subscription) {
                             results.subscription = saveResult.subscription;
                         }
                     } else {
-                        console.log('[Analysis] Not authenticated or could not save analysis');
+                        console.log('[Analysis] Not authenticated or could not save analysis', saveResult);
                     }
                 }
             } catch (saveError) {

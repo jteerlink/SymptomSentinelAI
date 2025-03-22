@@ -18,6 +18,25 @@ const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
 class User {
     /**
+     * Find a user by email
+     * 
+     * @param {string} email - User email
+     * @returns {Object|null} User object or null if not found
+     */
+    static async findByEmail(email) {
+        try {
+            const user = await knex('users')
+                .where({ email: email.toLowerCase() })
+                .first();
+            
+            return user || null;
+        } catch (error) {
+            console.error('Error finding user by email:', error);
+            return null;
+        }
+    }
+    
+    /**
      * Create a new user
      * 
      * @param {Object} userData - User data including email, password, name

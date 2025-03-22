@@ -409,16 +409,16 @@ class UserService: ObservableObject {
                 self.isLoading = false
                 
                 do {
-                    // Parse JSON response
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let success = json["success"] as? Bool,
-                       success,
-                       let userData = json["user"] as? [String: Any],
-                       let subscription = userData["subscription"] as? String,
-                       let subscriptionLevel = SubscriptionLevel(rawValue: subscription) {
-                        
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let subscriptionResponse = try decoder.decode(SubscriptionResponse.self, from: data)
+                    
+                    // Verify success status
+                    if subscriptionResponse.success {
                         // Update user's subscription
                         if let currentUser = self.currentUser {
+                            let subscriptionLevel = SubscriptionLevel(rawValue: subscriptionResponse.user.subscription) ?? .free
+                            
                             let updatedUser = User(
                                 id: currentUser.id,
                                 email: currentUser.email,
@@ -497,8 +497,15 @@ class UserService: ObservableObject {
                     completion(false)
                 }
             },
-            receiveValue: { _ in
-                completion(true)
+            receiveValue: { data in
+                do {
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let saveResponse = try decoder.decode(SaveAnalysisResponse.self, from: data)
+                    completion(saveResponse.success)
+                } catch {
+                    completion(false)
+                }
             }
         )
         .store(in: &cancellables)
@@ -531,75 +538,62 @@ class UserService: ObservableObject {
             },
             receiveValue: { data in
                 do {
-                    // Parse JSON response
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let historyData = json["history"] as? [[String: Any]] {
-                        
-                        // Create history items
-                        var historyItems: [AnalysisHistoryItem] = []
-                        
-                        for itemData in historyData {
-                            if let id = itemData["id"] as? String,
-                               let dateString = itemData["date"] as? String,
-                               let date = ISO8601DateFormatter().date(from: dateString),
-                               let type = itemData["type"] as? String,
-                               let imageReference = itemData["image_reference"] as? String,
-                               let conditionsData = itemData["conditions"] as? [[String: Any]],
-                               let topCondition = conditionsData.first,
-                               let topConditionName = topCondition["name"] as? String,
-                               let topConditionConfidence = topCondition["confidence"] as? Double {
-                                
-                                // Parse conditions
-                                var conditions: [AnalysisCondition] = []
-                                
-                                for conditionData in conditionsData {
-                                    if let condId = conditionData["id"] as? String,
-                                       let name = conditionData["name"] as? String,
-                                       let confidence = conditionData["confidence"] as? Double,
-                                       let description = conditionData["description"] as? String,
-                                       let severityString = conditionData["severity"] as? String,
-                                       let severity = ConditionSeverity(rawValue: severityString),
-                                       let recommendation = conditionData["recommendation"] as? String {
-                                        
-                                        let condition = AnalysisCondition(
-                                            id: condId,
-                                            name: name,
-                                            confidence: confidence,
-                                            description: description,
-                                            severity: severity,
-                                            recommendation: recommendation
-                                        )
-                                        
-                                        conditions.append(condition)
-                                    }
-                                }
-                                
-                                // Create history item
-                                let historyItem = AnalysisHistoryItem(
-                                    id: id,
-                                    date: date,
-                                    type: type,
-                                    topConditionName: topConditionName,
-                                    topConditionConfidence: topConditionConfidence,
-                                    imageReference: imageReference,
-                                    conditions: conditions
-                                )
-                                
-                                historyItems.append(historyItem)
-                            }
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let historyResponse = try decoder.decode(AnalysisHistoryResponse.self, from: data)
+                    
+                    // Convert API response model to app's internal model
+                    var historyItems: [AnalysisHistoryItem] = []
+                    
+                    for item in historyResponse.history {
+                        // Convert string date to Date object
+                        guard let date = ISO8601DateFormatter().date(from: item.date) else {
+                            continue
                         }
                         
-                        // Sort by date (newest first)
-                        historyItems.sort { $0.date > $1.date }
+                        // Get top condition if available
+                        guard let topCondition = item.conditions.first else {
+                            continue
+                        }
                         
-                        completion(.success(historyItems))
-                    } else {
-                        completion(.failure(NSError(
-                            domain: "UserService",
-                            code: 500,
-                            userInfo: [NSLocalizedDescriptionKey: "Invalid server response"]
-                        )))
+                        // Convert API condition models to app condition models
+                        var conditions: [AnalysisCondition] = []
+                        
+                        for conditionData in item.conditions {
+                            guard let severity = ConditionSeverity(rawValue: conditionData.severity) else {
+                                continue
+                            }
+                            
+                            let condition = AnalysisCondition(
+                                id: conditionData.id,
+                                name: conditionData.name,
+                                confidence: conditionData.confidence,
+                                description: conditionData.description,
+                                severity: severity,
+                                recommendation: conditionData.recommendation
+                            )
+                            
+                            conditions.append(condition)
+                        }
+                        
+                        // Create history item
+                        let historyItem = AnalysisHistoryItem(
+                            id: item.id,
+                            date: date,
+                            type: item.type,
+                            topConditionName: topCondition.name,
+                            topConditionConfidence: topCondition.confidence,
+                            imageReference: item.image_reference,
+                            conditions: conditions
+                        )
+                        
+                        historyItems.append(historyItem)
                     }
+                    
+                    // Sort by date (newest first)
+                    historyItems.sort { $0.date > $1.date }
+                    
+                    completion(.success(historyItems))
                 } catch {
                     completion(.failure(error))
                 }
@@ -687,13 +681,10 @@ class UserService: ObservableObject {
             },
             receiveValue: { data in
                 do {
-                    // Parse JSON response
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let isValid = json["valid"] as? Bool {
-                        completion(isValid)
-                    } else {
-                        completion(false)
-                    }
+                    // Use JSONDecoder for more reliable parsing
+                    let decoder = JSONDecoder()
+                    let validationResponse = try decoder.decode(TokenValidationResponse.self, from: data)
+                    completion(validationResponse.valid)
                 } catch {
                     completion(false)
                 }

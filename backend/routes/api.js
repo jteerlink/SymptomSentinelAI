@@ -129,25 +129,102 @@ router.post('/update-subscription', authenticate, userController.updateSubscript
 router.use((err, req, res, next) => {
     console.error('API route error:', err);
     
-    // Handle Multer errors
+    // Default error structure
+    const errorResponse = {
+        error: true,
+        success: false,
+        message: err.message || 'Internal server error',
+        code: 'SERVER_ERROR'
+    };
+    
+    // Only include details in development mode
+    if (process.env.NODE_ENV === 'development') {
+        errorResponse.details = err.stack;
+    }
+    
+    // Handle Multer errors (file upload)
     if (err.name === 'MulterError') {
-        if (err.code === 'LIMIT_FILE_SIZE') {
-            return res.status(400).json({
-                success: false,
-                error: 'File size exceeds the 5MB limit'
-            });
+        errorResponse.code = 'UPLOAD_ERROR';
+        
+        switch (err.code) {
+            case 'LIMIT_FILE_SIZE':
+                errorResponse.code = 'LIMIT_FILE_SIZE';
+                errorResponse.message = 'File size exceeds the 5MB limit';
+                return res.status(413).json(errorResponse);
+                
+            case 'LIMIT_UNEXPECTED_FILE':
+                errorResponse.code = 'INVALID_FIELD_NAME';
+                errorResponse.message = 'Unexpected field name in upload form';
+                return res.status(400).json(errorResponse);
+                
+            case 'LIMIT_FILE_COUNT':
+                errorResponse.code = 'TOO_MANY_FILES';
+                errorResponse.message = 'Too many files uploaded at once';
+                return res.status(400).json(errorResponse);
+                
+            case 'LIMIT_PART_COUNT':
+                errorResponse.code = 'TOO_MANY_PARTS';
+                errorResponse.message = 'Too many parts in multipart form';
+                return res.status(400).json(errorResponse);
+                
+            default:
+                errorResponse.message = `File upload error: ${err.message}`;
+                return res.status(400).json(errorResponse);
         }
-        return res.status(400).json({
-            success: false,
-            error: `Upload error: ${err.message}`
+    }
+    
+    // Handle validation errors
+    if (err.name === 'ValidationError') {
+        errorResponse.code = 'VALIDATION_ERROR';
+        errorResponse.validationErrors = err.errors;
+        return res.status(400).json(errorResponse);
+    }
+    
+    // Handle authentication errors
+    if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
+        errorResponse.code = 'AUTHENTICATION_ERROR';
+        errorResponse.message = 'Authentication failed: ' + (err.name === 'TokenExpiredError' ? 
+            'Your session has expired' : 'Invalid token');
+        return res.status(401).json(errorResponse);
+    }
+    
+    // Handle database errors
+    if (err.code === 'SQLITE_CONSTRAINT' || (err.name === 'Error' && err.message.includes('duplicate key'))) {
+        errorResponse.code = 'DATABASE_CONSTRAINT';
+        errorResponse.message = 'Database constraint violation';
+        return res.status(409).json(errorResponse);
+    }
+    
+    // Handle permission errors
+    if (err.status === 403) {
+        errorResponse.code = 'PERMISSION_DENIED';
+        return res.status(403).json(errorResponse);
+    }
+    
+    // Handle resource not found
+    if (err.status === 404) {
+        errorResponse.code = 'NOT_FOUND';
+        return res.status(404).json(errorResponse);
+    }
+    
+    // Handle subscription limit exceeded
+    if (err.code === 'ANALYSIS_LIMIT_EXCEEDED') {
+        errorResponse.code = 'ANALYSIS_LIMIT_EXCEEDED';
+        errorResponse.message = 'You have reached your monthly analysis limit';
+        return res.status(429).json(errorResponse);
+    }
+    
+    // Handle general API errors
+    if (err.isApiError) {
+        return res.status(err.status || 500).json({
+            ...errorResponse,
+            code: err.code || errorResponse.code,
+            message: err.message
         });
     }
     
-    res.status(err.status || 500).json({
-        success: false,
-        error: err.message || 'Internal server error',
-        details: process.env.NODE_ENV === 'development' ? err.stack : undefined
-    });
+    // Default server error
+    res.status(err.status || 500).json(errorResponse);
 });
 
 module.exports = router;

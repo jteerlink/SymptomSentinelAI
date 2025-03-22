@@ -3,6 +3,7 @@ const tf = require('@tensorflow/tfjs-node');
 const { v4: uuidv4 } = require('uuid');
 const { Analysis, User } = require('../db/models');
 const modelLoader = require('../utils/modelLoader');
+const ApiError = require('../utils/apiError');
 
 // Initialize model cache with proper locking mechanism
 let throatModel = null;
@@ -15,6 +16,15 @@ const pendingModelRequests = {
 
 /**
  * Analyze an image for potential throat or ear conditions
+ * 
+ * This endpoint processes uploaded images and returns potential medical conditions
+ * using machine learning analysis.
+ * 
+ * @route POST /api/analyze
+ * @param {string} type - Either 'throat' or 'ear' to specify the analysis type
+ * @param {file} image - The uploaded image file
+ * @returns {Object} Analysis results with conditions and confidence scores
+ * @throws {ApiError} For various validation, processing, or server errors
  */
 exports.analyzeImage = async (req, res, next) => {
     try {
@@ -25,10 +35,7 @@ exports.analyzeImage = async (req, res, next) => {
         // Check if request body exists
         if (!req.body) {
             console.error('❌ Request body is undefined or null');
-            return res.status(400).json({
-                error: true,
-                message: 'Missing request body'
-            });
+            throw ApiError.badRequest('Missing request body', 'MISSING_REQUEST_BODY');
         }
         
         console.log('Request body keys:', Object.keys(req.body));
@@ -83,10 +90,7 @@ exports.analyzeImage = async (req, res, next) => {
         // Check if the request contains image data
         if (!image) {
             console.error('❌ No image provided in request body');
-            return res.status(400).json({
-                error: true,
-                message: 'No image provided'
-            });
+            throw ApiError.badRequest('No image provided', 'MISSING_IMAGE');
         }
         
         // Additional logging for successful image extraction
@@ -97,9 +101,8 @@ exports.analyzeImage = async (req, res, next) => {
         // Validate analysis type
         if (!type || (type !== 'throat' && type !== 'ear')) {
             console.error('❌ Invalid analysis type provided:', type);
-            return res.status(400).json({
-                error: true,
-                message: 'Invalid analysis type. Must be "throat" or "ear"'
+            throw ApiError.invalidModel(`Invalid analysis type: ${type}. Must be "throat" or "ear"`, {
+                providedType: type
             });
         }
 
@@ -126,9 +129,9 @@ exports.analyzeImage = async (req, res, next) => {
                 dataSource = 'data_url';
             } catch (err) {
                 console.error('❌ Failed to process base64 image data:', err);
-                return res.status(400).json({
-                    error: true,
-                    message: 'Invalid image data format'
+                throw ApiError.invalidImage('Failed to process base64 image data', {
+                    errorMessage: err.message,
+                    dataType: typeof image
                 });
             }
         }
@@ -158,9 +161,9 @@ exports.analyzeImage = async (req, res, next) => {
             const model = await loadModel(type);
             if (!model) {
                 console.error('❌ Failed to load analysis model');
-                return res.status(500).json({
-                    error: true,
-                    message: 'Failed to load analysis model'
+                throw ApiError.internalError('Failed to load analysis model', {
+                    modelType: type,
+                    errorStage: 'model_loading'
                 });
             }
             console.log('✅ Model loaded successfully');
@@ -172,10 +175,7 @@ exports.analyzeImage = async (req, res, next) => {
                 // Check if user has exceeded their monthly analysis limit
                 if (req.user.hasExceededAnalysisLimit()) {
                     console.log('❌ User has exceeded their monthly analysis limit');
-                    return res.status(403).json({
-                        error: true,
-                        message: 'Monthly analysis limit reached',
-                        code: 'ANALYSIS_LIMIT_EXCEEDED',
+                    throw ApiError.analysisLimitExceeded('You have reached your monthly analysis limit', {
                         subscription: req.user.subscription,
                         analysisCount: req.user.analysisCount,
                         analysisLimit: User.SUBSCRIPTION_LIMITS[req.user.subscription].analysesPerMonth,
@@ -253,10 +253,7 @@ exports.saveAnalysis = async (req, res, next) => {
     try {
         // Validate user is authenticated
         if (!req.user) {
-            return res.status(401).json({
-                error: true,
-                message: 'Authentication required to save analysis'
-            });
+            throw ApiError.unauthorized('Authentication required to save analysis', 'AUTH_REQUIRED');
         }
         
         console.log('Saving analysis for user:', req.user.id);
@@ -265,9 +262,9 @@ exports.saveAnalysis = async (req, res, next) => {
         console.log('Analysis data received:', JSON.stringify(analysisData));
         
         if (!analysisData || !analysisData.type || !analysisData.conditions) {
-            return res.status(400).json({
-                error: true,
-                message: 'Invalid analysis data. Type and conditions are required.'
+            throw ApiError.validationError('Invalid analysis data', {
+                type: !analysisData?.type ? 'Analysis type is required' : undefined,
+                conditions: !analysisData?.conditions ? 'Analysis conditions are required' : undefined
             });
         }
         
@@ -371,10 +368,7 @@ exports.getAnalysisHistory = async (req, res, next) => {
     try {
         // Validate user is authenticated
         if (!req.user) {
-            return res.status(401).json({
-                error: true,
-                message: 'Authentication required to view analysis history'
-            });
+            throw ApiError.unauthorized('Authentication required to view analysis history', 'AUTH_REQUIRED');
         }
         
         console.log('Fetching analysis history for user:', req.user.id);

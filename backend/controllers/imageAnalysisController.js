@@ -1,8 +1,7 @@
 // Import required modules
 const tf = require('@tensorflow/tfjs-node');
 const { v4: uuidv4 } = require('uuid');
-const { Analysis } = require('../db/models');
-const User = require('../models/User');
+const { Analysis, User } = require('../db/models');
 const modelLoader = require('../utils/modelLoader');
 
 // Initialize model cache
@@ -280,7 +279,6 @@ exports.saveAnalysis = async (req, res, next) => {
             };
             
             // Include subscription info in the test response too
-            const { User } = require('../db/models');
             const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
             const subscriptionInfo = {
                 subscription: req.user.subscription,

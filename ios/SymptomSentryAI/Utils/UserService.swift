@@ -293,7 +293,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/user/profile",
+            endpoint: "/api/user-profile",
             method: .get,
             parameters: nil
         )
@@ -372,7 +372,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/user/profile",
+            endpoint: "/api/update-profile",
             method: .put,
             parameters: parameters
         )
@@ -441,7 +441,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/user/subscription",
+            endpoint: "/api/update-subscription",
             method: .post,
             parameters: parameters
         )

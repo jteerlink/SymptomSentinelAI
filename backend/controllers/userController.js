@@ -178,52 +178,14 @@ exports.updateProfile = async (req, res, next) => {
         // Extract user ID from request (set by auth middleware)
         const userId = req.user.id;
         
-        const { firstName, lastName, name, email } = req.body;
+        const { name, email } = req.body;
         
         // Prepare update data
         const updateData = {};
         
-        // Handle either combined name or separate first/last name
-        if (firstName || lastName) {
-            // Format the first name with proper case
-            if (firstName) {
-                updateData.firstName = formatNameProperCase(firstName);
-            }
-            
-            if (lastName) {
-                updateData.lastName = lastName;
-            }
-            
-            // If both first and last name provided, update the full name
-            if (firstName && lastName) {
-                updateData.name = `${formatNameProperCase(firstName)} ${lastName}`;
-            }
-            // If only first name, use that with existing last name (if any)
-            else if (firstName) {
-                const user = await User.findById(userId);
-                const existingLastName = user.lastName || '';
-                updateData.name = `${formatNameProperCase(firstName)} ${existingLastName}`.trim();
-            }
-            // If only last name, use that with existing first name
-            else if (lastName) {
-                const user = await User.findById(userId);
-                const existingFirstName = user.firstName || '';
-                updateData.name = `${existingFirstName} ${lastName}`.trim();
-            }
-        } 
-        // For backward compatibility, also accept full name
-        else if (name) {
+        // Handle name update
+        if (name) {
             updateData.name = name;
-            
-            // Try to parse first and last name from full name
-            const nameParts = name.trim().split(/\s+/);
-            if (nameParts.length >= 1) {
-                updateData.firstName = formatNameProperCase(nameParts[0]);
-            }
-            if (nameParts.length >= 2) {
-                // Last name could be multiple words, so join the rest
-                updateData.lastName = nameParts.slice(1).join(' ');
-            }
         }
         
         if (email) {
@@ -246,8 +208,6 @@ exports.updateProfile = async (req, res, next) => {
                 id: updatedUser.id,
                 email: updatedUser.email,
                 name: updatedUser.name,
-                firstName: updatedUser.firstName,
-                lastName: updatedUser.lastName,
                 subscription: updatedUser.subscription,
                 updated_at: updatedUser.updated_at
             }

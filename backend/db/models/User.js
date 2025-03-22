@@ -128,7 +128,18 @@ class User {
    * @returns {Promise<boolean>} True if password is valid, false otherwise
    */
   static async verifyPassword(plainPassword, hashedPassword) {
-    return bcrypt.compare(plainPassword, hashedPassword);
+    // Add validation to prevent errors with undefined/null values
+    if (!plainPassword || !hashedPassword) {
+      console.log('❌ Invalid password verification attempt - missing password or hash');
+      return false;
+    }
+    
+    try {
+      return await bcrypt.compare(plainPassword, hashedPassword);
+    } catch (error) {
+      console.error('❌ Error during password verification:', error.message);
+      return false;
+    }
   }
 
   /**

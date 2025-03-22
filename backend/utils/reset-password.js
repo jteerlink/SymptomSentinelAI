@@ -6,52 +6,68 @@
  * when a user has forgotten their password.
  */
 
-const { User } = require('../db/models');
 const bcrypt = require('bcryptjs');
+const { User } = require('../db/models');
 
-// Configuration
-const email = 'jt@test.com'; // The email of the user to reset
-const newPassword = 'password123'; // The new password to set
+// Email of the user whose password you want to reset
+const userEmail = 'jt@test.com';
+
+// New password to set
+const newPassword = 'password123';
 
 async function resetPassword() {
-  try {
-    console.log(`Looking for user with email: ${email}`);
-    // Find user by email
-    const user = await User.findByEmail(email);
-    
-    if (!user) {
-      console.error(`No user found with email: ${email}`);
-      process.exit(1);
+    try {
+        console.log(`Finding user with email: ${userEmail}`);
+        
+        // Find the user
+        const user = await User.findByEmail(userEmail);
+        if (!user) {
+            console.error(`User with email ${userEmail} not found`);
+            process.exit(1);
+        }
+        
+        console.log(`User found: ${user.name} (${user.email})`);
+        console.log('Current password hash:', user.password);
+        
+        // Update via direct database query to ensure we know exactly what's happening
+        const db = require('../db/db');
+        
+        // Generate hash for new password
+        const saltRounds = 10;
+        const passwordHash = await bcrypt.hash(newPassword, saltRounds);
+        
+        console.log('New password hash generated:', passwordHash);
+        
+        // Update user's password directly in the database
+        const updated = await db('users')
+            .where({ id: user.id })
+            .update({ password: passwordHash, updated_at: db.fn.now() });
+        
+        console.log(`Password updated successfully (rows affected: ${updated})`);
+        
+        // Verify the new password
+        const updatedUser = await User.findByEmail(userEmail);
+        console.log('Updated user password hash:', updatedUser.password);
+        
+        const isVerified = await User.verifyPassword(newPassword, updatedUser.password);
+        console.log(`Password verification test: ${isVerified ? 'SUCCESS' : 'FAILED'}`);
+        
+        // Try direct bcrypt comparison
+        const bcryptResult = await bcrypt.compare(newPassword, updatedUser.password);
+        console.log(`Direct bcrypt verification: ${bcryptResult ? 'SUCCESS' : 'FAILED'}`);
+        
+        process.exit(0);
+    } catch (error) {
+        console.error('Error resetting password:', error);
+        process.exit(1);
     }
-    
-    console.log(`Found user: ${user.id}, ${user.email}, ${user.name}`);
-    
-    // Update password
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const updateData = { password: hashedPassword };
-    
-    // Update in the database directly
-    const updatedUser = await User.update(user.id, updateData);
-    
-    console.log(`Password successfully reset for user: ${user.email}`);
-    console.log(`Updated user data: ${JSON.stringify({
-      id: updatedUser.id,
-      email: updatedUser.email,
-      name: updatedUser.name,
-      subscription: updatedUser.subscription
-    }, null, 2)}`);
-    
-    process.exit(0);
-  } catch (error) {
-    console.error('Error resetting password:', error);
-    process.exit(1);
-  }
 }
 
 console.log('='.repeat(50));
 console.log('PASSWORD RESET UTILITY');
 console.log('='.repeat(50));
-console.log(`Preparing to reset password for: ${email}`);
+console.log(`Resetting password for user: ${userEmail}`);
+console.log(`New password will be: ${newPassword}`);
 console.log('='.repeat(50));
 
 resetPassword();

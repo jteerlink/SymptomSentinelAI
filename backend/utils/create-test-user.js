@@ -36,9 +36,13 @@ async function createUser() {
             subscription: newUser.subscription
         });
         
+        // Retrieve the user to make sure we have the password hash
+        const retrievedUser = await User.findByEmail(testUser.email);
+        
         // Test login immediately
         console.log('\nTesting login immediately after creation...');
-        const loginSuccess = await User.verifyPassword(testUser.password, newUser.password);
+        console.log('Retrieved password hash:', retrievedUser.password);
+        const loginSuccess = await User.verifyPassword(testUser.password, retrievedUser.password);
         console.log(`Login test result: ${loginSuccess ? 'SUCCESS' : 'FAILED'}`);
         
         process.exit(0);

@@ -106,14 +106,14 @@ router.get('/sample-analysis', (req, res) => {
 });
 
 // Image Analysis Routes
-router.post('/analyze', optionalAuthenticate, upload.single('image'), imageAnalysisController.analyzeImage);
+router.post('/analyze', authenticate, upload.single('image'), imageAnalysisController.analyzeImage);
 router.post('/save-analysis', authenticate, imageAnalysisController.saveAnalysis);
 router.get('/analysis-history', authenticate, imageAnalysisController.getAnalysisHistory);
 
 // Image Upload Routes
-router.post('/upload', optionalAuthenticate, imageUploadController.uploadImage);
-router.post('/upload-multiple', optionalAuthenticate, imageUploadController.uploadMultipleImages);
-router.post('/get-presigned-url', optionalAuthenticate, imageUploadController.getPresignedUrl);
+router.post('/upload', authenticate, imageUploadController.uploadImage);
+router.post('/upload-multiple', authenticate, imageUploadController.uploadMultipleImages);
+router.post('/get-presigned-url', authenticate, imageUploadController.getPresignedUrl);
 router.delete('/images/:key(*)', authenticate, imageUploadController.deleteImage);
 
 // User Routes

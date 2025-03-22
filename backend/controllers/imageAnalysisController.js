@@ -32,6 +32,29 @@ exports.analyzeImage = async (req, res, next) => {
         console.log('==============================');
         console.log('Request headers:', req.headers);
         
+        // Extract user from request (set by auth middleware)
+        const userId = req.user.id;
+        
+        // Fetch user from database to check subscription status
+        const user = await User.findById(userId);
+        if (!user) {
+            console.error('❌ User not found:', userId);
+            throw ApiError.unauthorized('User account not found');
+        }
+        
+        console.log(`👤 User authenticated: ${user.email} (${user.subscription} subscription)`);
+        console.log(`📊 Analysis count: ${user.analysisCount}/${user.analysisLimit}`);
+        
+        // Check if user has exceeded their analysis limit
+        if (user.hasExceededAnalysisLimit()) {
+            console.error(`❌ User has exceeded analysis limit: ${user.analysisCount}/${user.analysisLimit}`);
+            throw ApiError.analysisLimitExceeded('You have reached your monthly analysis limit', {
+                current: user.analysisCount,
+                limit: user.analysisLimit,
+                subscription: user.subscription
+            });
+        }
+        
         // Check if request body exists
         if (!req.body) {
             console.error('❌ Request body is undefined or null');

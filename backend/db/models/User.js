@@ -61,11 +61,16 @@ class User {
    * @returns {Promise<Object|null>} User object or null if not found
    */
   static async findById(id) {
-    const user = await db('users')
-      .where({ id })
-      .first();
-    
-    return user ? this.formatUser(user) : null;
+    try {
+      const user = await db('users')
+        .where({ id })
+        .first();
+      
+      return user ? this.formatUser(user) : null;
+    } catch (error) {
+      console.error('Error finding user by ID:', error);
+      return null;
+    }
   }
 
   /**
@@ -75,11 +80,16 @@ class User {
    * @returns {Promise<Object|null>} User object or null if not found
    */
   static async findByEmail(email) {
-    const user = await db('users')
-      .where({ email })
-      .first();
-    
-    return user ? this.formatUser(user) : null;
+    try {
+      const user = await db('users')
+        .where({ email })
+        .first();
+      
+      return user ? this.formatUser(user) : null;
+    } catch (error) {
+      console.error('Error finding user by email:', error);
+      return null;
+    }
   }
 
   /**
@@ -90,20 +100,40 @@ class User {
    * @returns {Promise<Object>} Updated user object
    */
   static async update(id, updateData) {
-    // If password is being updated, hash it
-    if (updateData.password) {
-      updateData.password = await bcrypt.hash(updateData.password, SALT_ROUNDS);
+    // Make a copy of the update data to avoid modifying the original
+    const updates = { ...updateData };
+    
+    // If password is being updated and it's not already hashed, hash it
+    if (updates.password && !updates.password.startsWith('$2b$')) {
+      console.log('Hashing password before update');
+      updates.password = await bcrypt.hash(updates.password, SALT_ROUNDS);
     }
     
     // Update updated_at timestamp
-    updateData.updated_at = db.fn.now();
+    updates.updated_at = db.fn.now();
     
-    const [user] = await db('users')
-      .where({ id })
-      .update(updateData)
-      .returning(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at', 'updated_at']);
-    
-    return this.formatUser(user);
+    try {
+      const [user] = await db('users')
+        .where({ id })
+        .update(updates)
+        .returning(['id', 'email', 'name', 'subscription', 'email_verified', 'analysis_count', 'last_reset_date', 'created_at', 'updated_at', 'password']);
+      
+      // Check if update was successful
+      if (!user) {
+        console.error(`Failed to update user with ID: ${id}`);
+        return null;
+      }
+      
+      // Log password update for debugging
+      if (updates.password) {
+        console.log('✅ Password updated successfully');
+      }
+      
+      return this.formatUser(user);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      throw error;
+    }
   }
 
   /**
@@ -221,7 +251,9 @@ class User {
       ...dbUser,
       // Make sure these properties exist with the right casing
       analysisCount: dbUser.analysis_count || 0,
-      lastResetDate: dbUser.last_reset_date || new Date()
+      lastResetDate: dbUser.last_reset_date || new Date(),
+      // Ensure password is preserved if it exists
+      password: dbUser.password
     };
     
     // Add methods to the user object

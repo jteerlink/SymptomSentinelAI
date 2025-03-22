@@ -531,7 +531,7 @@ function handleRegistration() {
             // Change the functionality of the button to manage account
             signInButton.removeEventListener('click', handleRegistration);
             signInButton.addEventListener('click', () => {
-                showNotification('Account management features coming soon!', 'info');
+                showPage('profile-page');
             });
         }
         
@@ -662,10 +662,12 @@ function handleRegistration() {
                     const newEmail = document.getElementById('edit-email').value;
                     
                     try {
+                        // Combine first and last name to match backend expectations
+                        const name = `${newFirstName} ${newLastName}`.trim();
+                        
                         // Make API request to update user profile
                         const response = await apiRequest('/api/update-profile', 'PUT', {
-                            firstName: newFirstName,
-                            lastName: newLastName,
+                            name: name,
                             email: newEmail
                         });
                         

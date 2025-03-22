@@ -65,6 +65,7 @@ app.use('/api', apiRoutes);
 // 6a. Add direct /analyze endpoint to catch requests that are missing the /api prefix
 // This helps maintain backwards compatibility with any direct API calls
 const multer = require('multer');
+const { authenticate } = require('./middleware/auth'); // Import authentication middleware
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { 
@@ -74,7 +75,8 @@ const upload = multer({
   }
 });
 
-app.post('/analyze', upload.single('image'), (req, res, next) => {
+// Apply authentication middleware to the direct analyze endpoint
+app.post('/analyze', authenticate, upload.single('image'), (req, res, next) => {
   console.log('Received request to /analyze - processing directly');
   console.log('Content-Type:', req.headers['content-type']);
   console.log('Request body keys:', Object.keys(req.body));

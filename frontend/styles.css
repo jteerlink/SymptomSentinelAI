@@ -756,6 +756,7 @@ main {
     margin-left: 6px;
     transition: all 0.2s ease;
     position: relative;
+    z-index: 200;
 }
 
 .help-tooltip-icon:hover {
@@ -780,7 +781,7 @@ main {
     opacity: 0;
     visibility: hidden;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 100;
+    z-index: 500;
     border-left: 3px solid var(--info-color);
     pointer-events: none;
 }
@@ -800,6 +801,26 @@ main {
     border-width: 6px;
     border-style: solid;
     border-color: white transparent transparent transparent;
+}
+
+/* Special handling for instruction section tooltips */
+.alert h5 .help-tooltip-icon .help-tooltip,
+.alert h6 .help-tooltip-icon .help-tooltip,
+.alert strong .help-tooltip-icon .help-tooltip {
+    bottom: 150%;
+    left: -100px;
+    z-index: 1000;
+}
+
+/* Remove overflow restrictions for alert containers */
+.alert {
+    overflow: visible !important;
+}
+
+/* Ensure tooltip question marks are clickable */
+.alert h5, .alert h6, .alert strong {
+    position: relative;
+    z-index: 100;
 }
 
 .help-tooltip .tooltip-title {
@@ -855,12 +876,23 @@ button .help-tooltip-icon .help-tooltip {
 /* Adjusted tooltip positions for different contexts */
 .scan-option-label .help-tooltip-icon .help-tooltip {
     width: 240px;
-    left: -120px;
-    transform: scale(0.9);
+    left: -90px;
+    transform: scale(0.9) translateY(-10px);
+    z-index: 1000;
 }
 
 .scan-option-label .help-tooltip-icon:hover .help-tooltip {
-    transform: scale(1);
+    transform: scale(1) translateY(0);
+}
+
+/* Fix for scan option tooltips to appear outside container */
+.scan-option-card {
+    overflow: visible !important; /* Ensure tooltips aren't cut off */
+}
+
+.scan-option-label {
+    position: relative;
+    z-index: 100; /* Ensure label is above card body but below tooltip */
 }
 
 /* For tooltips in buttons */

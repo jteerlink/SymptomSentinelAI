@@ -418,6 +418,26 @@ class User {
             subscriptionType: user.subscription_type
         };
     }
+    
+    /**
+     * Delete a user from the database
+     * 
+     * @param {string} userId - User ID
+     * @returns {boolean} Success indicator
+     */
+    static async delete(userId) {
+        try {
+            // Delete the user
+            const deleted = await knex('users')
+                .where({ id: userId })
+                .delete();
+                
+            return deleted > 0;
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            return false;
+        }
+    }
 }
 
 module.exports = User;

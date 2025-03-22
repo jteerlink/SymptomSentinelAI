@@ -2,6 +2,7 @@
  * Authentication Middleware
  * 
  * This middleware handles JWT authentication for protected routes
+ * with token refresh capabilities
  */
 
 const jwt = require('jsonwebtoken');
@@ -9,6 +10,10 @@ const { User } = require('../db/models');
 
 // JWT secret key (would be in env variables in production)
 const JWT_SECRET = process.env.JWT_SECRET || 'symptom-sentry-ai-secret-key';
+
+// JWT configuration
+const JWT_EXPIRATION = '1h'; // Token expires in 1 hour
+const JWT_REFRESH_EXPIRATION = '7d'; // Refresh token expires in 7 days
 
 // Check if we're in a test environment
 const isTest = process.env.NODE_ENV === 'test';
@@ -163,7 +168,137 @@ const optionalAuthenticate = async (req, res, next) => {
   }
 };
 
+/**
+ * Generate JWT tokens for authentication
+ * 
+ * @param {Object} user - User object
+ * @returns {Object} - Object with access token and refresh token
+ */
+const generateTokens = (user) => {
+  // Create payload with user information
+  const payload = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    subscription: user.subscription
+  };
+  
+  // Generate access token with short expiration
+  const accessToken = jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_EXPIRATION
+  });
+  
+  // Generate refresh token with longer expiration
+  const refreshToken = jwt.sign(payload, JWT_SECRET, {
+    expiresIn: JWT_REFRESH_EXPIRATION
+  });
+  
+  return {
+    accessToken,
+    refreshToken
+  };
+};
+
+/**
+ * Refresh access token using a valid refresh token
+ * 
+ * @param {string} refreshToken - Refresh token
+ * @returns {Promise<Object>} - Object with new access token or error
+ */
+const refreshAccessToken = async (refreshToken) => {
+  try {
+    // Verify the refresh token
+    const decoded = jwt.verify(refreshToken, JWT_SECRET);
+    
+    if (!decoded || !decoded.id) {
+      return {
+        success: false,
+        message: 'Invalid refresh token'
+      };
+    }
+    
+    // Find the user
+    const user = await User.findById(decoded.id);
+    
+    if (!user) {
+      return {
+        success: false,
+        message: 'User not found'
+      };
+    }
+    
+    // Generate new tokens
+    const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
+    
+    return {
+      success: true,
+      accessToken,
+      refreshToken: newRefreshToken
+    };
+  } catch (error) {
+    console.error('Error refreshing token:', error);
+    
+    if (error.name === 'TokenExpiredError') {
+      return {
+        success: false,
+        message: 'Refresh token expired'
+      };
+    }
+    
+    return {
+      success: false,
+      message: 'Error refreshing token'
+    };
+  }
+};
+
+/**
+ * Middleware to handle token refresh
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next function
+ */
+const refreshToken = async (req, res) => {
+  const { refreshToken } = req.body;
+  
+  if (!refreshToken) {
+    return res.status(400).json({
+      error: true,
+      message: 'Refresh token is required'
+    });
+  }
+  
+  try {
+    const result = await refreshAccessToken(refreshToken);
+    
+    if (!result.success) {
+      return res.status(401).json({
+        error: true,
+        message: result.message
+      });
+    }
+    
+    return res.json({
+      error: false,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken
+    });
+  } catch (error) {
+    console.error('Token refresh error:', error);
+    return res.status(500).json({
+      error: true,
+      message: 'Internal server error during token refresh'
+    });
+  }
+};
+
 module.exports = {
   authenticate,
-  optionalAuthenticate
+  optionalAuthenticate,
+  generateTokens,
+  refreshToken,
+  refreshAccessToken,
+  JWT_EXPIRATION,
+  JWT_REFRESH_EXPIRATION
 };

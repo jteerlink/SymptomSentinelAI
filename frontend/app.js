@@ -815,12 +815,18 @@ export async function apiRequest(endpoint, method = 'GET', data = null) {
         console.log(`API request to: ${apiEndpoint}`, token ? 'with authentication' : 'without authentication');
         const response = await fetch(apiEndpoint, options);
         
+        // Parse response data once
+        const responseData = await response.json().catch(() => null);
+        
+        // Handle error responses
         if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            throw new Error(errorData?.message || `API request failed with status ${response.status}`);
+            throw new Error(
+                (responseData && responseData.message) || 
+                `API request failed with status ${response.status}`
+            );
         }
         
-        return await response.json();
+        return responseData;
     } catch (error) {
         console.error('API request error:', error);
         throw error;

@@ -222,27 +222,38 @@ exports.analyzeImage = async (req, res, next) => {
             console.error('❌ Error during image analysis process:', error);
             console.error('Stack trace:', error.stack);
             
-            // Send a detailed error response
-            return res.status(500).json({
-                error: true,
-                message: 'Internal server error during image analysis',
-                details: process.env.NODE_ENV === 'development' ? {
-                    error_message: error.message,
-                    stage: error.stage || 'unknown',
-                    data_source: dataSource
-                } : undefined
-            });
+            // Add additional context if not an ApiError
+            if (!error.isApiError) {
+                error.stage = 'image_analysis';
+                error.dataSource = dataSource;
+                return next(ApiError.internalError(
+                    'Internal server error during image analysis',
+                    {
+                        originalError: error.message,
+                        stage: error.stage || 'unknown',
+                        dataSource: dataSource
+                    }
+                ));
+            }
+            
+            // Forward ApiError instances to the error handler
+            return next(error);
         }
     } catch (outer_error) {
         console.error('❌❌ CRITICAL ERROR IN ANALYZE ENDPOINT:', outer_error);
         console.error('Stack trace:', outer_error.stack);
         
-        // Create a safe error response
-        return res.status(500).json({
-            error: true,
-            message: 'A critical error occurred while processing your request',
-            errorId: uuidv4() // For tracking in logs
-        });
+        // Check if this is an ApiError instance
+        if (outer_error.isApiError) {
+            return next(outer_error);
+        }
+        
+        // Create a safe error response for non-ApiError errors
+        const errorId = uuidv4();
+        return next(ApiError.internalError(
+            'A critical error occurred while processing your request',
+            { errorId }
+        ));
     }
 };
 
@@ -345,19 +356,21 @@ exports.saveAnalysis = async (req, res, next) => {
             });
         } catch (dbError) {
             console.error('Database operation error:', dbError);
-            return res.status(500).json({
-                error: true,
-                message: 'Error saving analysis to database',
-                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
-            });
+            if (dbError.isApiError) {
+                return next(dbError);
+            }
+            return next(ApiError.internalError('Error saving analysis to database', {
+                originalError: dbError.message
+            }));
         }
     } catch (error) {
         console.error('Error saving analysis:', error);
-        return res.status(500).json({
-            error: true,
-            message: 'Error processing analysis save request',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        if (error.isApiError) {
+            return next(error);
+        }
+        return next(ApiError.internalError('Error processing analysis save request', {
+            originalError: error.message
+        }));
     }
 };
 
@@ -398,11 +411,12 @@ exports.getAnalysisHistory = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error fetching analysis history:', error);
-        return res.status(500).json({
-            error: true,
-            message: 'Error retrieving analysis history',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+        if (error.isApiError) {
+            return next(error);
+        }
+        return next(ApiError.internalError('Error retrieving analysis history', {
+            originalError: error.message
+        }));
     }
 };
 

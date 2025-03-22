@@ -96,6 +96,13 @@ class UserService: ObservableObject {
                 self.isLoading = false
                 
                 do {
+                    // For debugging purposes, print the raw response
+                    #if DEBUG
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("Registration response: \(jsonString)")
+                    }
+                    #endif
+                    
                     // Use JSONDecoder for more reliable parsing
                     let decoder = JSONDecoder()
                     let authResponse = try decoder.decode(AuthResponse.self, from: data)
@@ -120,6 +127,25 @@ class UserService: ObservableObject {
                     self.saveSession()
                     
                     completion(true, nil)
+                } catch let decodingError as DecodingError {
+                    // Detailed decoding error handling for better debugging
+                    let errorMessage: String
+                    
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        errorMessage = "Key '\(key.stringValue)' not found: \(context.debugDescription)"
+                    case .typeMismatch(let type, let context):
+                        errorMessage = "Type '\(type)' mismatch: \(context.debugDescription)"
+                    case .valueNotFound(let type, let context):
+                        errorMessage = "Value of type '\(type)' not found: \(context.debugDescription)"
+                    case .dataCorrupted(let context):
+                        errorMessage = "Data corrupted: \(context.debugDescription)"
+                    @unknown default:
+                        errorMessage = "Unknown decoding error: \(decodingError.localizedDescription)"
+                    }
+                    
+                    self.errorMessage = "Failed to parse response: \(errorMessage)"
+                    completion(false, "Registration failed: \(errorMessage)")
                 } catch {
                     self.errorMessage = "Failed to parse response: \(error.localizedDescription)"
                     completion(false, "Registration failed: \(error.localizedDescription)")
@@ -179,6 +205,13 @@ class UserService: ObservableObject {
                 self.isLoading = false
                 
                 do {
+                    // For debugging purposes, print the raw response
+                    #if DEBUG
+                    if let jsonString = String(data: data, encoding: .utf8) {
+                        print("Login response: \(jsonString)")
+                    }
+                    #endif
+                    
                     // Use JSONDecoder for more reliable parsing
                     let decoder = JSONDecoder()
                     let authResponse = try decoder.decode(AuthResponse.self, from: data)
@@ -203,6 +236,25 @@ class UserService: ObservableObject {
                     self.saveSession()
                     
                     completion(true, nil)
+                } catch let decodingError as DecodingError {
+                    // Detailed decoding error handling for better debugging
+                    let errorMessage: String
+                    
+                    switch decodingError {
+                    case .keyNotFound(let key, let context):
+                        errorMessage = "Key '\(key.stringValue)' not found: \(context.debugDescription)"
+                    case .typeMismatch(let type, let context):
+                        errorMessage = "Type '\(type)' mismatch: \(context.debugDescription)"
+                    case .valueNotFound(let type, let context):
+                        errorMessage = "Value of type '\(type)' not found: \(context.debugDescription)"
+                    case .dataCorrupted(let context):
+                        errorMessage = "Data corrupted: \(context.debugDescription)"
+                    @unknown default:
+                        errorMessage = "Unknown decoding error: \(decodingError.localizedDescription)"
+                    }
+                    
+                    self.errorMessage = "Failed to parse response: \(errorMessage)"
+                    completion(false, "Login failed: \(errorMessage)")
                 } catch {
                     self.errorMessage = "Failed to parse response: \(error.localizedDescription)"
                     completion(false, "Login failed: \(error.localizedDescription)")

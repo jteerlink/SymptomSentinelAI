@@ -155,7 +155,7 @@ exports.getUserProfile = async (req, res, next) => {
         const userId = req.user.id;
         
         // Fetch user from database
-        const user = await User.findById(userId);
+        const user = await User.getById(userId);
         
         if (!user) {
             return res.status(404).json({
@@ -203,7 +203,7 @@ exports.updateProfile = async (req, res, next) => {
         }
         
         // Update user in database
-        const updatedUser = await User.update(userId, updateData);
+        const updatedUser = await User.updateProfile(userId, updateData);
         
         if (!updatedUser) {
             return res.status(404).json({
@@ -255,18 +255,18 @@ exports.updatePassword = async (req, res, next) => {
             });
         }
         
-        // Use the User model's changePassword method which handles all the validation
-        const result = await User.changePassword(userId, currentPassword, newPassword);
+        // Use the User model's updatePassword method which handles all the validation
+        const success = await User.updatePassword(userId, currentPassword, newPassword);
         
-        if (!result.success) {
+        if (!success) {
             return res.status(400).json({
                 error: true,
-                message: result.message
+                message: 'Failed to update password'
             });
         }
         
         // Generate new tokens after password change
-        const user = await User.findById(userId);
+        const user = await User.getById(userId);
         const { accessToken, refreshToken } = generateTokens(user);
         
         res.status(200).json({
@@ -336,8 +336,13 @@ exports.updateSubscription = async (req, res, next) => {
             });
         }
         
-        // Validate subscription level
-        if (!['free', 'premium'].includes(subscription_level)) {
+        // Convert subscription_level to match our database values
+        let subscriptionType;
+        if (subscription_level === 'free') {
+            subscriptionType = 'basic';
+        } else if (subscription_level === 'premium') {
+            subscriptionType = 'premium';
+        } else {
             return res.status(400).json({
                 error: true,
                 message: 'Invalid subscription level'
@@ -348,12 +353,7 @@ exports.updateSubscription = async (req, res, next) => {
         // using a payment processor like Stripe
         
         // Update user's subscription
-        const updateData = {
-            subscription: subscription_level
-        };
-        
-        // Update user in database
-        const updatedUser = await User.update(userId, updateData);
+        const updatedUser = await User.updateSubscription(userId, subscriptionType);
         
         if (!updatedUser) {
             return res.status(404).json({
@@ -393,31 +393,29 @@ exports.requestPasswordReset = async (req, res, next) => {
         }
         
         // Generate a password reset token
-        const resetData = await User.createPasswordResetToken(email);
+        const resetData = await User.generatePasswordResetToken(email);
         
-        if (!resetData) {
-            // We don't want to reveal if an email exists in our system for security reasons
-            // So we still return a success response
-            return res.status(200).json({
-                success: true,
-                message: 'If your email is registered, you will receive password reset instructions'
-            });
-        }
+        // The User model will always return a success response for security
+        // to avoid revealing whether an email exists in our system
         
         // In a real application, we would send an email with the reset token
         // For now, we'll just return the token in the response for testing purposes
-        console.log('Password reset token generated for:', email);
-        console.log('Token:', resetData.resetToken);
-        console.log('Expires:', resetData.resetExpires);
+        if (resetData.token) {
+            console.log('Password reset token generated for:', email);
+            console.log('Token:', resetData.token);
+            console.log('Expires:', resetData.expires);
+        }
         
         res.status(200).json({
             success: true,
             message: 'If your email is registered, you will receive password reset instructions',
             // For testing only, we return the token
             // In production, this would be sent via email
-            debug: {
-                resetToken: resetData.resetToken,
-                resetExpires: resetData.resetExpires
+            debug: resetData.token ? {
+                resetToken: resetData.token,
+                resetExpires: resetData.expires
+            } : {
+                info: 'No token generated - email not found or error occurred'
             }
         });
     } catch (error) {

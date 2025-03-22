@@ -37,6 +37,22 @@ class User {
     }
     
     /**
+     * Verify a password against a hashed password
+     * 
+     * @param {string} plainPassword - The plain text password to verify
+     * @param {string} hashedPassword - The hashed password to compare against
+     * @returns {Promise<boolean>} True if the password matches, false otherwise
+     */
+    static async verifyPassword(plainPassword, hashedPassword) {
+        try {
+            return await bcrypt.compare(plainPassword, hashedPassword);
+        } catch (error) {
+            console.error('Error verifying password:', error);
+            return false;
+        }
+    }
+    
+    /**
      * Create a new user
      * 
      * @param {Object} userData - User data including email, password, name

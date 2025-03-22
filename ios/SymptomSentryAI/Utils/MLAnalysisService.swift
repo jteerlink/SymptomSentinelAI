@@ -64,7 +64,17 @@ class MLAnalysisService: ObservableObject {
         ]
         
         return networkService.uploadImage(imageData, to: "/api/analyze", parameters: parameters)
-            .decode(type: AnalysisResponse.self, decoder: JSONDecoder())
+            .decode(type: AnalysisAPIResponse.self, decoder: JSONDecoder())
+            .tryMap { apiResponse -> AnalysisResponse in
+                guard let analysisResponse = apiResponse.toAnalysisResponse() else {
+                    throw NSError(
+                        domain: "MLAnalysisService",
+                        code: 2,
+                        userInfo: [NSLocalizedDescriptionKey: apiResponse.message ?? "Analysis failed"]
+                    )
+                }
+                return analysisResponse
+            }
             .handleEvents(receiveOutput: { [weak self] result in
                 self?.isAnalyzing = false
                 self?.lastAnalysisResult = result

@@ -1,10 +1,7 @@
 // Import required modules
 const { User } = require('../db/models');
-const jwt = require('jsonwebtoken');
-
-// JWT secret key (would be in env variables in production)
-const JWT_SECRET = process.env.JWT_SECRET || 'symptom-sentry-ai-secret-key';
-const JWT_EXPIRES_IN = '7d';
+const { generateTokens, JWT_EXPIRATION, JWT_REFRESH_EXPIRATION } = require('../middleware/auth');
+const { validatePassword } = require('../utils/passwordValidator');
 
 /**
  * Register a new user
@@ -18,6 +15,15 @@ exports.register = async (req, res, next) => {
             return res.status(400).json({
                 error: true,
                 message: 'Please provide email, password, and name'
+            });
+        }
+
+        // Validate password
+        const passwordValidation = validatePassword(password);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({
+                error: true,
+                message: passwordValidation.message
             });
         }
 
@@ -38,10 +44,8 @@ exports.register = async (req, res, next) => {
             subscription: 'free' // Default subscription level
         });
 
-        // Generate JWT token
-        const token = jwt.sign({ id: newUser.id }, JWT_SECRET, {
-            expiresIn: JWT_EXPIRES_IN
-        });
+        // Generate tokens (access and refresh)
+        const { accessToken, refreshToken } = generateTokens(newUser);
 
         res.status(201).json({
             message: 'User registered successfully',
@@ -52,7 +56,9 @@ exports.register = async (req, res, next) => {
                 subscription: newUser.subscription,
                 created_at: newUser.created_at
             },
-            token
+            accessToken,
+            refreshToken,
+            tokenExpiration: JWT_EXPIRATION
         });
     } catch (error) {
         console.error('Error registering user:', error);
@@ -107,12 +113,10 @@ exports.login = async (req, res, next) => {
         }
 
         console.log('✅ Password verified successfully');
-        console.log('🔑 Generating JWT token...');
+        console.log('🔑 Generating tokens...');
         
-        // Generate JWT token
-        const token = jwt.sign({ id: user.id }, JWT_SECRET, {
-            expiresIn: JWT_EXPIRES_IN
-        });
+        // Generate tokens
+        const { accessToken, refreshToken } = generateTokens(user);
 
         // Prepare response object
         const responseObject = {
@@ -123,11 +127,17 @@ exports.login = async (req, res, next) => {
                 name: user.name,
                 subscription: user.subscription
             },
-            token
+            accessToken,
+            refreshToken,
+            tokenExpiration: JWT_EXPIRATION
         };
         
         console.log('✅ Login successful for user:', email);
-        console.log('📤 Response structure:', JSON.stringify(responseObject, null, 2));
+        console.log('📤 Response structure:', JSON.stringify({
+            ...responseObject,
+            accessToken: '***truncated***',
+            refreshToken: '***truncated***'
+        }, null, 2));
         
         res.status(200).json(responseObject);
     } catch (error) {
@@ -236,32 +246,34 @@ exports.updatePassword = async (req, res, next) => {
             });
         }
         
-        // Fetch user to verify current password
+        // Validate new password
+        const passwordValidation = validatePassword(newPassword);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({
+                error: true,
+                message: passwordValidation.message
+            });
+        }
+        
+        // Use the User model's changePassword method which handles all the validation
+        const result = await User.changePassword(userId, currentPassword, newPassword);
+        
+        if (!result.success) {
+            return res.status(400).json({
+                error: true,
+                message: result.message
+            });
+        }
+        
+        // Generate new tokens after password change
         const user = await User.findById(userId);
-        
-        if (!user) {
-            return res.status(404).json({
-                error: true,
-                message: 'User not found'
-            });
-        }
-        
-        // Verify current password
-        const isPasswordValid = await User.verifyPassword(currentPassword, user.password);
-        if (!isPasswordValid) {
-            return res.status(401).json({
-                error: true,
-                message: 'Current password is incorrect'
-            });
-        }
-        
-        // Update password
-        const updatedUser = await User.update(userId, {
-            password: newPassword // Will be hashed in the User model
-        });
+        const { accessToken, refreshToken } = generateTokens(user);
         
         res.status(200).json({
-            message: 'Password updated successfully'
+            message: 'Password updated successfully',
+            accessToken,
+            refreshToken,
+            tokenExpiration: JWT_EXPIRATION
         });
     } catch (error) {
         console.error('Error updating password:', error);
@@ -362,6 +374,97 @@ exports.updateSubscription = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error updating subscription:', error);
+        next(error);
+    }
+};
+
+/**
+ * Request a password reset
+ */
+exports.requestPasswordReset = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+        
+        if (!email) {
+            return res.status(400).json({
+                error: true,
+                message: 'Email is required'
+            });
+        }
+        
+        // Generate a password reset token
+        const resetData = await User.createPasswordResetToken(email);
+        
+        if (!resetData) {
+            // We don't want to reveal if an email exists in our system for security reasons
+            // So we still return a success response
+            return res.status(200).json({
+                success: true,
+                message: 'If your email is registered, you will receive password reset instructions'
+            });
+        }
+        
+        // In a real application, we would send an email with the reset token
+        // For now, we'll just return the token in the response for testing purposes
+        console.log('Password reset token generated for:', email);
+        console.log('Token:', resetData.resetToken);
+        console.log('Expires:', resetData.resetExpires);
+        
+        res.status(200).json({
+            success: true,
+            message: 'If your email is registered, you will receive password reset instructions',
+            // For testing only, we return the token
+            // In production, this would be sent via email
+            debug: {
+                resetToken: resetData.resetToken,
+                resetExpires: resetData.resetExpires
+            }
+        });
+    } catch (error) {
+        console.error('Error requesting password reset:', error);
+        next(error);
+    }
+};
+
+/**
+ * Reset password with token
+ */
+exports.resetPassword = async (req, res, next) => {
+    try {
+        const { token, newPassword } = req.body;
+        
+        if (!token || !newPassword) {
+            return res.status(400).json({
+                error: true,
+                message: 'Token and new password are required'
+            });
+        }
+        
+        // Validate new password
+        const passwordValidation = validatePassword(newPassword);
+        if (!passwordValidation.isValid) {
+            return res.status(400).json({
+                error: true,
+                message: passwordValidation.message
+            });
+        }
+        
+        // Reset the password
+        const result = await User.resetPasswordWithToken(token, newPassword);
+        
+        if (!result.success) {
+            return res.status(400).json({
+                error: true,
+                message: result.message
+            });
+        }
+        
+        res.status(200).json({
+            success: true,
+            message: 'Password has been reset successfully. Please log in with your new password.'
+        });
+    } catch (error) {
+        console.error('Error resetting password:', error);
         next(error);
     }
 };

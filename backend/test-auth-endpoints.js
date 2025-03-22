@@ -141,6 +141,8 @@ async function testUpdateProfile() {
         name: newName
     }, authToken);
     
+    console.log(`Profile update response: ${JSON.stringify(response, null, 2)}`);
+    
     if (response.status === 200 && response.data.user.name === newName) {
         console.log('✅ Update profile test passed');
         return true;

@@ -5,6 +5,12 @@ struct AuthResponse: Codable {
     /// Authentication token (JWT)
     let token: String
     
+    /// Refresh token for getting new access tokens
+    let refreshToken: String?
+    
+    /// Token expiration time (e.g., "1h")
+    let tokenExpiration: String?
+    
     /// User data
     let user: UserData
     
@@ -13,7 +19,9 @@ struct AuthResponse: Codable {
     
     /// Coding keys to handle optional fields
     enum CodingKeys: String, CodingKey {
-        case token
+        case token = "accessToken"
+        case refreshToken
+        case tokenExpiration
         case user
         case message
     }
@@ -21,7 +29,18 @@ struct AuthResponse: Codable {
     /// Custom decoder to handle optional fields
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        token = try container.decode(String.self, forKey: .token)
+        
+        // Try to decode as "accessToken" first, then fall back to "token" if needed
+        if container.contains(.token) {
+            token = try container.decode(String.self, forKey: .token)
+        } else {
+            // Check for legacy "token" key
+            let legacyToken = try container.decode(String.self, forKey: CodingKeys(stringValue: "token")!)
+            token = legacyToken
+        }
+        
+        refreshToken = try container.decodeIfPresent(String.self, forKey: .refreshToken)
+        tokenExpiration = try container.decodeIfPresent(String.self, forKey: .tokenExpiration)
         user = try container.decode(UserData.self, forKey: .user)
         message = try container.decodeIfPresent(String.self, forKey: .message)
     }

@@ -281,6 +281,77 @@ class UserService: ObservableObject {
     
     // MARK: - User Data Methods
     
+    /// Update the user's password
+    /// - Parameters:
+    ///   - currentPassword: The user's current password
+    ///   - newPassword: The new password to set
+    ///   - completion: Callback with success flag and optional error message
+    func updatePassword(currentPassword: String, newPassword: String, completion: @escaping (Bool, String?) -> Void) {
+        guard let authToken = authToken else {
+            completion(false, "Not authenticated")
+            return
+        }
+        
+        isLoading = true
+        
+        // Validate inputs
+        guard !currentPassword.isEmpty else {
+            isLoading = false
+            completion(false, "Current password is required")
+            return
+        }
+        
+        guard isValidPassword(newPassword) else {
+            isLoading = false
+            completion(false, "New password must be at least 8 characters with a number and special character")
+            return
+        }
+        
+        // Create parameters for the request
+        let parameters: [String: Any] = [
+            "currentPassword": currentPassword,
+            "newPassword": newPassword
+        ]
+        
+        // Send request to backend using NetworkService
+        networkService.request(
+            endpoint: "/api/update-password",
+            method: .put,
+            parameters: parameters
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completionStatus in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if case .failure(let error) = completionStatus {
+                    self.errorMessage = error.localizedDescription
+                    completion(false, "Failed to update password: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] data in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                do {
+                    // Parse the response
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode(GenericResponse.self, from: data)
+                    
+                    if response.success {
+                        completion(true, "Password updated successfully")
+                    } else {
+                        completion(false, response.message ?? "Unknown error occurred")
+                    }
+                } catch {
+                    completion(false, "Failed to parse response: \(error.localizedDescription)")
+                }
+            }
+        )
+        .store(in: &cancellables)
+    }
+    
     /// Get the current user's profile
     /// - Parameter completion: Callback with success flag and optional error message
     func getUserProfile(completion: @escaping (Bool, String?) -> Void) {

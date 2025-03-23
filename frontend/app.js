@@ -87,9 +87,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Initialize components
     window.SymptomSentryComponents.initializeImageUpload(document.getElementById('image-upload-component'));
-    initializeAnalysis(document.getElementById('analysis-results-component'));
-    initializeEducation(document.getElementById('education-component'));
-    initializeSubscription(document.getElementById('subscription-component'));
+    window.SymptomSentryComponents.initializeAnalysis(document.getElementById('analysis-results-component'));
+    window.SymptomSentryComponents.initializeEducation(document.getElementById('education-component'));
+    window.SymptomSentryComponents.initializeSubscription(document.getElementById('subscription-component'));
     
     // Set up navigation
     setupNavigation();

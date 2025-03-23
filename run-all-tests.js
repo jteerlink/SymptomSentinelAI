@@ -17,7 +17,7 @@ const fs = require('fs');
 const config = {
   // Test suite files
   backendTests: [
-    './backend/tests/comprehensive-test-suite.js',
+    './backend/tests/comprehensive.test.js',
     './backend/tests/imageAnalysis.test.js',
     './backend/tests/imageUpload.test.js',
   ],

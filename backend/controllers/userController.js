@@ -329,10 +329,18 @@ exports.updateSubscription = async (req, res, next) => {
         const { subscription_level, payment_token } = req.body;
         
         // Validate request
-        if (!subscription_level || !payment_token) {
+        if (!subscription_level) {
             return res.status(400).json({
                 error: true,
-                message: 'Subscription level and payment token are required'
+                message: 'Subscription level is required'
+            });
+        }
+        
+        // Payment token is only required when upgrading to premium
+        if (subscription_level === 'premium' && !payment_token) {
+            return res.status(400).json({
+                error: true,
+                message: 'Payment token is required for premium subscription'
             });
         }
         

@@ -50,6 +50,15 @@ class Analysis {
         // For demonstration purposes, return an empty array
         return [];
     }
+
+    // Static method to delete an analysis by ID
+    static async deleteById(id, userId) {
+        // In a real implementation, this would delete from the database
+        console.log(`Deleting analysis ${id} for user ${userId}`);
+        
+        // For demonstration purposes, return success
+        return { success: true };
+    }
 }
 
 module.exports = Analysis;

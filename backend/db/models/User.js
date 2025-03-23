@@ -19,7 +19,7 @@ const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 // Subscription limits
 const SUBSCRIPTION_LIMITS = {
     'free': {
-        analysesPerMonth: 5
+        analysesPerMonth: 2
     },
     'premium': {
         analysesPerMonth: Infinity
@@ -44,7 +44,7 @@ class User {
             return false;
         }
         
-        // Free users are limited to 5 analyses per month
+        // Free users are limited to 2 analyses per month
         const limit = SUBSCRIPTION_LIMITS[user.subscription]?.analysesPerMonth || 5;
         return (user.analysis_count || 0) >= limit;
     }

@@ -8,7 +8,7 @@ class User {
     // Subscription plan limits
     static SUBSCRIPTION_LIMITS = {
         free: {
-            analysesPerMonth: 5,
+            analysesPerMonth: 2,
             advancedFeatures: false,
             highResolutionDownload: false,
             detailedReports: false

@@ -60,7 +60,7 @@ class EducationService: ObservableObject {
         }
         
         networkService.request(
-            endpoint: "/api/education/user/preferences",
+            endpoint: "/api/educational/user/preferences",
             method: .get,
             parameters: nil
         )
@@ -116,7 +116,7 @@ class EducationService: ObservableObject {
         
         // Fetch educational content from the backend API
         networkService.request(
-            endpoint: "/api/education/content",
+            endpoint: "/api/educational/content",
             method: .get,
             parameters: nil
         )
@@ -278,7 +278,7 @@ class EducationService: ObservableObject {
             
             // Send the update to the backend
             networkService.request(
-                endpoint: "/api/education/user/preferences",
+                endpoint: "/api/educational/user/preferences",
                 method: .post,
                 parameters: parameters
             )

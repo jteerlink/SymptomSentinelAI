@@ -371,7 +371,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     
     test('should handle server errors gracefully', async () => {
       // This test forces a server error by sending malformed data
-      const response = await authenticatedRequest('/api/update-profile', 'POST', {
+      const response = await authenticatedRequest('/api/update-profile', 'PUT', {
         // Send an object where a string is expected
         name: { invalid: 'object' }
       });

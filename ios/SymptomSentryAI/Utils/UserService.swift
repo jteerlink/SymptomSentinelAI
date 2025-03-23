@@ -235,6 +235,38 @@ class UserService: ObservableObject {
                     self.authToken = authResponse.token
                     self.isAuthenticated = true
                     
+                    // Store refresh token if available
+                    if let refreshToken = authResponse.refreshToken {
+                        self.refreshToken = refreshToken
+                    }
+                    
+                    // Calculate token expiration time
+                    if let expirationString = authResponse.tokenExpiration {
+                        // Parse expiration time from string (e.g., "1h" to add 1 hour)
+                        if expirationString.hasSuffix("h") {
+                            let hoursString = expirationString.dropLast()
+                            if let hours = Int(hoursString) {
+                                self.tokenExpiration = Calendar.current.date(byAdding: .hour, value: hours, to: Date())
+                            }
+                        } else if expirationString.hasSuffix("m") {
+                            let minutesString = expirationString.dropLast()
+                            if let minutes = Int(minutesString) {
+                                self.tokenExpiration = Calendar.current.date(byAdding: .minute, value: minutes, to: Date())
+                            }
+                        } else if expirationString.hasSuffix("d") {
+                            let daysString = expirationString.dropLast()
+                            if let days = Int(daysString) {
+                                self.tokenExpiration = Calendar.current.date(byAdding: .day, value: days, to: Date())
+                            }
+                        } else {
+                            // Default to 1 hour if format not recognized
+                            self.tokenExpiration = Calendar.current.date(byAdding: .hour, value: 1, to: Date())
+                        }
+                    } else {
+                        // Default expiration (1 hour) if not provided
+                        self.tokenExpiration = Calendar.current.date(byAdding: .hour, value: 1, to: Date())
+                    }
+                    
                     // Set the auth token in network service
                     self.networkService.setAuthToken(authResponse.token)
                     

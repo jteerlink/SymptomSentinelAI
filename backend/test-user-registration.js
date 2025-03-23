@@ -57,7 +57,7 @@ async function testRegistration() {
     
     if (registerResult.success) {
       console.log('✅ Registration successful!');
-      console.log('🔑 Auth token received:', !!registerResult.data.token);
+      console.log('🔑 Auth token received:', !!registerResult.data.accessToken);
       console.log('👤 User ID:', registerResult.data.user.id);
       console.log('📧 Email:', registerResult.data.user.email);
       console.log('🏷️ Subscription type:', registerResult.data.user.subscription);
@@ -73,7 +73,7 @@ async function testRegistration() {
       
       if (loginResult.success) {
         console.log('✅ Login successful!');
-        console.log('🔑 Auth token received:', !!loginResult.data.token);
+        console.log('🔑 Auth token received:', !!loginResult.data.accessToken);
       } else {
         console.error('❌ Login failed even though registration was successful');
       }

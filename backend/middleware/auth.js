@@ -182,7 +182,7 @@ const generateTokens = (user) => {
     userId: user.id,
     email: user.email,
     name: user.name,
-    subscription_type: user.subscription_type || 'basic'
+    subscription: user.subscription || 'free' // Use consistent field name in tokens to match database
   };
   
   // Generate access token with short expiration

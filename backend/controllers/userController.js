@@ -339,7 +339,7 @@ exports.updateSubscription = async (req, res, next) => {
         // Convert subscription_level to match our database values
         let subscriptionType;
         if (subscription_level === 'free') {
-            subscriptionType = 'basic';
+            subscriptionType = 'free'; // Keep as 'free' to match database constraints
         } else if (subscription_level === 'premium') {
             subscriptionType = 'premium';
         } else {

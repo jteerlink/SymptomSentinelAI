@@ -1,0 +1,10 @@
+{
+  "name": "user-registration-test",
+  "version": "1.0.0",
+  "description": "Test script for user registration",
+  "main": "test-user-registration.js",
+  "type": "module",
+  "scripts": {
+    "test": "node test-user-registration.js"
+  }
+}

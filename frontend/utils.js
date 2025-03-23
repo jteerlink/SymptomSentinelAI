@@ -2,6 +2,9 @@
  * Shared utility functions for the frontend
  */
 
+// Create a namespace for our utility functions
+window.SymptomSentryUtils = window.SymptomSentryUtils || {};
+
 /**
  * Update the profile UI after login/registration or profile changes
  * 
@@ -9,7 +12,7 @@
  * @param {string|null} name - User's display name (optional)
  * @param {Object|null} user - Complete user object (optional)
  */
-export function updateProfileUI(email, name = null, user = null) {
+window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = null) {
     // If user is not provided, create a default user object
     if (!user) {
         user = {
@@ -222,7 +225,7 @@ export function updateProfileUI(email, name = null, user = null) {
  * @param {string} message - Message to display
  * @param {string} type - Type of notification (info, success, warning, danger)
  */
-export function showNotification(message, type = 'info') {
+window.SymptomSentryUtils.showNotification = function(message, type = 'info') {
     // Create notification container if it doesn't exist
     let notificationContainer = document.getElementById('notification-container');
     if (!notificationContainer) {

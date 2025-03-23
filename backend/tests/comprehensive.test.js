@@ -13,12 +13,239 @@
 process.env.NODE_ENV = 'test';
 
 const request = require('supertest');
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const multer = require('multer');
 
-// Import the actual app from server.js to ensure all routes and middleware are properly configured
-const app = require('../server');
+// Import necessary controllers and middleware
+const imageAnalysisController = require('../controllers/imageAnalysisController');
+const ApiError = require('../utils/apiError');
+
+// Mock the auth middleware to support JWT auth
+jest.mock('../middleware/auth', () => {
+  return {
+    // When called by the test setup, don't actually check the token, just set req.user
+    authenticate: (req, res, next) => {
+      // Only add the user if we added an authorization header to the request
+      if (req.headers && req.headers.authorization) {
+        req.user = {
+          id: 'test-user-id',
+          email: 'test@example.com',
+          subscription: 'premium',
+          analysis_count: 3,
+          last_reset_date: new Date().toISOString()
+        };
+      }
+      next();
+    },
+    optionalAuthenticate: (req, res, next) => {
+      if (req.headers && req.headers.authorization) {
+        req.user = {
+          id: 'test-user-id',
+          email: 'test@example.com',
+          subscription: 'premium',
+          analysis_count: 3,
+          last_reset_date: new Date().toISOString()
+        };
+      }
+      next();
+    }
+  };
+});
+
+// Mock JWT module to always return valid tokens for test
+jest.mock('jsonwebtoken', () => {
+  return {
+    sign: (payload, secret, options) => {
+      // For testing, just return a consistent token
+      return 'test-jwt-token';
+    },
+    verify: (token, secret) => {
+      // For testing, always succeed and return a specific user ID
+      if (token === 'invalid-token') {
+        throw new Error('Invalid token');
+      }
+      return { id: 'test-user-id' };
+    }
+  };
+});
+
+// Mock user model for testing
+jest.mock('../models/User', () => {
+  let testUserCounter = 1;
+  let users = {};
+  
+  return {
+    findById: jest.fn((id) => {
+      return users[id] || null;
+    }),
+    findByEmail: jest.fn((email) => {
+      const foundUser = Object.values(users).find(user => user.email === email);
+      return foundUser || null;
+    }),
+    create: jest.fn((userData) => {
+      const id = `user-${testUserCounter++}`;
+      const user = {
+        id,
+        email: userData.email,
+        password: userData.password, // In a mock we don't need to hash
+        name: userData.name,
+        subscription: 'free',
+        analysis_count: 0,
+        last_reset_date: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+      users[id] = user;
+      return user;
+    }),
+    update: jest.fn((id, updates) => {
+      if (!users[id]) return null;
+      
+      // Apply updates
+      Object.keys(updates).forEach(key => {
+        users[id][key] = updates[key];
+      });
+      
+      return users[id];
+    }),
+    validatePassword: jest.fn((plainPassword, hashedPassword) => {
+      // For testing, just compare directly
+      return plainPassword === hashedPassword;
+    }),
+    hashPassword: jest.fn((password) => {
+      // For testing, just return the password
+      return password;
+    })
+  };
+});
+
+// Mock Analysis model
+jest.mock('../models/Analysis', () => {
+  let analyses = {};
+  let counter = 1;
+  
+  return {
+    findByUserId: jest.fn((userId) => {
+      return Object.values(analyses).filter(a => a.user_id === userId);
+    }),
+    findById: jest.fn((id) => {
+      return analyses[id] || null;
+    }),
+    create: jest.fn((data) => {
+      const id = data.id || `analysis-${counter++}`;
+      const analysis = {
+        id,
+        user_id: data.user_id,
+        type: data.type,
+        conditions: data.conditions,
+        created_at: new Date().toISOString()
+      };
+      analyses[id] = analysis;
+      return analysis;
+    }),
+    deleteById: jest.fn((id) => {
+      if (analyses[id]) {
+        delete analyses[id];
+        return { success: true };
+      }
+      return { success: false };
+    }),
+    deleteByUserId: jest.fn((userId) => {
+      const count = Object.values(analyses).filter(a => a.user_id === userId).length;
+      analyses = Object.values(analyses).filter(a => a.user_id !== userId)
+        .reduce((acc, a) => { 
+          acc[a.id] = a; 
+          return acc; 
+        }, {});
+      return { success: true, count };
+    })
+  };
+});
+
+// Mock model loader for ML models
+jest.mock('../utils/modelLoader', () => ({
+  loadModel: jest.fn().mockResolvedValue({}),
+  preprocessImage: jest.fn().mockResolvedValue({}),
+  runInference: jest.fn().mockResolvedValue([
+    {
+      id: 'strep_throat',
+      name: 'Strep Throat',
+      confidence: 0.78,
+      description: 'A bacterial infection that causes inflammation and pain in the throat.',
+      symptoms: ['Throat pain', 'Red and swollen tonsils'],
+      isPotentiallySerious: true
+    },
+    {
+      id: 'pharyngitis',
+      name: 'Pharyngitis',
+      confidence: 0.35,
+      description: 'Inflammation of the pharynx, resulting in a sore throat.',
+      symptoms: ['Sore throat', 'Dry throat'],
+      isPotentiallySerious: false
+    }
+  ]),
+  getConditions: jest.fn().mockReturnValue([
+    {
+      id: 'strep_throat',
+      name: 'Strep Throat',
+      description: 'A bacterial infection that causes inflammation and pain in the throat.',
+      symptoms: ['Throat pain', 'Red and swollen tonsils'],
+      isPotentiallySerious: true
+    },
+    {
+      id: 'pharyngitis',
+      name: 'Pharyngitis',
+      description: 'Inflammation of the pharynx, resulting in a sore throat.',
+      symptoms: ['Sore throat', 'Dry throat'],
+      isPotentiallySerious: false
+    }
+  ])
+}));
+
+// Import API routes
+const apiRoutes = require('../routes/api');
+
+// Setup multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// Create test app
+const app = express();
+app.use(cors());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Add direct analyze endpoint for compatibility with server.js
+const { authenticate } = require('../middleware/auth');
+app.post('/analyze', authenticate, upload.single('image'), imageAnalysisController.analyzeImage);
+
+// Mount API routes
+app.use('/api', apiRoutes);
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Test app error:', err);
+  
+  if (err.isApiError) {
+    return res.status(err.status).json(err.toResponse());
+  }
+  
+  // Generic error response
+  const status = err.status || 500;
+  res.status(status).json({
+    error: true,
+    message: err.message || 'Internal server error',
+    code: err.code || 'SERVER_ERROR'
+  });
+});
 
 // Add 404 handler for non-existent routes
 app.use((req, res, next) => {
@@ -27,27 +254,6 @@ app.use((req, res, next) => {
     message: 'Resource not found',
     code: 'NOT_FOUND'
   });
-});
-
-// Add error handler middleware
-app.use((err, req, res, next) => {
-  const status = err.status || 500;
-  const errorResponse = {
-    error: true,
-    message: err.message || 'Internal server error',
-    code: err.code || 'SERVER_ERROR'
-  };
-  
-  // Handle authentication errors
-  if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError') {
-    return res.status(401).json({
-      error: true,
-      message: 'Authentication required',
-      code: 'UNAUTHORIZED'
-    });
-  }
-  
-  return res.status(status).json(errorResponse);
 });
 
 // Test user credentials

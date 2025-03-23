@@ -21,7 +21,8 @@ jest.mock('../models/Analysis', () => ({
       }
     ],
     created_at: new Date().toISOString()
-  })
+  }),
+  deleteById: jest.fn().mockResolvedValue({ success: true })
 }));
 
 // Mock ML utilities
@@ -223,5 +224,19 @@ describe('Image Analysis API', () => {
         expect(response.body.subscription).toHaveProperty('analysisLimit');
         expect(response.body.subscription).toHaveProperty('analysisRemaining');
         expect(response.body.subscription).toHaveProperty('last_reset_date');
+    });
+    
+    // Test deleting an analysis
+    test('should delete an analysis', async () => {
+        const analysisId = '123e4567-e89b-12d3-a456-426614174111';
+        
+        const response = await request(app)
+            .delete(`/api/analysis/${analysisId}`)
+            .send();
+            
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('success', true);
+        expect(response.body).toHaveProperty('message', 'Analysis deleted successfully');
+        expect(response.body).toHaveProperty('id', analysisId);
     });
 });

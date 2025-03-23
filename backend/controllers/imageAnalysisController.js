@@ -436,4 +436,43 @@ exports.getAnalysisHistory = async (req, res, next) => {
     }
 };
 
+/**
+ * Delete a specific analysis by ID
+ * 
+ * @route DELETE /api/analysis/:id
+ * @param {string} id - Analysis ID to delete
+ * @returns {Object} Success message
+ * @throws {ApiError} For auth or permission errors
+ */
+exports.deleteAnalysis = async (req, res, next) => {
+    try {
+        // Validate user is authenticated
+        if (!req.user) {
+            throw ApiError.unauthorized('Authentication required to delete analysis', 'AUTH_REQUIRED');
+        }
+        
+        const analysisId = req.params.id;
+        
+        if (!analysisId) {
+            throw ApiError.badRequest('Analysis ID is required', 'MISSING_ANALYSIS_ID');
+        }
+        
+        console.log(`Deleting analysis ${analysisId} for user ${req.user.id}`);
+        
+        // Delete the analysis (with user ID check for security)
+        const result = await Analysis.deleteById(analysisId, req.user.id);
+        
+        console.log(`Delete operation result:`, result);
+        
+        return res.status(200).json({
+            success: true,
+            message: 'Analysis deleted successfully',
+            id: analysisId
+        });
+    } catch (error) {
+        console.error('Error deleting analysis:', error);
+        next(error);
+    }
+};
+
 // ML model functions have been moved to utils/modelLoader.js

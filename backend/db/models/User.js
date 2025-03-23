@@ -82,7 +82,7 @@ class User {
             email,
             password: passwordHash,
             name,
-            subscription: 'basic',
+            subscription: 'free',
             created_at: knex.fn.now(),
             updated_at: knex.fn.now()
         }).returning('id');
@@ -248,12 +248,12 @@ class User {
      * Update user subscription
      * 
      * @param {string} userId - User ID
-     * @param {string} subscriptionType - Subscription type (basic or premium)
+     * @param {string} subscriptionType - Subscription type (free or premium)
      * @returns {Object} Updated user object
      */
     static async updateSubscription(userId, subscriptionType) {
         // Verify subscription type
-        if (!['basic', 'premium'].includes(subscriptionType)) {
+        if (!['free', 'premium'].includes(subscriptionType)) {
             throw new ApiError('Invalid subscription type', 'INVALID_SUBSCRIPTION', 400);
         }
         
@@ -409,8 +409,8 @@ class User {
                 });
         }
         
-        // Check if user has exceeded limit (basic = 5 per month, premium = unlimited)
-        const isLimitExceeded = user.subscription === 'basic' && analysisCount > 5;
+        // Check if user has exceeded limit (free = 5 per month, premium = unlimited)
+        const isLimitExceeded = user.subscription === 'free' && analysisCount > 5;
         
         return {
             analysisCount,

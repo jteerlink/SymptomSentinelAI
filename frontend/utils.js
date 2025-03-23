@@ -164,11 +164,8 @@ export function updateProfileUI(email, name = null, user = null) {
                     profileSettings.style.display = 'none';
                 }
                 
-                // Show a notification
-                const { showNotification } = require('./app.js');
-                if (typeof showNotification === 'function') {
-                    showNotification('You have been signed out', 'info');
-                }
+                // Show a notification using the function from this file
+                showNotification('You have been signed out', 'info');
                 
                 // Redirect to home page
                 const homeNavLink = document.querySelector('[data-page="home"]');

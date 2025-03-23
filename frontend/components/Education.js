@@ -1,6 +1,10 @@
 // This component handles the educational content display
 
-export function initializeEducation(container) {
+// Initialize the components namespace if it doesn't exist
+window.SymptomSentryComponents = window.SymptomSentryComponents || {};
+
+// Add the education component to the components namespace
+window.SymptomSentryComponents.initializeEducation = function(container) {
     if (!container) return;
     
     // Render the education component UI

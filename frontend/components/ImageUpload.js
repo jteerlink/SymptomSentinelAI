@@ -1,6 +1,10 @@
 // This component handles the image upload functionality
 
-export function initializeImageUpload(container) {
+// Initialize the components namespace if it doesn't exist
+window.SymptomSentryComponents = window.SymptomSentryComponents || {};
+
+// Add the image upload component to the components namespace
+window.SymptomSentryComponents.initializeImageUpload = function(container) {
     if (!container) return;
     
     // Render the upload component UI

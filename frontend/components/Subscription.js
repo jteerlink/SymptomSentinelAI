@@ -1,6 +1,10 @@
 // This component handles the subscription plans display
 
-export function initializeSubscription(container) {
+// Initialize the components namespace if it doesn't exist
+window.SymptomSentryComponents = window.SymptomSentryComponents || {};
+
+// Add the subscription component to the components namespace
+window.SymptomSentryComponents.initializeSubscription = function(container) {
     if (!container) return;
     
     // Render the subscription component UI

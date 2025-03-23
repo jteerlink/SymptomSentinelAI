@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     
     // Initialize components
-    initializeImageUpload(document.getElementById('image-upload-component'));
+    window.SymptomSentryComponents.initializeImageUpload(document.getElementById('image-upload-component'));
     initializeAnalysis(document.getElementById('analysis-results-component'));
     initializeEducation(document.getElementById('education-component'));
     initializeSubscription(document.getElementById('subscription-component'));

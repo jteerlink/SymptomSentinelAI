@@ -1,6 +1,10 @@
 // This component handles displaying the analysis results
 
-export function initializeAnalysis(container) {
+// Initialize the components namespace if it doesn't exist
+window.SymptomSentryComponents = window.SymptomSentryComponents || {};
+
+// Add the analysis component to the components namespace
+window.SymptomSentryComponents.initializeAnalysis = function(container) {
     if (!container) return;
     
     // Render the initial analysis UI (empty state)
@@ -241,8 +245,8 @@ function renderAnalysisResults(container, results) {
                 saveResultsBtn.disabled = true;
                 saveResultsBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
                 
-                // Import the apiRequest function
-                const { apiRequest } = await import('../app.js');
+                // Use the global namespace for api requests
+                const apiRequest = window.SymptomSentryApp.apiRequest;
                 
                 // Call the API to save the results using our utility function
                 const responseData = await apiRequest('/api/save-analysis', 'POST', results);

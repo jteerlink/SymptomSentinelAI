@@ -82,14 +82,14 @@ class User {
             email,
             password: passwordHash,
             name,
-            subscription_type: 'basic',
+            subscription: 'basic',
             created_at: knex.fn.now(),
             updated_at: knex.fn.now()
         }).returning('id');
         
         // Get created user
         const user = await knex('users')
-            .select('id', 'email', 'name', 'subscription_type', 'created_at')
+            .select('id', 'email', 'name', 'subscription', 'created_at')
             .where({ id: userId })
             .first();
             
@@ -135,7 +135,7 @@ class User {
                 id: user.id,
                 email: user.email,
                 name: user.name,
-                subscription_type: user.subscription_type
+                subscription_type: user.subscription
             },
             tokens: {
                 accessToken,
@@ -152,7 +152,7 @@ class User {
      */
     static async getById(userId) {
         const user = await knex('users')
-            .select('id', 'email', 'name', 'subscription_type', 'created_at', 'updated_at', 'analysis_count', 'last_reset_date')
+            .select('id', 'email', 'name', 'subscription', 'created_at', 'updated_at', 'analysis_count', 'last_reset_date')
             .where({ id: userId })
             .first();
             
@@ -264,7 +264,7 @@ class User {
         await knex('users')
             .where({ id: userId })
             .update({
-                subscription_type: subscriptionType,
+                subscription: subscriptionType,
                 updated_at: knex.fn.now()
             });
             
@@ -410,12 +410,12 @@ class User {
         }
         
         // Check if user has exceeded limit (basic = 5 per month, premium = unlimited)
-        const isLimitExceeded = user.subscription_type === 'basic' && analysisCount > 5;
+        const isLimitExceeded = user.subscription === 'basic' && analysisCount > 5;
         
         return {
             analysisCount,
             isLimitExceeded,
-            subscriptionType: user.subscription_type
+            subscriptionType: user.subscription
         };
     }
     

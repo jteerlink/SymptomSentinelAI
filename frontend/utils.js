@@ -20,8 +20,8 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
             name: name,
             subscription: 'free',
             analysisCount: 0,
-            analysisLimit: 5,
-            analysisRemaining: 5,
+            analysisLimit: 2,
+            analysisRemaining: 2,
             lastResetDate: new Date().toISOString()
         };
     }

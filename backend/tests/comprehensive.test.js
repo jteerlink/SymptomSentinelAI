@@ -261,7 +261,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     test('should analyze throat image', async () => {
       const imageBase64 = getTestImage('test-throat-image.jpg');
       
-      const response = await authenticatedRequest('/api/analyze', 'POST', {
+      const response = await authenticatedRequest('/analyze', 'POST', {
         type: 'throat',
         image: `data:image/jpeg;base64,${imageBase64}`
       });
@@ -278,7 +278,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     test('should analyze ear image', async () => {
       const imageBase64 = getTestImage('test-ear-image.jpg');
       
-      const response = await authenticatedRequest('/api/analyze', 'POST', {
+      const response = await authenticatedRequest('/analyze', 'POST', {
         type: 'ear',
         image: `data:image/jpeg;base64,${imageBase64}`
       });
@@ -293,7 +293,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     test('should reject analysis with invalid type', async () => {
       const imageBase64 = getTestImage();
       
-      const response = await authenticatedRequest('/api/analyze', 'POST', {
+      const response = await authenticatedRequest('/analyze', 'POST', {
         type: 'invalid',
         image: `data:image/jpeg;base64,${imageBase64}`
       });
@@ -304,7 +304,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     });
     
     test('should reject analysis without an image', async () => {
-      const response = await authenticatedRequest('/api/analyze', 'POST', {
+      const response = await authenticatedRequest('/analyze', 'POST', {
         type: 'throat'
       });
       
@@ -351,10 +351,10 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
       const response = await authenticatedRequest('/api/analysis-history', 'GET');
       
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('analyses');
-      expect(Array.isArray(response.body.analyses)).toBe(true);
+      expect(response.body).toHaveProperty('history');
+      expect(Array.isArray(response.body.history)).toBe(true);
       // We should have at least one analysis from previous tests
-      expect(response.body.analyses.length).toBeGreaterThan(0);
+      expect(response.body.history.length).toBeGreaterThan(0);
     });
   });
   

@@ -93,7 +93,7 @@ class AnalysisService: ObservableObject {
         ]
         
         return networkService.request(
-            endpoint: "/api/analyses/save",
+            endpoint: "/api/save-analysis",
             method: .post,
             parameters: parameters
         )
@@ -109,7 +109,7 @@ class AnalysisService: ObservableObject {
         errorMessage = nil
         
         networkService.request(
-            endpoint: "/api/analyses",
+            endpoint: "/api/analysis-history",
             method: .get,
             parameters: nil
         )
@@ -150,7 +150,7 @@ class AnalysisService: ObservableObject {
         // If user is authenticated, delete from server as well
         if UserService.shared.isAuthenticated {
             return networkService.request(
-                endpoint: "/api/analyses/\(id)",
+                endpoint: "/api/analysis/\(id)",
                 method: .delete,
                 parameters: nil
             )
@@ -187,7 +187,7 @@ class AnalysisService: ObservableObject {
         // If user is authenticated, clear from server as well
         if UserService.shared.isAuthenticated {
             networkService.request(
-                endpoint: "/api/analyses/clear",
+                endpoint: "/api/clear-analyses",
                 method: .post,
                 parameters: nil
             )

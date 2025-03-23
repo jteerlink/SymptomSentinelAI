@@ -180,7 +180,7 @@ function setupEventListeners() {
     if (signInRegisterBtn) {
         signInRegisterBtn.addEventListener('click', () => {
             console.log('Sign In / Register button clicked');
-            handleRegistration();
+            window.SymptomSentryApp.handleRegistration();
         });
     }
 }
@@ -374,8 +374,7 @@ window.SymptomSentryApp.handleRegistration = function() {
                 try {
                     console.log('[Analysis] Saving pending analysis results');
                     // Attempt to save the pending results now that user is logged in
-                    const { apiRequest } = await import('./app.js');
-                    await apiRequest('/api/save-analysis', 'POST', JSON.parse(pendingResults));
+                    await window.SymptomSentryApp.apiRequest('/api/save-analysis', 'POST', JSON.parse(pendingResults));
                     window.SymptomSentryUtils.showNotification('Analysis results saved successfully!', 'success');
                     sessionStorage.removeItem('pendingAnalysisResults');
                 } catch (saveError) {
@@ -505,7 +504,7 @@ function checkAuthState() {
 }
 
 // Utility function to make API requests
-export async function apiRequest(endpoint, method = 'GET', data = null) {
+window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', data = null) {
     try {
         const options = {
             method,

@@ -141,18 +141,14 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
                     reAddedButton.addEventListener('click', () => {
                         console.log('Sign In button clicked');
                         // Use dynamic import to avoid circular dependencies
-                        import('./app.js').then(app => {
-                            // Call handleRegistration if it exists
-                            if (typeof app.handleRegistration === 'function') {
-                                app.handleRegistration();
-                            } else {
-                                // Use a window event as fallback
-                                const loginEvent = new CustomEvent('openLoginModal');
-                                window.dispatchEvent(loginEvent);
-                            }
-                        }).catch(err => {
-                            console.error('Failed to import app.js for login:', err);
-                        });
+                        // Call handleRegistration using global namespace
+                        if (window.SymptomSentryApp && typeof window.SymptomSentryApp.handleRegistration === 'function') {
+                            window.SymptomSentryApp.handleRegistration();
+                        } else {
+                            // Use a window event as fallback
+                            const loginEvent = new CustomEvent('openLoginModal');
+                            window.dispatchEvent(loginEvent);
+                        }
                     });
                 }
                 

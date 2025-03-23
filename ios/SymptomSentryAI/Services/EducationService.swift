@@ -323,7 +323,7 @@ class EducationService: ObservableObject {
             
             // Send the update to the backend
             networkService.request(
-                endpoint: "/api/education/user/preferences",
+                endpoint: "/api/educational/user/preferences",
                 method: .post,
                 parameters: parameters
             )
@@ -396,7 +396,7 @@ class EducationService: ObservableObject {
         // If the user is authenticated, clear data on the server too
         if let authToken = UserService.shared.authToken {
             networkService.request(
-                endpoint: "/api/education/user/preferences/reset",
+                endpoint: "/api/educational/user/preferences/reset",
                 method: .post,
                 parameters: nil
             )

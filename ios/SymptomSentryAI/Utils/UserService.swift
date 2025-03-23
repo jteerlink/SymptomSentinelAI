@@ -538,7 +538,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/analysis/save",
+            endpoint: "/api/save-analysis",
             method: .post,
             parameters: parameters
         )
@@ -577,7 +577,7 @@ class UserService: ObservableObject {
         
         // Send request to backend using NetworkService
         networkService.request(
-            endpoint: "/api/analysis/history",
+            endpoint: "/api/analysis-history",
             method: .get,
             parameters: nil
         )

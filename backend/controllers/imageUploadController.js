@@ -42,7 +42,7 @@ const uploadImage = async (req, res, next) => {
     
     // Check file size
     if (req.file.size > 5 * 1024 * 1024) { // 5MB
-      throw ApiError.badRequest('File size too large - exceeds the 5MB limit', 'FILE_TOO_LARGE', 413);
+      throw ApiError.badRequest('Image file too large - exceeds the 5MB limit', 'FILE_TOO_LARGE', 413);
     }
     
     // Check file type
@@ -99,7 +99,7 @@ const uploadMultipleImages = async (req, res, next) => {
     const uploadPromises = req.files.map(async (file) => {
       // Check file size
       if (file.size > 5 * 1024 * 1024) { // 5MB
-        throw ApiError.badRequest(`File ${file.originalname} too large - exceeds the 5MB limit`, 'FILE_TOO_LARGE', 413);
+        throw ApiError.badRequest(`Image file too large - ${file.originalname} exceeds the 5MB limit`, 'FILE_TOO_LARGE', 413);
       }
       
       // Check file type

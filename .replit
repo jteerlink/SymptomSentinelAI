@@ -123,6 +123,7 @@ waitForPort = 8000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]
+deploymentTarget = "cloudrun"
 
 [[ports]]
 localPort = 5000

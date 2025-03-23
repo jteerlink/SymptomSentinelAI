@@ -13,6 +13,12 @@ class UserService: ObservableObject {
     /// Authentication token for API requests
     @Published var authToken: String?
     
+    /// Refresh token for obtaining new access tokens
+    @Published var refreshToken: String?
+    
+    /// Token expiration date
+    @Published var tokenExpiration: Date?
+    
     /// Network service for API requests
     private let networkService = NetworkService.shared
     
@@ -269,14 +275,87 @@ class UserService: ObservableObject {
         // Clear user data
         currentUser = nil
         authToken = nil
+        refreshToken = nil
+        tokenExpiration = nil
         isAuthenticated = false
         
         // Clear saved session
         userDefaults.removeObject(forKey: "authToken")
+        userDefaults.removeObject(forKey: "refreshToken")
+        userDefaults.removeObject(forKey: "tokenExpiration")
         userDefaults.removeObject(forKey: "userId")
         userDefaults.removeObject(forKey: "userEmail")
         userDefaults.removeObject(forKey: "userName")
         userDefaults.removeObject(forKey: "userSubscription")
+    }
+    
+    /// Refresh the access token using the refresh token
+    /// - Parameter completion: Callback with success flag and optional error message
+    func refreshAccessToken(completion: @escaping (Bool, String?) -> Void) {
+        guard let refreshToken = refreshToken else {
+            completion(false, "No refresh token available")
+            return
+        }
+        
+        isLoading = true
+        
+        // Create parameters
+        let parameters: [String: Any] = [
+            "refreshToken": refreshToken
+        ]
+        
+        // Send request to backend using NetworkService
+        networkService.request(
+            endpoint: "/api/refresh-token",
+            method: .post,
+            parameters: parameters
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completionStatus in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                if case .failure(let error) = completionStatus {
+                    self.errorMessage = error.localizedDescription
+                    completion(false, "Token refresh failed: \(error.localizedDescription)")
+                }
+            },
+            receiveValue: { [weak self] data in
+                guard let self = self else { return }
+                self.isLoading = false
+                
+                do {
+                    // Parse the response
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode(RefreshTokenResponse.self, from: data)
+                    
+                    if response.success {
+                        // Update tokens
+                        self.authToken = response.accessToken
+                        
+                        if let newRefreshToken = response.refreshToken {
+                            self.refreshToken = newRefreshToken
+                        }
+                        
+                        // Update token in network service
+                        self.networkService.setAuthToken(response.accessToken)
+                        
+                        // Save updated session
+                        self.saveSession()
+                        
+                        completion(true, nil)
+                    } else {
+                        // Clear auth data on refresh failure
+                        self.logout()
+                        completion(false, response.message ?? "Token refresh failed")
+                    }
+                } catch {
+                    completion(false, "Failed to parse response: \(error.localizedDescription)")
+                }
+            }
+        )
+        .store(in: &cancellables)
     }
     
     // MARK: - User Data Methods
@@ -733,6 +812,17 @@ class UserService: ObservableObject {
         if let token = userDefaults.string(forKey: "authToken") {
             authToken = token
             
+            // Load refresh token
+            if let refreshTokenValue = userDefaults.string(forKey: "refreshToken") {
+                refreshToken = refreshTokenValue
+            }
+            
+            // Load token expiration
+            if let expirationString = userDefaults.string(forKey: "tokenExpiration"),
+               let expiration = ISO8601DateFormatter().date(from: expirationString) {
+                tokenExpiration = expiration
+            }
+            
             // Load user data
             if let userId = userDefaults.string(forKey: "userId"),
                let userEmail = userDefaults.string(forKey: "userEmail"),
@@ -751,11 +841,29 @@ class UserService: ObservableObject {
                 currentUser = user
                 isAuthenticated = true
                 
-                // Verify token is still valid in background
-                validateToken { isValid in
-                    if !isValid {
-                        // Token expired, log out
+                // Set auth token in network service
+                networkService.setAuthToken(token)
+                
+                // Check token expiration
+                if let expiration = tokenExpiration, expiration <= Date() {
+                    // Token expired, try to refresh
+                    if let _ = refreshToken {
+                        self.refreshAccessToken { success, _ in
+                            if !success {
+                                self.logout()
+                            }
+                        }
+                    } else {
+                        // No refresh token, logout
                         self.logout()
+                    }
+                } else {
+                    // Verify token is still valid in background
+                    validateToken { isValid in
+                        if !isValid {
+                            // Token expired, log out
+                            self.logout()
+                        }
                     }
                 }
             } else {
@@ -773,6 +881,17 @@ class UserService: ObservableObject {
         
         // Save auth token
         userDefaults.set(authToken, forKey: "authToken")
+        
+        // Save refresh token if available
+        if let refreshToken = refreshToken {
+            userDefaults.set(refreshToken, forKey: "refreshToken")
+        }
+        
+        // Save token expiration if available
+        if let expiration = tokenExpiration {
+            let iso8601String = ISO8601DateFormatter().string(from: expiration)
+            userDefaults.set(iso8601String, forKey: "tokenExpiration")
+        }
         
         // Save user data
         userDefaults.set(user.id, forKey: "userId")
@@ -833,6 +952,66 @@ class UserService: ObservableObject {
         return password.count >= 8 &&
                password.range(of: #"[0-9]+"#, options: .regularExpression) != nil &&
                password.range(of: #"[^A-Za-z0-9]+"#, options: .regularExpression) != nil
+    }
+    
+    /// Refresh the access token using the refresh token
+    /// - Parameter completion: Callback with success flag and optional error message
+    private func refreshAccessToken(completion: @escaping (Bool, String?) -> Void) {
+        guard let refreshToken = refreshToken else {
+            completion(false, "No refresh token available")
+            return
+        }
+        
+        // Create the refresh token request
+        let parameters: [String: Any] = [
+            "refreshToken": refreshToken
+        ]
+        
+        // Send request to backend using NetworkService
+        networkService.request(
+            endpoint: "/api/refresh-token",
+            method: .post,
+            parameters: parameters
+        )
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { completionStatus in
+                if case let .failure(error) = completionStatus {
+                    completion(false, error.localizedDescription)
+                }
+            },
+            receiveValue: { data in
+                do {
+                    // Decode the refresh token response
+                    let decoder = JSONDecoder()
+                    let response = try decoder.decode(RefreshTokenResponse.self, from: data)
+                    
+                    if response.success {
+                        // Update tokens
+                        self.authToken = response.accessToken
+                        if let newRefreshToken = response.refreshToken {
+                            self.refreshToken = newRefreshToken
+                        }
+                        
+                        // Update token expiration (typically +1 hour)
+                        self.tokenExpiration = Calendar.current.date(byAdding: .hour, value: 1, to: Date())
+                        
+                        // Update network service with new token
+                        self.networkService.setAuthToken(response.accessToken)
+                        
+                        // Save updated session
+                        self.saveSession()
+                        
+                        completion(true, nil)
+                    } else {
+                        completion(false, response.message ?? "Token refresh failed")
+                    }
+                } catch {
+                    completion(false, "Failed to parse refresh token response")
+                }
+            }
+        )
+        .store(in: &cancellables)
     }
 }
 

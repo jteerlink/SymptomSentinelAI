@@ -9,7 +9,7 @@ const { User } = require('../db/models');
 // User details
 const testUser = {
     email: 'test-user@example.com',
-    password: 'password123',
+    password: 'Password123!@#', // Updated to meet password requirements
     name: 'Test User'
 };
 

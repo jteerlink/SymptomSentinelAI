@@ -36,7 +36,7 @@ exports.analyzeImage = async (req, res, next) => {
         const userId = req.user.id;
         
         // Fetch user from database to check subscription status
-        const user = await User.findById(userId);
+        const user = await User.getById(userId);
         if (!user) {
             console.error('❌ User not found:', userId);
             throw ApiError.unauthorized('User account not found');

@@ -31,8 +31,8 @@ async function testLogin() {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        email: 'test@example.com',
-        password: 'Test123!@#'
+        email: 'test-user@example.com',
+        password: 'Password123!@#'
       }),
     });
     
@@ -124,9 +124,12 @@ async function runTests() {
 
   // Test health endpoint
   await testHealthEndpoint();
-
-  // Test analyze endpoint
-  await testAnalyzeEndpoint();
+  
+  // Get auth token by logging in
+  const authToken = await testLogin();
+  
+  // Test analyze endpoint with auth token
+  await testAnalyzeEndpoint(authToken);
 
   console.log('\n====================================');
   console.log('           Tests Complete           ');

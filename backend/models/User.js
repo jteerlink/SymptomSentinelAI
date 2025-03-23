@@ -21,16 +21,16 @@ class User {
         }
     };
     
-    constructor(id, email, password, name, subscription = 'free', analysisCount = 0, lastResetDate = new Date()) {
+    constructor(id, email, password, name, subscription = 'free', analysis_count = 0, last_reset_date = new Date()) {
         this.id = id;
         this.email = email;
         this.password = password; // In a real app, this would be hashed
         this.name = name;
         this.subscription = subscription;
-        this.analysisCount = analysisCount; // Current month's analysis count
-        this.lastResetDate = lastResetDate; // When the count was last reset
-        this.createdAt = new Date();
-        this.updatedAt = new Date();
+        this.analysis_count = analysis_count; // Current month's analysis count
+        this.last_reset_date = last_reset_date; // When the count was last reset
+        this.created_at = new Date();
+        this.updated_at = new Date();
     }
 
     // Convert to JSON for API responses
@@ -42,13 +42,13 @@ class User {
             email: this.email,
             name: this.name,
             subscription: this.subscription,
-            analysisCount: this.analysisCount,
+            analysisCount: this.analysis_count || 0,
             analysisLimit: subscriptionLimits.analysesPerMonth,
-            analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - this.analysisCount),
+            analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - (this.analysis_count || 0)),
             subscriptionDetails: subscriptionLimits,
-            lastResetDate: this.lastResetDate,
-            createdAt: this.createdAt,
-            updatedAt: this.updatedAt
+            lastResetDate: this.last_reset_date,
+            createdAt: this.created_at,
+            updatedAt: this.updated_at
         };
     }
     

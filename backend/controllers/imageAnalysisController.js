@@ -43,7 +43,8 @@ exports.analyzeImage = async (req, res, next) => {
         }
         
         console.log(`👤 User authenticated: ${user.email} (${user.subscription} subscription)`);
-        console.log(`📊 Analysis count: ${user.analysisCount}/${user.analysisLimit}`);
+        const limit = User.SUBSCRIPTION_LIMITS[user.subscription].analysesPerMonth;
+        console.log(`📊 Analysis count: ${user.analysis_count || 0}/${limit}`);
         
         // Check if user has exceeded their analysis limit
         if (User.hasExceededAnalysisLimit(user)) {
@@ -318,10 +319,10 @@ exports.saveAnalysis = async (req, res, next) => {
             const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
             const subscriptionInfo = {
                 subscription: req.user.subscription,
-                analysisCount: req.user.analysisCount,
+                analysisCount: req.user.analysis_count || 0,
                 analysisLimit: subscriptionLimits.analysesPerMonth,
-                analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
-                lastResetDate: req.user.lastResetDate
+                analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - (req.user.analysis_count || 0)),
+                lastResetDate: req.user.last_reset_date
             };
             
             return res.status(200).json({
@@ -346,8 +347,8 @@ exports.saveAnalysis = async (req, res, next) => {
             console.log(`Updated analysis count: ${updatedUser.analysis_count}`);
             
             // Update the req.user object with the latest data
-            req.user.analysisCount = updatedUser.analysisCount;
-            req.user.lastResetDate = updatedUser.lastResetDate;
+            req.user.analysis_count = updatedUser.analysis_count;
+            req.user.last_reset_date = updatedUser.last_reset_date;
             
             // Create the analysis record
             console.log('Creating analysis record');
@@ -365,10 +366,10 @@ exports.saveAnalysis = async (req, res, next) => {
             const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
             const subscriptionInfo = {
                 subscription: req.user.subscription,
-                analysisCount: req.user.analysisCount,
+                analysisCount: req.user.analysis_count || 0,
                 analysisLimit: subscriptionLimits.analysesPerMonth,
-                analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
-                lastResetDate: req.user.lastResetDate
+                analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - (req.user.analysis_count || 0)),
+                lastResetDate: req.user.last_reset_date
             };
             
             return res.status(200).json({
@@ -419,10 +420,10 @@ exports.getAnalysisHistory = async (req, res, next) => {
         const subscriptionLimits = User.SUBSCRIPTION_LIMITS[req.user.subscription];
         const subscriptionInfo = {
             subscription: req.user.subscription,
-            analysisCount: req.user.analysisCount,
+            analysisCount: req.user.analysis_count || 0,
             analysisLimit: subscriptionLimits.analysesPerMonth,
-            analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - req.user.analysisCount),
-            lastResetDate: req.user.lastResetDate
+            analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - (req.user.analysis_count || 0)),
+            lastResetDate: req.user.last_reset_date
         };
         
         return res.status(200).json({

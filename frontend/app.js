@@ -327,8 +327,8 @@ function handleRegistration() {
             }
             
             // Validate the response structure
-            if (!data.token) {
-                console.error('[Fetch] Missing token in response:', data);
+            if (!data.accessToken) {
+                console.error('[Fetch] Missing access token in response:', data);
                 throw new Error('Invalid server response: Missing authentication token');
             }
             
@@ -337,10 +337,13 @@ function handleRegistration() {
                 throw new Error('Invalid server response: Missing user data');
             }
             
-            console.log('[Auth] Login successful, storing token and user data');
+            console.log('[Auth] Login successful, storing tokens and user data');
             
-            // Store token in localStorage
-            localStorage.setItem('authToken', data.token);
+            // Store tokens in localStorage
+            localStorage.setItem('authToken', data.accessToken);
+            if (data.refreshToken) {
+                localStorage.setItem('refreshToken', data.refreshToken);
+            }
             
             if (rememberMe) {
                 localStorage.setItem('userEmail', email);
@@ -430,8 +433,11 @@ function handleRegistration() {
                 throw new Error(data.message || 'Registration failed');
             }
             
-            // Store token in localStorage
-            localStorage.setItem('authToken', data.token);
+            // Store tokens in localStorage
+            localStorage.setItem('authToken', data.accessToken);
+            if (data.refreshToken) {
+                localStorage.setItem('refreshToken', data.refreshToken);
+            }
             
             // Automatically log the user in after successful registration
             updateProfileUI(data.user.email, data.user.name, data.user);

@@ -411,6 +411,23 @@ function setupUploadEventListeners(container) {
                 // Special handling for auth errors to provide a better message
                 if (response.status === 401) {
                     errorMessage = 'You need to be logged in to analyze images. Please sign in to continue.';
+                    
+                    // Auto-trigger login modal
+                    setTimeout(() => {
+                        // Use dynamic import to avoid circular dependencies
+                        import('../app.js').then(app => {
+                            // If handleRegistration exists, call it
+                            if (typeof app.handleRegistration === 'function') {
+                                app.handleRegistration();
+                            } else {
+                                // Use the window event as a fallback
+                                const loginEvent = new CustomEvent('openLoginModal');
+                                window.dispatchEvent(loginEvent);
+                            }
+                        }).catch(err => {
+                            console.error('Failed to import app.js:', err);
+                        });
+                    }, 500);
                 } else if (response.status === 413) {
                     errorMessage = 'The image file is too large. Please use an image smaller than 5MB.';
                 } else if (response.status === 429 && responseData && responseData.code === 'ANALYSIS_LIMIT_EXCEEDED') {

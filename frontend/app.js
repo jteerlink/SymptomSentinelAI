@@ -100,6 +100,12 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Check if user is already logged in
     checkAuthState();
+    
+    // Add event listener for opening login modal
+    window.addEventListener('openLoginModal', () => {
+        console.log('[Auth] openLoginModal event captured');
+        handleRegistration();
+    });
 });
 
 // Setup navigation between app pages
@@ -183,7 +189,7 @@ function setupEventListeners() {
 
 
 // Handle account registration
-function handleRegistration() {
+export function handleRegistration() {
     // Create modal container if it doesn't exist
     let modalContainer = document.getElementById('auth-modal-container');
     if (!modalContainer) {

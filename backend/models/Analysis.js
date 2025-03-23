@@ -59,6 +59,15 @@ class Analysis {
         // For demonstration purposes, return success
         return { success: true };
     }
+    
+    // Static method to delete all analyses for a user
+    static async deleteByUserId(userId) {
+        // In a real implementation, this would delete all analyses for a user from the database
+        console.log(`Deleting all analyses for user ${userId}`);
+        
+        // For demonstration purposes, return success
+        return { success: true, count: 0 };
+    }
 }
 
 module.exports = Analysis;

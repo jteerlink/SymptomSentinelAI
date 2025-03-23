@@ -476,3 +476,35 @@ exports.deleteAnalysis = async (req, res, next) => {
 };
 
 // ML model functions have been moved to utils/modelLoader.js
+
+/**
+ * Clear all analyses for the authenticated user
+ * 
+ * @route POST /api/clear-analyses
+ * @returns {Object} Success message and count of deleted analyses
+ * @throws {ApiError} For auth errors
+ */
+exports.clearAnalyses = async (req, res, next) => {
+    try {
+        // Validate user is authenticated
+        if (!req.user) {
+            throw ApiError.unauthorized('Authentication required to clear analyses', 'AUTH_REQUIRED');
+        }
+        
+        console.log(`Clearing all analyses for user ${req.user.id}`);
+        
+        // Delete all analyses for this user
+        const result = await Analysis.deleteByUserId(req.user.id);
+        
+        console.log(`Clear operation result:`, result);
+        
+        return res.status(200).json({
+            success: true,
+            message: 'All analyses cleared successfully',
+            count: result.count || 0
+        });
+    } catch (error) {
+        console.error('Error clearing analyses:', error);
+        next(error);
+    }
+};

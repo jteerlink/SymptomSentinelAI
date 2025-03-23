@@ -239,4 +239,16 @@ describe('Image Analysis API', () => {
         expect(response.body).toHaveProperty('message', 'Analysis deleted successfully');
         expect(response.body).toHaveProperty('id', analysisId);
     });
+    
+    // Test clearing all analyses for a user
+    test('should clear all analyses for a user', async () => {
+        const response = await request(app)
+            .post('/api/clear-analyses')
+            .send();
+            
+        expect(response.status).toBe(200);
+        expect(response.body).toHaveProperty('success', true);
+        expect(response.body).toHaveProperty('message', 'All analyses cleared successfully');
+        expect(response.body).toHaveProperty('count');
+    });
 });

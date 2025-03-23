@@ -110,6 +110,7 @@ router.post('/analyze', authenticate, upload.single('image'), imageAnalysisContr
 router.post('/save-analysis', authenticate, imageAnalysisController.saveAnalysis);
 router.get('/analysis-history', authenticate, imageAnalysisController.getAnalysisHistory);
 router.delete('/analysis/:id', authenticate, imageAnalysisController.deleteAnalysis);
+router.post('/clear-analyses', authenticate, imageAnalysisController.clearAnalyses);
 
 // Image Upload Routes
 router.post('/upload', authenticate, upload.single('image'), imageUploadController.uploadImage);

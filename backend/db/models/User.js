@@ -45,7 +45,7 @@ class User {
         }
         
         // Free users are limited to 2 analyses per month
-        const limit = SUBSCRIPTION_LIMITS[user.subscription]?.analysesPerMonth || 5;
+        const limit = SUBSCRIPTION_LIMITS[user.subscription]?.analysesPerMonth || 2;
         return (user.analysis_count || 0) >= limit;
     }
     /**
@@ -512,8 +512,8 @@ class User {
                 });
         }
         
-        // Check if user has exceeded limit (free = 5 per month, premium = unlimited)
-        const isLimitExceeded = user.subscription === 'free' && analysisCount > 5;
+        // Check if user has exceeded limit (free = 2 per month, premium = unlimited)
+        const isLimitExceeded = user.subscription === 'free' && analysisCount > 2;
         
         return {
             analysisCount,

@@ -1,247 +1,278 @@
+/**
+ * Image Upload API Tests
+ * 
+ * These tests verify the functionality of the image upload and processing API.
+ */
+
 // Set test environment
 process.env.NODE_ENV = 'test';
 
 const request = require('supertest');
-const path = require('path');
-const fs = require('fs');
-const AWS = require('aws-sdk');
 const express = require('express');
+const cors = require('cors');
 const bodyParser = require('body-parser');
+const fs = require('fs');
+const path = require('path');
 
-// Mock the database models for testing
-jest.mock('../db/models/Analysis', () => ({
-  create: jest.fn().mockResolvedValue({
-    id: '123e4567-e89b-12d3-a456-426614174111',
-    type: 'throat',
-    conditions: [
-      {
-        id: 'strep_throat',
-        name: 'Strep Throat',
-        confidence: 0.78,
-      }
-    ],
-    created_at: new Date().toISOString()
-  })
-}));
-
-const apiRoutes = require('../routes/api');
-
-// Mock AWS S3 SDK
-jest.mock('aws-sdk', () => {
-  const mockS3Instance = {
-    upload: jest.fn().mockReturnThis(),
-    promise: jest.fn().mockResolvedValue({
-      Location: 'https://example-bucket.s3.amazonaws.com/test-image.jpg'
-    }),
-    getSignedUrl: jest.fn().mockReturnValue('https://example-bucket.s3.amazonaws.com/presigned-url'),
-    deleteObject: jest.fn().mockReturnThis()
-  };
-  
+// Mock the auth middleware
+jest.mock('../middleware/auth', () => {
   return {
-    S3: jest.fn(() => mockS3Instance)
+    // Mock the authenticate middleware to always provide a mock user
+    authenticate: (req, res, next) => {
+      req.user = {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        subscription: 'premium',
+        analysisCount: 3
+      };
+      next();
+    },
+    
+    // Mock the optional authenticate middleware
+    optionalAuthenticate: (req, res, next) => {
+      req.user = {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        subscription: 'premium',
+        analysisCount: 3
+      };
+      next();
+    }
   };
 });
 
-// Create a test app instance instead of using the running server
+// Mock S3 upload functionality
+jest.mock('../services/s3Service', () => {
+  return {
+    uploadToS3: jest.fn().mockResolvedValue({
+      Location: 'https://s3-bucket.example.com/test-image.jpg',
+      Key: 'test-user-id/test-image.jpg'
+    }),
+    
+    getPresignedUrl: jest.fn().mockImplementation((key, contentType) => {
+      return {
+        url: `https://s3-bucket.example.com/upload/${key}`,
+        key
+      };
+    }),
+    
+    deleteFromS3: jest.fn().mockResolvedValue(true)
+  };
+});
+
+const apiRoutes = require('../routes/api');
+
+// Create test app
 const app = express();
-app.use(bodyParser.json({ limit: '5mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '5mb' }));
+app.use(cors());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api', apiRoutes);
 
+// Helper to create a test image file
+function createTestImage(size = 100 * 1024) { // 100KB by default
+  const testDir = path.join(__dirname, 'test-data');
+  
+  // Create test directory if it doesn't exist
+  if (!fs.existsSync(testDir)) {
+    fs.mkdirSync(testDir, { recursive: true });
+  }
+  
+  const imagePath = path.join(testDir, 'test-image.jpg');
+  
+  // Create a file with the specified size
+  const buffer = Buffer.alloc(size, 0);
+  
+  // Add JPEG magic bytes to make it look like a valid image
+  buffer[0] = 0xFF;
+  buffer[1] = 0xD8;
+  buffer[2] = 0xFF;
+  buffer[3] = 0xE0;
+  
+  fs.writeFileSync(imagePath, buffer);
+  
+  return imagePath;
+}
+
+// Create a large test file
+function createLargeTestFile() {
+  const testDir = path.join(__dirname, 'test-data');
+  const filePath = path.join(testDir, 'large-test-file.jpg');
+  
+  // Create a 6MB file (larger than the 5MB limit)
+  const buffer = Buffer.alloc(6 * 1024 * 1024, 0);
+  
+  // Add JPEG magic bytes
+  buffer[0] = 0xFF;
+  buffer[1] = 0xD8;
+  
+  fs.writeFileSync(filePath, buffer);
+  
+  return filePath;
+}
+
+// Create a non-image file
+function createNonImageFile() {
+  const testDir = path.join(__dirname, 'test-data');
+  const filePath = path.join(testDir, 'not-an-image.txt');
+  
+  fs.writeFileSync(filePath, 'This is not an image file');
+  
+  return filePath;
+}
+
 describe('Image Upload API', () => {
-  // Test image paths
-  const validImagePath = path.join(__dirname, 'test-files/valid-image.jpg');
-  const largeImagePath = path.join(__dirname, 'test-files/large-image.jpg');
-  const invalidFormatPath = path.join(__dirname, 'test-files/invalid-format.txt');
+  // Set up test files
+  let testImagePath;
+  let largeFilePath;
+  let nonImagePath;
   
-  // Create test files directory and sample files before tests
   beforeAll(() => {
-    // Create test-files directory if it doesn't exist
-    const testFilesDir = path.join(__dirname, 'test-files');
-    if (!fs.existsSync(testFilesDir)) {
-      fs.mkdirSync(testFilesDir, { recursive: true });
-    }
-    
-    // Create a valid sample image (small JPEG)
-    if (!fs.existsSync(validImagePath)) {
-      // Create a simple 1x1 pixel JPEG
-      const buffer = Buffer.from([
-        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
-        0x01, 0x01, 0x00, 0x48, 0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43,
-        0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-        0xff, 0xff, 0xff, 0xff, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00,
-        0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xc4, 0x00, 0x14, 0x00, 0x01, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0xff, 0xc4, 0x00, 0x14, 0x10, 0x01, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0xff, 0xda, 0x00, 0x08, 0x01, 0x01, 0x00, 0x00, 0x3f, 0x00, 0x37,
-        0xff, 0xd9
-      ]);
-      fs.writeFileSync(validImagePath, buffer);
-    }
-    
-    // Create a large sample image (> 5MB)
-    if (!fs.existsSync(largeImagePath)) {
-      // Create a file significantly over 5MB to ensure it exceeds limits
-      const buffer = Buffer.alloc(6 * 1024 * 1024, 0);
-      fs.writeFileSync(largeImagePath, buffer);
-    }
-    
-    // Create an invalid format file
-    if (!fs.existsSync(invalidFormatPath)) {
-      fs.writeFileSync(invalidFormatPath, 'This is not an image file');
-    }
+    testImagePath = createTestImage();
+    largeFilePath = createLargeTestFile();
+    nonImagePath = createNonImageFile();
   });
   
-  // Clean up test files after tests
-  afterAll(() => {
-    // Remove test files
-    if (fs.existsSync(validImagePath)) {
-      fs.unlinkSync(validImagePath);
-    }
-    if (fs.existsSync(largeImagePath)) {
-      fs.unlinkSync(largeImagePath);
-    }
-    if (fs.existsSync(invalidFormatPath)) {
-      fs.unlinkSync(invalidFormatPath);
-    }
-    
-    // Remove test directory if it's empty
-    const testFilesDir = path.join(__dirname, 'test-files');
-    if (fs.existsSync(testFilesDir) && fs.readdirSync(testFilesDir).length === 0) {
-      fs.rmdirSync(testFilesDir);
-    }
-  });
-  
-  // Test successful image upload
+  // Test valid image upload
   test('should upload a valid image successfully', async () => {
     const response = await request(app)
       .post('/api/upload')
       .field('type', 'throat')
-      .attach('image', validImagePath);
+      .attach('image', testImagePath);
     
-    expect(response.statusCode).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.imageUrl).toBeDefined();
-    expect(response.body.type).toBe('throat');
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('imageUrl');
+    expect(response.body).toHaveProperty('imageKey');
   });
   
-  // Test image type validation
+  // Test invalid type
   test('should reject uploads with invalid type', async () => {
     const response = await request(app)
       .post('/api/upload')
-      .field('type', 'invalid-type')
-      .attach('image', validImagePath);
+      .field('type', 'invalid')
+      .attach('image', testImagePath);
     
-    expect(response.statusCode).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toContain('Invalid analysis type');
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error', true);
+    expect(response.body.message).toContain('Invalid type');
   });
   
-  // Test missing image validation
+  // Test missing image
   test('should reject requests without an image', async () => {
     const response = await request(app)
       .post('/api/upload')
       .field('type', 'throat');
     
-    expect(response.statusCode).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toContain('No image');
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error', true);
+    expect(response.body.message).toContain('No image');
   });
   
-  // Test file size validation
+  // Test large file
   test('should reject images larger than 5MB', async () => {
     const response = await request(app)
       .post('/api/upload')
       .field('type', 'throat')
-      .attach('image', largeImagePath);
+      .attach('image', largeFilePath);
     
-    expect(response.statusCode).toBe(413);
-    expect(response.body.error).toBe(true);
-    expect(response.body.message).toContain('File size exceeds the 5MB limit');
+    expect(response.status).toBe(413);
+    expect(response.body).toHaveProperty('error', true);
+    expect(response.body.message).toContain('too large');
   });
   
-  // Test file format validation
+  // Test non-image file
   test('should reject non-image files', async () => {
     const response = await request(app)
       .post('/api/upload')
       .field('type', 'throat')
-      .attach('image', invalidFormatPath);
+      .attach('image', nonImagePath);
     
-    expect(response.statusCode).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toContain('format');
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error', true);
+    expect(response.body.message).toContain('Invalid file type');
   });
   
   // Test presigned URL generation
   test('should generate a presigned URL for direct S3 upload', async () => {
     const response = await request(app)
-      .post('/api/get-presigned-url')
+      .post('/api/presigned-upload')
       .send({
         type: 'throat',
-        fileType: 'image/jpeg'
+        filename: 'test-image.jpg',
+        contentType: 'image/jpeg'
       });
     
-    expect(response.statusCode).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.presignedUrl).toBeDefined();
-    expect(response.body.publicUrl).toBeDefined();
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('url');
+    expect(response.body).toHaveProperty('key');
   });
   
-  // Test presigned URL validation
+  // Test presigned URL with invalid type
   test('should reject presigned URL requests with invalid type', async () => {
     const response = await request(app)
-      .post('/api/get-presigned-url')
+      .post('/api/presigned-upload')
       .send({
-        type: 'invalid-type',
-        fileType: 'image/jpeg'
+        type: 'invalid',
+        filename: 'test-image.jpg',
+        contentType: 'image/jpeg'
       });
     
-    expect(response.statusCode).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toContain('Invalid analysis type');
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error', true);
+    expect(response.body.message).toContain('Invalid type');
   });
   
-  // Test presigned URL file type validation
+  // Test presigned URL with invalid file type
   test('should reject presigned URL requests with invalid file type', async () => {
     const response = await request(app)
-      .post('/api/get-presigned-url')
+      .post('/api/presigned-upload')
       .send({
         type: 'throat',
-        fileType: 'application/pdf'
+        filename: 'test-document.pdf',
+        contentType: 'application/pdf'
       });
     
-    expect(response.statusCode).toBe(400);
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toContain('Invalid file type');
+    expect(response.status).toBe(400);
+    expect(response.body).toHaveProperty('error', true);
+    expect(response.body.message).toContain('Invalid file type');
   });
   
-  // Test successful multiple image upload
+  // Test multiple image upload
   test('should upload multiple valid images successfully', async () => {
     const response = await request(app)
       .post('/api/upload-multiple')
       .field('type', 'throat')
-      .attach('images', validImagePath)
-      .attach('images', validImagePath);
+      .attach('images', testImagePath)
+      .attach('images', createTestImage(200 * 1024)); // Create a second test image
     
-    expect(response.statusCode).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.imageUrls).toBeInstanceOf(Array);
-    expect(response.body.imageUrls.length).toBe(2);
-    expect(response.body.type).toBe('throat');
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('images');
+    expect(response.body.images).toBeInstanceOf(Array);
+    expect(response.body.images.length).toBe(2);
+    expect(response.body.images[0]).toHaveProperty('imageUrl');
+    expect(response.body.images[0]).toHaveProperty('imageKey');
   });
   
-  // Test delete image
+  // Test image deletion
   test('should delete an image from S3', async () => {
     const response = await request(app)
-      .delete('/api/images/uploads/throat/test-image.jpg');
+      .delete('/api/image')
+      .send({
+        imageKey: 'test-user-id/test-image.jpg'
+      });
     
-    expect(response.statusCode).toBe(200);
-    expect(response.body.success).toBe(true);
-    expect(response.body.message).toContain('deleted successfully');
+    expect(response.status).toBe(200);
+    expect(response.body).toHaveProperty('message', 'Image deleted successfully');
+  });
+  
+  // Clean up test files
+  afterAll(() => {
+    try {
+      fs.unlinkSync(testImagePath);
+      fs.unlinkSync(largeFilePath);
+      fs.unlinkSync(nonImagePath);
+    } catch (error) {
+      console.error('Error cleaning up test files:', error);
+    }
   });
 });

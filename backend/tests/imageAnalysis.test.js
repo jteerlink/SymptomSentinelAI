@@ -242,6 +242,13 @@ describe('Image Analysis API', () => {
     
     // Test clearing all analyses for a user
     test('should clear all analyses for a user', async () => {
+        // We need to mock the req.user that would be added by the authenticate middleware
+        // This is specific to how the test environment is set up
+        app.use('/api/clear-analyses', (req, res, next) => {
+            req.user = { id: 'test-user-id' };
+            next();
+        });
+        
         const response = await request(app)
             .post('/api/clear-analyses')
             .send();

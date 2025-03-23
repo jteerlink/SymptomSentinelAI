@@ -16,7 +16,38 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
 const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
 
+// Subscription limits
+const SUBSCRIPTION_LIMITS = {
+    'free': {
+        analysesPerMonth: 5
+    },
+    'premium': {
+        analysesPerMonth: Infinity
+    }
+};
+
 class User {
+    // Make subscription limits available as a static property
+    static SUBSCRIPTION_LIMITS = SUBSCRIPTION_LIMITS;
+    
+    /**
+     * Check if a user has exceeded their monthly analysis limit
+     * 
+     * @param {Object} user - User object
+     * @returns {boolean} True if the user has exceeded their limit
+     */
+    static hasExceededAnalysisLimit(user) {
+        if (!user) return false;
+        
+        // Premium users have unlimited analyses
+        if (user.subscription === 'premium') {
+            return false;
+        }
+        
+        // Free users are limited to 5 analyses per month
+        const limit = SUBSCRIPTION_LIMITS[user.subscription]?.analysesPerMonth || 5;
+        return (user.analysis_count || 0) >= limit;
+    }
     /**
      * Find a user by email
      * 
@@ -386,6 +417,54 @@ class User {
             success: true,
             message: 'Password has been reset successfully'
         };
+    }
+    
+    /**
+     * Increment user analysis count
+     * 
+     * @param {string} userId - User ID 
+     * @returns {number} Updated analysis count
+     */
+    static async incrementAnalysisCount(userId) {
+        // Get user
+        const user = await this.getById(userId);
+        
+        // Check if we need to reset counter (new month)
+        const lastReset = user.last_reset_date ? new Date(user.last_reset_date) : new Date(0);
+        const now = new Date();
+        
+        let analysisCount = user.analysis_count || 0;
+        
+        // Reset counter if it's a new month
+        if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
+            analysisCount = 1; // This is the first analysis of the new month
+            
+            // Ensure userId is treated as a string
+            const id = typeof userId === 'object' && userId.id ? userId.id : userId;
+            
+            await knex('users')
+                .where('id', id)
+                .update({
+                    analysis_count: analysisCount,
+                    last_reset_date: now,
+                    updated_at: now
+                });
+        } else {
+            // Increment counter
+            analysisCount += 1;
+            
+            // Ensure userId is treated as a string
+            const id = typeof userId === 'object' && userId.id ? userId.id : userId;
+            
+            await knex('users')
+                .where('id', id)
+                .update({
+                    analysis_count: analysisCount,
+                    updated_at: now
+                });
+        }
+        
+        return analysisCount;
     }
     
     /**

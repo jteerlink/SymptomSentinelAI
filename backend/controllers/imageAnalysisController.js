@@ -46,11 +46,12 @@ exports.analyzeImage = async (req, res, next) => {
         console.log(`📊 Analysis count: ${user.analysisCount}/${user.analysisLimit}`);
         
         // Check if user has exceeded their analysis limit
-        if (user.hasExceededAnalysisLimit()) {
-            console.error(`❌ User has exceeded analysis limit: ${user.analysisCount}/${user.analysisLimit}`);
+        if (User.hasExceededAnalysisLimit(user)) {
+            const limit = User.SUBSCRIPTION_LIMITS[user.subscription].analysesPerMonth;
+            console.error(`❌ User has exceeded analysis limit: ${user.analysis_count}/${limit}`);
             throw ApiError.analysisLimitExceeded('You have reached your monthly analysis limit', {
-                current: user.analysisCount,
-                limit: user.analysisLimit,
+                current: user.analysis_count,
+                limit: limit,
                 subscription: user.subscription
             });
         }
@@ -196,11 +197,11 @@ exports.analyzeImage = async (req, res, next) => {
                 console.log('👤 Authenticated user detected, checking analysis limits');
                 
                 // Check if user has exceeded their monthly analysis limit
-                if (req.user.hasExceededAnalysisLimit()) {
+                if (User.hasExceededAnalysisLimit(req.user)) {
                     console.log('❌ User has exceeded their monthly analysis limit');
                     throw ApiError.analysisLimitExceeded('You have reached your monthly analysis limit', {
                         subscription: req.user.subscription,
-                        analysisCount: req.user.analysisCount,
+                        analysisCount: req.user.analysis_count || 0,
                         analysisLimit: User.SUBSCRIPTION_LIMITS[req.user.subscription].analysesPerMonth,
                         upgradeRequired: req.user.subscription === 'free'
                     });
@@ -341,8 +342,8 @@ exports.saveAnalysis = async (req, res, next) => {
             console.log(`Incremented analysis count for user ${req.user.id}`);
             
             // Get updated user data
-            const updatedUser = await User.findById(req.user.id);
-            console.log(`Updated analysis count: ${updatedUser.analysisCount}`);
+            const updatedUser = await User.getById(req.user.id);
+            console.log(`Updated analysis count: ${updatedUser.analysis_count}`);
             
             // Update the req.user object with the latest data
             req.user.analysisCount = updatedUser.analysisCount;

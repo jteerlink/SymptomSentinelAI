@@ -111,10 +111,10 @@ router.post('/save-analysis', authenticate, imageAnalysisController.saveAnalysis
 router.get('/analysis-history', authenticate, imageAnalysisController.getAnalysisHistory);
 
 // Image Upload Routes
-router.post('/upload', authenticate, imageUploadController.uploadImage);
-router.post('/upload-multiple', authenticate, imageUploadController.uploadMultipleImages);
-router.post('/get-presigned-url', authenticate, imageUploadController.getPresignedUrl);
-router.delete('/images/:key(*)', authenticate, imageUploadController.deleteImage);
+router.post('/upload', authenticate, upload.single('image'), imageUploadController.uploadImage);
+router.post('/upload-multiple', authenticate, upload.array('images', 5), imageUploadController.uploadMultipleImages);
+router.post('/presigned-upload', authenticate, imageUploadController.getPresignedUrl);
+router.delete('/image', authenticate, imageUploadController.deleteImage);
 
 // User Routes
 router.post('/register', userController.register);

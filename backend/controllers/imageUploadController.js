@@ -1,336 +1,238 @@
-// Import required modules
-const AWS = require('aws-sdk');
+/**
+ * Image Upload Controller
+ * 
+ * This controller handles all image upload, storage, and management operations
+ */
+
+const ApiError = require('../utils/apiError');
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs');
+const s3Service = require('../services/s3Service');
 const { v4: uuidv4 } = require('uuid');
-const dotenv = require('dotenv');
 
-// Load environment variables
-dotenv.config();
-
-// Configure AWS SDK
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION || 'us-east-1'
-});
-
-// Configure multer for file uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = path.join(__dirname, '../uploads');
-    // Create uploads directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename with original extension
-    const uniqueSuffix = Date.now() + '-' + uuidv4();
-    const fileExt = path.extname(file.originalname);
-    cb(null, file.fieldname + '-' + uniqueSuffix + fileExt);
-  }
-});
-
-// File filter function
-const fileFilter = (req, file, cb) => {
-  // Accept only jpeg and png images
-  const allowedMimeTypes = ['image/jpeg', 'image/png'];
-  if (allowedMimeTypes.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    // Instead of throwing an error, set a custom property on request
-    // We'll handle this in the controller
-    req.fileValidationError = 'Invalid file format. Only JPEG and PNG are allowed.';
-    cb(null, false);
-  }
-};
-
-// Configure multer upload
-const upload = multer({
-  storage: storage,
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-  },
-  fileFilter: fileFilter
-});
+// Valid image types
+const VALID_TYPES = ['throat', 'ear'];
+const VALID_MIME_TYPES = ['image/jpeg', 'image/png'];
+const VALID_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
 
 /**
- * Upload a single image to S3
- * @param {Object} file - The file object from multer
- * @param {String} type - The type of analysis (throat, ear)
- * @returns {Promise<String>} - The S3 URL of the uploaded file
+ * Handle image upload
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
  */
-const uploadToS3 = async (file, type) => {
-  const fileContent = fs.readFileSync(file.path);
-  
-  // Define the folder structure in S3 bucket
-  const folderPath = `uploads/${type}`;
-  const key = `${folderPath}/${file.filename}`;
-  
-  // S3 upload parameters
-  const params = {
-    Bucket: process.env.AWS_S3_BUCKET_NAME,
-    Key: key,
-    Body: fileContent,
-    ContentType: file.mimetype,
-    ACL: 'public-read' // Make the file publicly accessible
-  };
-  
+const uploadImage = async (req, res, next) => {
   try {
+    // Check if user is authenticated
+    if (!req.user) {
+      throw ApiError.unauthorized('Authentication required');
+    }
+    
+    // Check if type is valid
+    const { type } = req.body;
+    if (!type || !VALID_TYPES.includes(type)) {
+      throw ApiError.badRequest('Invalid type. Must be "throat" or "ear"', 'INVALID_TYPE');
+    }
+    
+    // Check if file was uploaded
+    if (!req.file) {
+      throw ApiError.badRequest('No image provided', 'MISSING_IMAGE');
+    }
+    
+    // Check file size
+    if (req.file.size > 5 * 1024 * 1024) { // 5MB
+      throw ApiError.badRequest('File size exceeds the 5MB limit', 'FILE_TOO_LARGE', 413);
+    }
+    
+    // Check file type
+    const fileExtension = path.extname(req.file.originalname).toLowerCase();
+    if (!VALID_EXTENSIONS.includes(fileExtension) || !VALID_MIME_TYPES.includes(req.file.mimetype)) {
+      throw ApiError.badRequest('Invalid file type. Only JPEG and PNG are allowed', 'INVALID_FILE_TYPE');
+    }
+    
     // Upload to S3
-    const s3Response = await s3.upload(params).promise();
+    const result = await s3Service.uploadToS3(
+      req.file.buffer,
+      req.user.id,
+      req.file.mimetype
+    );
     
-    // Delete local file after successful S3 upload
-    fs.unlinkSync(file.path);
+    // Return the result
+    res.status(200).json({
+      imageUrl: result.Location,
+      imageKey: result.Key,
+      success: true
+    });
     
-    return s3Response.Location; // Return the S3 URL
   } catch (error) {
-    console.error('Error uploading to S3:', error);
-    // Ensure local file cleanup even on S3 upload failure
-    if (fs.existsSync(file.path)) {
-      fs.unlinkSync(file.path);
-    }
-    throw error;
+    next(error);
   }
 };
 
 /**
- * Handle image upload and store in S3
- * - Single file upload middleware is attached to this controller
+ * Upload multiple images
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
  */
-exports.uploadImage = [
-  // Multer middleware for single file upload
-  upload.single('image'),
-  
-  // Main controller function
-  async (req, res, next) => {
-    try {
-      // Check for file validation error
-      if (req.fileValidationError) {
-        return res.status(400).json({
-          success: false,
-          error: req.fileValidationError
-        });
-      }
-      
-      // Check if file exists
-      if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: 'No image file provided'
-        });
-      }
-      
-      // Get type parameter (throat, ear)
-      const { type } = req.body;
-      
-      if (!type || (type !== 'throat' && type !== 'ear')) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid analysis type. Must be "throat" or "ear"'
-        });
-      }
-      
-      // Upload file to S3
-      const s3Url = await uploadToS3(req.file, type);
-      
-      // Return success response with S3 URL
-      res.status(200).json({
-        success: true,
-        message: 'Image uploaded successfully',
-        imageUrl: s3Url,
-        type: type,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      // Handle multer errors
-      if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({
-            success: false,
-            error: 'File size exceeds the 5MB limit'
-          });
-        }
-        return res.status(400).json({
-          success: false,
-          error: `Upload error: ${error.message}`
-        });
-      }
-      
-      // Handle other errors
-      console.error('Error in image upload:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Internal server error during image upload'
-      });
-    }
-  }
-];
-
-/**
- * Handle multiple image uploads and store in S3
- * - Multiple files upload middleware is attached to this controller
- */
-exports.uploadMultipleImages = [
-  // Multer middleware for multiple file uploads (max 5)
-  upload.array('images', 5),
-  
-  // Main controller function
-  async (req, res, next) => {
-    try {
-      // Check for file validation error
-      if (req.fileValidationError) {
-        return res.status(400).json({
-          success: false,
-          error: req.fileValidationError
-        });
-      }
-      
-      // Check if files exist
-      if (!req.files || req.files.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'No image files provided'
-        });
-      }
-      
-      // Get type parameter (throat, ear)
-      const { type } = req.body;
-      
-      if (!type || (type !== 'throat' && type !== 'ear')) {
-        return res.status(400).json({
-          success: false,
-          error: 'Invalid analysis type. Must be "throat" or "ear"'
-        });
-      }
-      
-      // Upload files to S3
-      const uploadPromises = req.files.map(file => uploadToS3(file, type));
-      const s3Urls = await Promise.all(uploadPromises);
-      
-      // Return success response with S3 URLs
-      res.status(200).json({
-        success: true,
-        message: 'Images uploaded successfully',
-        imageUrls: s3Urls,
-        type: type,
-        count: s3Urls.length,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      // Handle multer errors
-      if (error instanceof multer.MulterError) {
-        if (error.code === 'LIMIT_FILE_SIZE') {
-          return res.status(400).json({
-            success: false,
-            error: 'One or more files exceed the 5MB limit'
-          });
-        }
-        return res.status(400).json({
-          success: false,
-          error: `Upload error: ${error.message}`
-        });
-      }
-      
-      // Handle other errors
-      console.error('Error in multiple image upload:', error);
-      res.status(500).json({
-        success: false,
-        error: error.message || 'Internal server error during image upload'
-      });
-    }
-  }
-];
-
-/**
- * Get presigned URL for direct S3 upload from client
- * - This allows secure direct uploads without sending files through the server
- */
-exports.getPresignedUrl = async (req, res, next) => {
+const uploadMultipleImages = async (req, res, next) => {
   try {
-    const { type, fileType } = req.body;
+    // Check if user is authenticated
+    if (!req.user) {
+      throw ApiError.unauthorized('Authentication required');
+    }
+    
+    // Check if type is valid
+    const { type } = req.body;
+    if (!type || !VALID_TYPES.includes(type)) {
+      throw ApiError.badRequest('Invalid type. Must be "throat" or "ear"', 'INVALID_TYPE');
+    }
+    
+    // Check if files were uploaded
+    if (!req.files || !req.files.length) {
+      throw ApiError.badRequest('No images provided', 'MISSING_IMAGES');
+    }
+    
+    // Process each file
+    const uploadPromises = req.files.map(async (file) => {
+      // Check file size
+      if (file.size > 5 * 1024 * 1024) { // 5MB
+        throw ApiError.badRequest(`File ${file.originalname} exceeds the 5MB limit`, 'FILE_TOO_LARGE', 413);
+      }
+      
+      // Check file type
+      const fileExtension = path.extname(file.originalname).toLowerCase();
+      if (!VALID_EXTENSIONS.includes(fileExtension) || !VALID_MIME_TYPES.includes(file.mimetype)) {
+        throw ApiError.badRequest(`Invalid file type for ${file.originalname}. Only JPEG and PNG are allowed`, 'INVALID_FILE_TYPE');
+      }
+      
+      // Upload to S3
+      const result = await s3Service.uploadToS3(
+        file.buffer,
+        req.user.id,
+        file.mimetype
+      );
+      
+      return {
+        imageUrl: result.Location,
+        imageKey: result.Key,
+        originalName: file.originalname
+      };
+    });
+    
+    // Execute all uploads
+    const uploadResults = await Promise.all(uploadPromises);
+    
+    // Return the results
+    res.status(200).json({
+      images: uploadResults,
+      success: true
+    });
+    
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Generate a presigned URL for direct S3 upload
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ */
+const getPresignedUrl = async (req, res, next) => {
+  try {
+    // Check if user is authenticated
+    if (!req.user) {
+      throw ApiError.unauthorized('Authentication required');
+    }
+    
+    // Get parameters from request
+    const { type, filename, contentType } = req.body;
     
     // Validate parameters
-    if (!type || (type !== 'throat' && type !== 'ear')) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid analysis type. Must be "throat" or "ear"'
-      });
+    if (!type || !VALID_TYPES.includes(type)) {
+      throw ApiError.badRequest('Invalid type. Must be "throat" or "ear"', 'INVALID_TYPE');
     }
     
-    if (!fileType || !['image/jpeg', 'image/png'].includes(fileType)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid file type. Must be JPEG or PNG'
-      });
+    if (!filename) {
+      throw ApiError.badRequest('Filename is required', 'MISSING_FILENAME');
     }
     
-    // Generate unique filename with appropriate extension
-    const extension = fileType === 'image/jpeg' ? '.jpg' : '.png';
-    const key = `uploads/${type}/${Date.now()}-${uuidv4()}${extension}`;
+    if (!contentType || !VALID_MIME_TYPES.includes(contentType)) {
+      throw ApiError.badRequest('Invalid content type. Must be image/jpeg or image/png', 'INVALID_CONTENT_TYPE');
+    }
     
-    // Generate presigned URL
-    const presignedUrl = s3.getSignedUrl('putObject', {
-      Bucket: process.env.AWS_S3_BUCKET_NAME,
-      Key: key,
-      ContentType: fileType,
-      Expires: 300, // URL expires in 5 minutes
-      ACL: 'public-read'
-    });
+    // Generate a unique key for the file
+    const fileExtension = path.extname(filename).toLowerCase();
+    if (!VALID_EXTENSIONS.includes(fileExtension)) {
+      throw ApiError.badRequest('Invalid file type. Only JPEG and PNG are allowed', 'INVALID_FILE_TYPE');
+    }
     
-    // Generate the public URL that will be available after upload
-    const publicUrl = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.amazonaws.com/${key}`;
+    // Generate the key
+    const key = `${req.user.id}/${uuidv4()}${fileExtension}`;
     
+    // Get the presigned URL
+    const presignedData = s3Service.getPresignedUrl(key, contentType);
+    
+    // Return the URL and key
     res.status(200).json({
-      success: true,
-      presignedUrl,
-      publicUrl,
-      key
+      url: presignedData.url,
+      key: presignedData.key,
+      success: true
     });
+    
   } catch (error) {
-    console.error('Error generating presigned URL:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Internal server error'
-    });
+    next(error);
   }
 };
 
 /**
  * Delete an image from S3
+ * 
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
  */
-exports.deleteImage = async (req, res, next) => {
+const deleteImage = async (req, res, next) => {
   try {
-    const { key } = req.params;
-    
-    if (!key) {
-      return res.status(400).json({
-        success: false,
-        error: 'Image key is required'
-      });
+    // Check if user is authenticated
+    if (!req.user) {
+      throw ApiError.unauthorized('Authentication required');
     }
     
-    // S3 delete parameters
-    const params = {
-      Bucket: process.env.AWS_S3_BUCKET_NAME,
-      Key: key
-    };
+    // Get the image key from request body
+    const { imageKey } = req.body;
     
-    // Delete from S3
-    await s3.deleteObject(params).promise();
+    if (!imageKey) {
+      throw ApiError.badRequest('Image key is required', 'MISSING_KEY');
+    }
     
+    // Make sure the key belongs to the user
+    if (!imageKey.startsWith(req.user.id + '/')) {
+      throw ApiError.forbidden('You do not have permission to delete this image');
+    }
+    
+    // Delete the image
+    await s3Service.deleteFromS3(imageKey);
+    
+    // Return success
     res.status(200).json({
-      success: true,
-      message: 'Image deleted successfully'
+      message: 'Image deleted successfully',
+      success: true
     });
+    
   } catch (error) {
-    console.error('Error deleting image from S3:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Internal server error during image deletion'
-    });
+    next(error);
   }
+};
+
+module.exports = {
+  uploadImage,
+  uploadMultipleImages,
+  getPresignedUrl,
+  deleteImage
 };

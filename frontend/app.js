@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = profileTitle.textContent;
             
             // Call updateProfileUI with the subscription info
-            window.SymptomSentryUtils.window.SymptomSentryUtils.updateProfileUI(email, null, {
+            window.SymptomSentryUtils.updateProfileUI(email, null, {
                 email: email,
                 subscription: event.detail.subscription,
                 analysisCount: event.detail.analysisCount,
@@ -552,4 +552,6 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
         console.error('API request error:', error);
         throw error;
     }
-}
+};
+
+// Close the app initialization

@@ -3,6 +3,7 @@ import { initializeImageUpload } from './components/ImageUpload.js';
 import { initializeAnalysis } from './components/Analysis.js';
 import { initializeEducation } from './components/Education.js';
 import { initializeSubscription } from './components/Subscription.js';
+import { updateProfileUI, showNotification, formatNameProperCase } from './utils.js';
 
 // DOM Elements
 const navLinks = document.querySelectorAll('.nav-link');

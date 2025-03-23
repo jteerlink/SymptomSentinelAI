@@ -318,7 +318,7 @@ exports.saveAnalysis = async (req, res, next) => {
                 analysisCount: req.user.analysis_count || 0,
                 analysisLimit: subscriptionLimits.analysesPerMonth,
                 analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - (req.user.analysis_count || 0)),
-                lastResetDate: req.user.last_reset_date
+                last_reset_date: req.user.last_reset_date
             };
             
             return res.status(200).json({
@@ -365,7 +365,7 @@ exports.saveAnalysis = async (req, res, next) => {
                 analysisCount: req.user.analysis_count || 0,
                 analysisLimit: subscriptionLimits.analysesPerMonth,
                 analysisRemaining: Math.max(0, subscriptionLimits.analysesPerMonth - (req.user.analysis_count || 0)),
-                lastResetDate: req.user.last_reset_date
+                last_reset_date: req.user.last_reset_date
             };
             
             return res.status(200).json({

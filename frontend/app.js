@@ -97,6 +97,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Setup other event listeners
     setupEventListeners();
+    
+    // Check if user is already logged in
+    checkAuthState();
 });
 
 // Setup navigation between app pages
@@ -835,6 +838,43 @@ function showNotification(message, type = 'info') {
 function formatNameProperCase(name) {
     if (!name) return '';
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+}
+
+// Check if user is already authenticated and update UI accordingly
+function checkAuthState() {
+    const authToken = localStorage.getItem('authToken');
+    
+    if (authToken) {
+        console.log('[Auth] Found existing auth token, verifying...');
+        
+        // Verify token and get user profile
+        fetch('/api/user-profile', {
+            headers: {
+                'Authorization': `Bearer ${authToken}`
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Token invalid or expired');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('[Auth] Token valid, user data:', data);
+            if (data.user) {
+                updateProfileUI(data.user.email, data.user.name, data.user);
+                showNotification('Welcome back!', 'success');
+            }
+        })
+        .catch(error => {
+            console.error('[Auth] Token validation failed:', error);
+            // Token is invalid, remove it
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+        });
+    } else {
+        console.log('[Auth] No existing auth token found');
+    }
 }
 
 // Utility function to make API requests

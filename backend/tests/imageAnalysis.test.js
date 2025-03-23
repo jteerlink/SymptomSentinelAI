@@ -8,8 +8,8 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 
-// Mock the Analysis model
-jest.mock('../db/models/Analysis', () => ({
+// Mock for Analysis model
+jest.mock('../models/Analysis', () => ({
   create: jest.fn().mockResolvedValue({
     id: '123e4567-e89b-12d3-a456-426614174111',
     type: 'throat',
@@ -24,8 +24,32 @@ jest.mock('../db/models/Analysis', () => ({
   })
 }));
 
-// Mock the User model
-jest.mock('../db/models/User', () => {
+// Mock ML utilities
+jest.mock('../utils/modelLoader', () => ({
+  loadModel: jest.fn().mockResolvedValue({}),
+  preprocessImage: jest.fn().mockResolvedValue({}),
+  runInference: jest.fn().mockResolvedValue([
+    {
+      id: 'strep_throat',
+      name: 'Strep Throat',
+      confidence: 0.78,
+      description: 'A bacterial infection that causes inflammation and pain in the throat.',
+      symptoms: ['Throat pain', 'Red and swollen tonsils'],
+      isPotentiallySerious: true
+    },
+    {
+      id: 'pharyngitis',
+      name: 'Pharyngitis',
+      confidence: 0.35,
+      description: 'Inflammation of the pharynx, resulting in a sore throat.',
+      symptoms: ['Sore throat', 'Dry throat'],
+      isPotentiallySerious: false
+    }
+  ])
+}));
+
+// Mock for User model
+jest.mock('../db/models/index', () => {
   // Mock subscription limits
   const SUBSCRIPTION_LIMITS = {
     free: {
@@ -48,37 +72,45 @@ jest.mock('../db/models/User', () => {
     email: 'test@example.com',
     subscription: 'premium',
     analysisCount: 3,
-    last_reset_date: new Date().toISOString(),
-    hasExceededAnalysisLimit: jest.fn().mockReturnValue(false),
-    incrementAnalysisCount: jest.fn().mockResolvedValue(4)
+    last_reset_date: new Date().toISOString()
   };
   
   // Return mock class and methods
   return {
-    SUBSCRIPTION_LIMITS,
-    mockUser,
-    findById: jest.fn().mockResolvedValue(mockUser),
-    incrementAnalysisCount: jest.fn().mockResolvedValue({
-      ...mockUser,
-      analysisCount: 4
-    })
+    User: {
+      SUBSCRIPTION_LIMITS,
+      getById: jest.fn().mockResolvedValue(mockUser),
+      hasExceededAnalysisLimit: jest.fn().mockReturnValue(false),
+      incrementAnalysisCount: jest.fn().mockResolvedValue({
+        ...mockUser,
+        analysisCount: 4
+      })
+    }
   };
 });
 
 // Mock the auth middleware
 jest.mock('../middleware/auth', () => {
-  const User = require('../db/models/User');
-  
   return {
-    // Mock the authenticate middleware to always provide the mock user
+    // Mock the authenticate middleware to always provide a mock user
     authenticate: (req, res, next) => {
-      req.user = User.mockUser;
+      req.user = {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        subscription: 'premium',
+        analysisCount: 3
+      };
       next();
     },
     
     // Mock the optional authenticate middleware to do the same
     optionalAuthenticate: (req, res, next) => {
-      req.user = User.mockUser;
+      req.user = {
+        id: 'test-user-id',
+        email: 'test@example.com',
+        subscription: 'premium',
+        analysisCount: 3
+      };
       next();
     }
   };

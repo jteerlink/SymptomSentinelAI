@@ -78,7 +78,7 @@ class User {
         const passwordHash = await bcrypt.hash(password, salt);
         
         // Create user
-        const [userId] = await knex('users').insert({
+        const result = await knex('users').insert({
             email,
             password: passwordHash,
             name,
@@ -87,10 +87,13 @@ class User {
             updated_at: knex.fn.now()
         }).returning('id');
         
+        // Extract the userId as a string
+        const userId = result[0].id || result[0];
+        
         // Get created user
         const user = await knex('users')
             .select('id', 'email', 'name', 'subscription', 'created_at')
-            .where({ id: userId })
+            .where('id', userId)
             .first();
             
         return user;
@@ -151,9 +154,12 @@ class User {
      * @returns {Object} User object
      */
     static async getById(userId) {
+        // Ensure userId is treated as a string
+        const id = typeof userId === 'object' && userId.id ? userId.id : userId;
+        
         const user = await knex('users')
             .select('id', 'email', 'name', 'subscription', 'created_at', 'updated_at', 'analysis_count', 'last_reset_date')
-            .where({ id: userId })
+            .where('id', id)
             .first();
             
         if (!user) {
@@ -190,9 +196,12 @@ class User {
         if (email) updateData.email = email;
         updateData.updated_at = knex.fn.now();
         
+        // Ensure userId is treated as a string
+        const id = typeof userId === 'object' && userId.id ? userId.id : userId;
+        
         // Update in database
         await knex('users')
-            .where({ id: userId })
+            .where('id', id)
             .update(updateData);
             
         // Get updated user
@@ -208,9 +217,12 @@ class User {
      * @returns {boolean} Success indicator
      */
     static async updatePassword(userId, currentPassword, newPassword) {
+        // Ensure userId is treated as a string
+        const id = typeof userId === 'object' && userId.id ? userId.id : userId;
+        
         // Get user with password
         const user = await knex('users')
-            .where({ id: userId })
+            .where('id', id)
             .first();
             
         if (!user) {
@@ -233,9 +245,12 @@ class User {
         const salt = await bcrypt.genSalt(10);
         const passwordHash = await bcrypt.hash(newPassword, salt);
         
+        // Ensure userId is treated as a string
+        const updateId = typeof userId === 'object' && userId.id ? userId.id : userId;
+        
         // Update password
         await knex('users')
-            .where({ id: userId })
+            .where('id', updateId)
             .update({
                 password: passwordHash,
                 updated_at: knex.fn.now()
@@ -260,9 +275,12 @@ class User {
         // Verify user exists
         const user = await this.getById(userId);
         
+        // Ensure userId is treated as a string
+        const updateId = typeof userId === 'object' && userId.id ? userId.id : userId;
+        
         // Update subscription
         await knex('users')
-            .where({ id: userId })
+            .where('id', updateId)
             .update({
                 subscription: subscriptionType,
                 updated_at: knex.fn.now()
@@ -390,8 +408,11 @@ class User {
         if (lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
             analysisCount = 1; // This is the first analysis of the new month
             
+            // Ensure userId is treated as a string
+            const updateId = typeof userId === 'object' && userId.id ? userId.id : userId;
+            
             await knex('users')
-                .where({ id: userId })
+                .where('id', updateId)
                 .update({
                     analysis_count: analysisCount,
                     last_reset_date: now,
@@ -401,8 +422,11 @@ class User {
             // Increment counter
             analysisCount += 1;
             
+            // Ensure userId is treated as a string
+            const updateId = typeof userId === 'object' && userId.id ? userId.id : userId;
+            
             await knex('users')
-                .where({ id: userId })
+                .where('id', updateId)
                 .update({
                     analysis_count: analysisCount,
                     updated_at: now
@@ -427,9 +451,12 @@ class User {
      */
     static async delete(userId) {
         try {
+            // Ensure userId is treated as a string
+            const id = typeof userId === 'object' && userId.id ? userId.id : userId;
+            
             // Delete the user
             const deleted = await knex('users')
-                .where({ id: userId })
+                .where('id', id)
                 .delete();
                 
             return deleted > 0;

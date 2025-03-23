@@ -503,9 +503,10 @@ function checkAuthState() {
     }
 }
 
-// Utility function to make API requests
+// API request utility function for making backend API calls
 window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', data = null) {
     try {
+        // Set up request options
         const options = {
             method,
             headers: {
@@ -519,14 +520,10 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
             options.headers['Authorization'] = `Bearer ${token}`;
         }
         
+        // Add body data for POST/PUT requests
         if (data && (method === 'POST' || method === 'PUT')) {
             options.body = JSON.stringify(data);
         }
-        
-        // We've set up our proxy correctly, so we don't need to specify the backend URL directly
-        // The setupProxy.js file already handles routing to the correct backend
-        // This will work in all environments - local dev, Replit, etc.
-        const backendUrl = '';
         
         // Fix endpoint to ensure it has the correct /api/ prefix
         // The backend expects paths with the /api/ prefix
@@ -535,6 +532,8 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
                             `/api/${endpoint}`;
         
         console.log(`API request to: ${apiEndpoint}`, token ? 'with authentication' : 'without authentication');
+        
+        // Make the request
         const response = await fetch(apiEndpoint, options);
         
         // Parse response data once

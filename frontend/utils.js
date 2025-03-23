@@ -264,7 +264,12 @@ window.SymptomSentryUtils.showNotification = function(message, type = 'info') {
  * @param {string} name - Name to format
  * @returns {string} Formatted name
  */
-export function formatNameProperCase(name) {
+window.SymptomSentryUtils.formatNameProperCase = function(name) {
     if (!name) return '';
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+}
+
+// Fix the showNotification reference in the sign out function
+function showNotification(message, type) {
+    window.SymptomSentryUtils.showNotification(message, type);
 }

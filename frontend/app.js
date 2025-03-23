@@ -1,9 +1,7 @@
-// Import components
-import { initializeImageUpload } from './components/ImageUpload.js';
-import { initializeAnalysis } from './components/Analysis.js';
-import { initializeEducation } from './components/Education.js';
-import { initializeSubscription } from './components/Subscription.js';
-import { updateProfileUI, showNotification, formatNameProperCase } from './utils.js';
+// App.js - Main application script
+
+// Define the app object in the global namespace to store component initialization functions
+window.SymptomSentryApp = window.SymptomSentryApp || {};
 
 // DOM Elements
 const navLinks = document.querySelectorAll('.nav-link');
@@ -24,7 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const email = profileTitle.textContent;
             
             // Call updateProfileUI with the subscription info
-            updateProfileUI(email, null, {
+            window.SymptomSentryUtils.window.SymptomSentryUtils.updateProfileUI(email, null, {
                 email: email,
                 subscription: event.detail.subscription,
                 analysisCount: event.detail.analysisCount,
@@ -105,7 +103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add event listener for opening login modal
     window.addEventListener('openLoginModal', () => {
         console.log('[Auth] openLoginModal event captured');
-        handleRegistration();
+        window.SymptomSentryApp.handleRegistration();
     });
 });
 
@@ -190,7 +188,7 @@ function setupEventListeners() {
 
 
 // Handle account registration
-export function handleRegistration() {
+window.SymptomSentryApp.handleRegistration = function() {
     // Create modal container if it doesn't exist
     let modalContainer = document.getElementById('auth-modal-container');
     if (!modalContainer) {
@@ -368,7 +366,7 @@ export function handleRegistration() {
                 subscription: data.user.subscription
             });
             
-            updateProfileUI(data.user.email, data.user.name, data.user);
+            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
             
             // Check if there were analysis results waiting to be saved
             const pendingResults = sessionStorage.getItem('pendingAnalysisResults');
@@ -378,7 +376,7 @@ export function handleRegistration() {
                     // Attempt to save the pending results now that user is logged in
                     const { apiRequest } = await import('./app.js');
                     await apiRequest('/api/save-analysis', 'POST', JSON.parse(pendingResults));
-                    showNotification('Analysis results saved successfully!', 'success');
+                    window.SymptomSentryUtils.showNotification('Analysis results saved successfully!', 'success');
                     sessionStorage.removeItem('pendingAnalysisResults');
                 } catch (saveError) {
                     console.error('[Analysis] Error saving pending analysis:', saveError);
@@ -386,11 +384,11 @@ export function handleRegistration() {
             }
             
             // Show success notification and close modal
-            showNotification('Login successful!', 'success');
+            window.SymptomSentryUtils.showNotification('Login successful!', 'success');
             authModal.hide();
         } catch (error) {
             console.error('Login error:', error);
-            showNotification(error.message || 'Login failed. Please check your credentials.', 'danger');
+            window.SymptomSentryUtils.showNotification(error.message || 'Login failed. Please check your credentials.', 'danger');
         } finally {
             // Reset button state
             submitButton.disabled = false;
@@ -408,7 +406,7 @@ export function handleRegistration() {
         
         // Simple validation
         if (password !== confirmPassword) {
-            showNotification('Passwords do not match!', 'danger');
+            window.SymptomSentryUtils.showNotification('Passwords do not match!', 'danger');
             return;
         }
         
@@ -450,14 +448,14 @@ export function handleRegistration() {
             }
             
             // Automatically log the user in after successful registration
-            updateProfileUI(data.user.email, data.user.name, data.user);
+            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
             
             // Show success notification and close modal
-            showNotification('Account created successfully!', 'success');
+            window.SymptomSentryUtils.showNotification('Account created successfully!', 'success');
             authModal.hide();
         } catch (error) {
             console.error('Registration error:', error);
-            showNotification(error.message || 'Registration failed. Please try again.', 'danger');
+            window.SymptomSentryUtils.showNotification(error.message || 'Registration failed. Please try again.', 'danger');
         } finally {
             // Reset button state
             submitButton.disabled = false;
@@ -491,8 +489,8 @@ function checkAuthState() {
         .then(data => {
             console.log('[Auth] Token valid, user data:', data);
             if (data.user) {
-                updateProfileUI(data.user.email, data.user.name, data.user);
-                showNotification('Welcome back!', 'success');
+                window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
+                window.SymptomSentryUtils.showNotification('Welcome back!', 'success');
             }
         })
         .catch(error => {

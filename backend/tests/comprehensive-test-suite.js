@@ -87,14 +87,14 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
         .send(TEST_USER);
       
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('accessToken');
       expect(response.body).toHaveProperty('refreshToken');
       expect(response.body).toHaveProperty('user');
       expect(response.body.user).toHaveProperty('id');
       expect(response.body.user).toHaveProperty('email', TEST_USER.email);
       
       // Store tokens for subsequent tests
-      authToken = response.body.token;
+      authToken = response.body.accessToken;
       refreshToken = response.body.refreshToken;
       userId = response.body.user.id;
     });
@@ -108,11 +108,11 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
         });
       
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('accessToken');
       expect(response.body).toHaveProperty('refreshToken');
       
       // Update tokens
-      authToken = response.body.token;
+      authToken = response.body.accessToken;
       refreshToken = response.body.refreshToken;
     });
     
@@ -134,11 +134,11 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
         .send({ refreshToken });
       
       expect(response.status).toBe(200);
-      expect(response.body).toHaveProperty('token');
+      expect(response.body).toHaveProperty('accessToken');
       expect(response.body).toHaveProperty('refreshToken');
       
       // Update tokens
-      authToken = response.body.token;
+      authToken = response.body.accessToken;
       refreshToken = response.body.refreshToken;
     });
     
@@ -167,7 +167,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     test('should update user profile', async () => {
       const updatedName = 'Updated Test User';
       
-      const response = await authenticatedRequest('/api/update-profile', 'POST', {
+      const response = await authenticatedRequest('/api/update-profile', 'PUT', {
         name: updatedName
       });
       
@@ -186,7 +186,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     test('should update password', async () => {
       const newPassword = 'NewPassword123!';
       
-      const response = await authenticatedRequest('/api/update-password', 'POST', {
+      const response = await authenticatedRequest('/api/update-password', 'PUT', {
         currentPassword: TEST_USER.password,
         newPassword: newPassword
       });
@@ -211,7 +211,7 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     test('should reject weak password update', async () => {
       const weakPassword = 'weak';
       
-      const response = await authenticatedRequest('/api/update-password', 'POST', {
+      const response = await authenticatedRequest('/api/update-password', 'PUT', {
         currentPassword: TEST_USER.password,
         newPassword: weakPassword
       });

@@ -185,8 +185,6 @@ function setupEventListeners() {
     }
 }
 
-
-
 // Handle account registration
 window.SymptomSentryApp.handleRegistration = function() {
     // Create modal container if it doesn't exist
@@ -347,47 +345,30 @@ window.SymptomSentryApp.handleRegistration = function() {
             
             console.log('[Auth] Login successful, storing tokens and user data');
             
-            // Store tokens in localStorage
+            // Store the tokens and user information
             localStorage.setItem('authToken', data.accessToken);
-            if (data.refreshToken) {
-                localStorage.setItem('refreshToken', data.refreshToken);
-            }
+            localStorage.setItem('refreshToken', data.refreshToken);
             
-            if (rememberMe) {
-                localStorage.setItem('userEmail', email);
-            } else {
-                localStorage.removeItem('userEmail');
-            }
+            // Calculate token expiration time (1 hour from now)
+            const expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
+            localStorage.setItem('tokenExpires', expiresAt.toISOString());
             
-            // Update UI to reflect logged in state
-            console.log('[UI] Updating profile with user data:', {
-                email: data.user.email,
-                name: data.user.name,
-                subscription: data.user.subscription
-            });
-            
+            // Set the user's profile information
             window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
             
-            // Check if there were analysis results waiting to be saved
-            const pendingResults = sessionStorage.getItem('pendingAnalysisResults');
-            if (pendingResults) {
-                try {
-                    console.log('[Analysis] Saving pending analysis results');
-                    // Attempt to save the pending results now that user is logged in
-                    await window.SymptomSentryApp.apiRequest('/api/save-analysis', 'POST', JSON.parse(pendingResults));
-                    window.SymptomSentryUtils.showNotification('Analysis results saved successfully!', 'success');
-                    sessionStorage.removeItem('pendingAnalysisResults');
-                } catch (saveError) {
-                    console.error('[Analysis] Error saving pending analysis:', saveError);
-                }
-            }
-            
-            // Show success notification and close modal
-            window.SymptomSentryUtils.showNotification('Login successful!', 'success');
+            // Close the modal
             authModal.hide();
+            
+            // Show success message
+            window.SymptomSentryUtils.showNotification('Login successful! Welcome back.', 'success');
+            
         } catch (error) {
-            console.error('Login error:', error);
-            window.SymptomSentryUtils.showNotification(error.message || 'Login failed. Please check your credentials.', 'danger');
+            console.error('[Auth] Login error:', error);
+            
+            // Show error message
+            window.SymptomSentryUtils.showNotification(`Login failed: ${error.message}`, 'danger');
+            
         } finally {
             // Reset button state
             submitButton.disabled = false;
@@ -399,105 +380,149 @@ window.SymptomSentryApp.handleRegistration = function() {
         e.preventDefault();
         const firstName = document.getElementById('register-first-name').value;
         const lastName = document.getElementById('register-last-name').value;
+        const name = `${firstName} ${lastName}`;
         const email = document.getElementById('register-email').value;
         const password = document.getElementById('register-password').value;
         const confirmPassword = document.getElementById('register-confirm-password').value;
         
-        // Simple validation
+        // Check if passwords match
         if (password !== confirmPassword) {
-            window.SymptomSentryUtils.showNotification('Passwords do not match!', 'danger');
+            window.SymptomSentryUtils.showNotification('Passwords do not match', 'danger');
             return;
         }
+        
+        console.log('Register form submitted for email:', email);
         
         // Show loading state
         const submitButton = e.target.querySelector('button[type="submit"]');
         const originalButtonText = submitButton.innerHTML;
         submitButton.disabled = true;
-        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Creating account...';
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
         
         try {
-            // Format full name for the API
-            const name = `${firstName} ${lastName}`.trim();
-            
             // Call register API
             const response = await fetch('/api/register', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    email, 
-                    password, 
-                    name
-                })
+                body: JSON.stringify({ name, email, password })
             });
             
-            // Parse the response JSON data
             const data = await response.json();
             
-            // Check if the response contains an error
             if (!response.ok) {
                 throw new Error(data.message || 'Registration failed');
             }
             
-            // Store tokens in localStorage
+            // Store the tokens
             localStorage.setItem('authToken', data.accessToken);
-            if (data.refreshToken) {
-                localStorage.setItem('refreshToken', data.refreshToken);
-            }
+            localStorage.setItem('refreshToken', data.refreshToken);
             
-            // Automatically log the user in after successful registration
+            // Calculate token expiration time (1 hour from now)
+            const expiresAt = new Date();
+            expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
+            localStorage.setItem('tokenExpires', expiresAt.toISOString());
+            
+            // Set the user's profile information
             window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
             
-            // Show success notification and close modal
-            window.SymptomSentryUtils.showNotification('Account created successfully!', 'success');
+            // Close the modal
             authModal.hide();
+            
+            // Show success message
+            window.SymptomSentryUtils.showNotification('Registration successful! Welcome to SymptomSentryAI.', 'success');
+            
         } catch (error) {
             console.error('Registration error:', error);
-            window.SymptomSentryUtils.showNotification(error.message || 'Registration failed. Please try again.', 'danger');
+            
+            // Show error message
+            window.SymptomSentryUtils.showNotification(`Registration failed: ${error.message}`, 'danger');
+            
         } finally {
             // Reset button state
             submitButton.disabled = false;
             submitButton.innerHTML = originalButtonText;
         }
     });
+};
 
-// showNotification function is now imported from utils.js
-
-// formatNameProperCase function is now imported from utils.js
-
-// Check if user is already authenticated and update UI accordingly
+// Check if the user has a valid authentication token
 function checkAuthState() {
-    const authToken = localStorage.getItem('authToken');
+    console.log('[Auth] Checking auth state...');
     
-    if (authToken) {
-        console.log('[Auth] Found existing auth token, verifying...');
+    const authToken = localStorage.getItem('authToken');
+    const refreshToken = localStorage.getItem('refreshToken');
+    const tokenExpires = localStorage.getItem('tokenExpires');
+    
+    if (authToken && tokenExpires) {
+        // Check if token is expired
+        const now = new Date();
+        const expiresAt = new Date(tokenExpires);
         
-        // Verify token and get user profile
-        fetch('/api/user-profile', {
-            headers: {
-                'Authorization': `Bearer ${authToken}`
+        if (now > expiresAt) {
+            console.log('[Auth] Token expired, attempting to refresh');
+            
+            // If we have a refresh token, try to get a new access token
+            if (refreshToken) {
+                // Attempt token refresh
+                fetch('/api/refresh-token', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ refreshToken })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.accessToken) {
+                        console.log('[Auth] Token refreshed successfully');
+                        
+                        // Update stored tokens
+                        localStorage.setItem('authToken', data.accessToken);
+                        
+                        // Calculate new expiration (1 hour from now)
+                        const newExpiresAt = new Date();
+                        newExpiresAt.setHours(newExpiresAt.getHours() + 1);
+                        localStorage.setItem('tokenExpires', newExpiresAt.toISOString());
+                        
+                        // Get and update user profile
+                        window.SymptomSentryApp.getUserProfile();
+                    } else {
+                        console.log('[Auth] Token refresh failed, clearing auth data');
+                        // Clear auth data and show as logged out
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('refreshToken');
+                        localStorage.removeItem('tokenExpires');
+                        
+                        // Update UI to show logged out state
+                        window.SymptomSentryUtils.updateProfileUI(null, null, null);
+                    }
+                })
+                .catch(error => {
+                    console.error('[Auth] Token refresh error:', error);
+                    // Clear auth data and show as logged out
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('tokenExpires');
+                    
+                    // Update UI to show logged out state
+                    window.SymptomSentryUtils.updateProfileUI(null, null, null);
+                });
+            } else {
+                console.log('[Auth] No refresh token found, clearing auth data');
+                // No refresh token, clear auth data
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('tokenExpires');
+                
+                // Update UI to show logged out state
+                window.SymptomSentryUtils.updateProfileUI(null, null, null);
             }
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Token invalid or expired');
-            }
-            return response.json();
-        })
-        .then(data => {
-            console.log('[Auth] Token valid, user data:', data);
-            if (data.user) {
-                window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
-                window.SymptomSentryUtils.showNotification('Welcome back!', 'success');
-            }
-        })
-        .catch(error => {
-            console.error('[Auth] Token validation failed:', error);
-            // Token is invalid, remove it
-            localStorage.removeItem('authToken');
-            localStorage.removeItem('refreshToken');
-        });
+        } else {
+            console.log('[Auth] Token valid, fetching user profile');
+            // Token is still valid, fetch user profile
+            window.SymptomSentryApp.getUserProfile();
+        }
     } else {
         console.log('[Auth] No existing auth token found');
     }
@@ -554,4 +579,31 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
     }
 };
 
-// Close the app initialization
+// Get user profile from the API
+window.SymptomSentryApp.getUserProfile = function() {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+        console.log('[Auth] No token found, cannot get user profile');
+        return;
+    }
+    
+    window.SymptomSentryApp.apiRequest('user-profile')
+        .then(data => {
+            console.log('[Auth] User profile data:', data);
+            // Update profile UI with user data
+            window.SymptomSentryUtils.updateProfileUI(data.email, data.name, data);
+        })
+        .catch(error => {
+            console.error('[Auth] Error fetching user profile:', error);
+            // If we get a 401 error, token is invalid
+            if (error.message && error.message.includes('401')) {
+                // Clear auth data
+                localStorage.removeItem('authToken');
+                localStorage.removeItem('refreshToken');
+                localStorage.removeItem('tokenExpires');
+                
+                // Update UI to show logged out state
+                window.SymptomSentryUtils.updateProfileUI(null, null, null);
+            }
+        });
+};

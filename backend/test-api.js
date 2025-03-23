@@ -3,21 +3,70 @@
  * Run with: node test-api.js
  */
 
-// Import fetch for making HTTP requests
-const fetch = require('node-fetch');
+// We'll use dynamic import for node-fetch because it's an ESM module
+let fetch;
+// This function makes sure we import node-fetch before using it
+async function setupFetch() {
+  if (!fetch) {
+    const module = await import('node-fetch');
+    fetch = module.default;
+  }
+  return fetch;
+}
 
 // Base URL of the backend API (local server)
 const API_BASE_URL = 'http://localhost:5000/api';
 
+// Test login to get auth token
+async function testLogin() {
+  console.log('\n----- Testing /api/login for auth token -----');
+  try {
+    // Make sure fetch is available
+    fetch = await setupFetch();
+    
+    // Create login request
+    const response = await fetch(`${API_BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: 'test@example.com',
+        password: 'Test123!@#'
+      }),
+    });
+    
+    // Check response status
+    console.log(`Login response status: ${response.status} ${response.statusText}`);
+    
+    if (response.status === 200) {
+      const data = await response.json();
+      console.log('Login successful');
+      return data.accessToken;
+    } else {
+      console.log('Login failed, using test token');
+      // Return a test token for testing
+      return 'test_token';
+    }
+  } catch (error) {
+    console.error('Error logging in:', error);
+    return 'test_token';
+  }
+}
+
 // Test analyze endpoint with a simple image
-async function testAnalyzeEndpoint() {
+async function testAnalyzeEndpoint(authToken) {
   console.log('\n----- Testing /api/analyze endpoint -----');
   try {
+    // Make sure fetch is available
+    fetch = await setupFetch();
+    
     // Create sample request to analyze a throat image
     const response = await fetch(`${API_BASE_URL}/analyze`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
       },
       body: JSON.stringify({
         type: 'throat',
@@ -43,6 +92,9 @@ async function testAnalyzeEndpoint() {
 async function testHealthEndpoint() {
   console.log('\n----- Testing /api/health endpoint -----');
   try {
+    // Make sure fetch is available
+    fetch = await setupFetch();
+    
     // Make request to health endpoint
     const response = await fetch(`${API_BASE_URL}/health`);
 
@@ -66,6 +118,9 @@ async function runTests() {
   console.log('  SymptomSentryAI API Test Script   ');
   console.log('====================================');
   console.log(`Testing API at: ${API_BASE_URL}`);
+  
+  // Initialize fetch before running tests
+  fetch = await setupFetch();
 
   // Test health endpoint
   await testHealthEndpoint();

@@ -48,7 +48,7 @@ jest.mock('../db/models/User', () => {
     email: 'test@example.com',
     subscription: 'premium',
     analysisCount: 3,
-    lastResetDate: new Date().toISOString(),
+    last_reset_date: new Date().toISOString(),
     hasExceededAnalysisLimit: jest.fn().mockReturnValue(false),
     incrementAnalysisCount: jest.fn().mockResolvedValue(4)
   };
@@ -188,6 +188,6 @@ describe('Image Analysis API', () => {
         expect(response.body.subscription).toHaveProperty('analysisCount');
         expect(response.body.subscription).toHaveProperty('analysisLimit');
         expect(response.body.subscription).toHaveProperty('analysisRemaining');
-        expect(response.body.subscription).toHaveProperty('lastResetDate');
+        expect(response.body.subscription).toHaveProperty('last_reset_date');
     });
 });

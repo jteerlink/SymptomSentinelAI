@@ -11,9 +11,14 @@
  * Run with: node frontend/tests/frontend-test-suite.js
  */
 
-const fetch = require('node-fetch');
-const fs = require('fs');
-const path = require('path');
+import fetch from 'node-fetch';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES module compatibility
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Test configuration
 const config = {
@@ -378,7 +383,7 @@ runAllTests().catch(error => {
   console.error('❌ Test suite error:', error);
 });
 
-module.exports = {
+export {
   runAllTests,
   tests,
   helpers,

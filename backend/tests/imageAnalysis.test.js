@@ -66,12 +66,12 @@ jest.mock('../db/models/index', () => {
     }
   };
   
-  // Create a mock user object
+  // Create a mock user object with last_reset_date
   const mockUser = {
     id: 'test-user-id',
     email: 'test@example.com',
     subscription: 'premium',
-    analysisCount: 3,
+    analysis_count: 3,
     last_reset_date: new Date().toISOString()
   };
   
@@ -83,7 +83,7 @@ jest.mock('../db/models/index', () => {
       hasExceededAnalysisLimit: jest.fn().mockReturnValue(false),
       incrementAnalysisCount: jest.fn().mockResolvedValue({
         ...mockUser,
-        analysisCount: 4
+        analysis_count: 4
       })
     }
   };
@@ -98,7 +98,8 @@ jest.mock('../middleware/auth', () => {
         id: 'test-user-id',
         email: 'test@example.com',
         subscription: 'premium',
-        analysisCount: 3
+        analysis_count: 3,
+        last_reset_date: new Date().toISOString()
       };
       next();
     },
@@ -109,7 +110,8 @@ jest.mock('../middleware/auth', () => {
         id: 'test-user-id',
         email: 'test@example.com',
         subscription: 'premium',
-        analysisCount: 3
+        analysis_count: 3,
+        last_reset_date: new Date().toISOString()
       };
       next();
     }

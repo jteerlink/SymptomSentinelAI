@@ -132,12 +132,12 @@ const tests = {
         password: config.testUser.password
       });
       
-      if (response.status !== 200 || !response.body.token) {
+      if (response.status !== 200 || !response.body.accessToken) {
         throw new Error(`Login failed with status ${response.status}`);
       }
       
       // Store tokens for other tests
-      config.tokens.accessToken = response.body.token;
+      config.tokens.accessToken = response.body.accessToken;
       config.tokens.refreshToken = response.body.refreshToken;
       
       helpers.logResult('User Login', true);
@@ -154,12 +154,12 @@ const tests = {
         refreshToken: config.tokens.refreshToken
       });
       
-      if (response.status !== 200 || !response.body.token) {
+      if (response.status !== 200 || !response.body.accessToken) {
         throw new Error(`Token refresh failed with status ${response.status}`);
       }
       
       // Update tokens
-      config.tokens.accessToken = response.body.token;
+      config.tokens.accessToken = response.body.accessToken;
       config.tokens.refreshToken = response.body.refreshToken;
       
       helpers.logResult('Token Refresh', true);
@@ -237,13 +237,13 @@ const tests = {
         password: newPassword
       });
       
-      if (loginResponse.status !== 200 || !loginResponse.body.token) {
+      if (loginResponse.status !== 200 || !loginResponse.body.accessToken) {
         throw new Error('Login with new password failed');
       }
       
       // Update test user and tokens
       config.testUser.password = newPassword;
-      config.tokens.accessToken = loginResponse.body.token;
+      config.tokens.accessToken = loginResponse.body.accessToken;
       config.tokens.refreshToken = loginResponse.body.refreshToken;
       
       helpers.logResult('Update Password', true);

@@ -1,7 +1,7 @@
 // Import required modules
 const tf = require('@tensorflow/tfjs-node');
 const { v4: uuidv4 } = require('uuid');
-const User = require('../models/User');
+const { User } = require('../db/models/index');
 const Analysis = require('../models/Analysis');
 const ApiError = require('../utils/apiError');
 

@@ -6,7 +6,7 @@
  */
 
 const jwt = require('jsonwebtoken');
-const { User } = require('../db/models');
+const { User } = require('../db/models/index');
 
 // JWT secret key (would be in env variables in production)
 const JWT_SECRET = process.env.JWT_SECRET || 'symptom-sentry-ai-secret-key';

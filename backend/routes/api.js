@@ -154,7 +154,7 @@ router.use((err, req, res, next) => {
         switch (err.code) {
             case 'LIMIT_FILE_SIZE':
                 errorResponse.code = 'LIMIT_FILE_SIZE';
-                errorResponse.message = 'File size exceeds the 5MB limit';
+                errorResponse.message = 'File size too large - exceeds the 5MB limit';
                 return res.status(413).json(errorResponse);
                 
             case 'LIMIT_UNEXPECTED_FILE':

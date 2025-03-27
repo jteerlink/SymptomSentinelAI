@@ -33,11 +33,7 @@ args = "RunAllTests"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "BackendServer"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "FrontendServer"
+args = "App"
 
 [[workflows.workflow]]
 name = "Test"
@@ -110,7 +106,7 @@ task = "shell.exec"
 args = "node run-all-tests.js"
 
 [[workflows.workflow]]
-name = "BackendServer"
+name = "App"
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -121,23 +117,8 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd backend && node server.js"
+args = "node run-app.js"
 waitForPort = 5000
-
-[[workflows.workflow]]
-name = "FrontendServer"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd frontend && node server.js"
-waitForPort = 8000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]

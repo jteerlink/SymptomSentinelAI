@@ -10,8 +10,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 8000;
-const BACKEND_URL = 'http://0.0.0.0:5000';
+const PORT = process.env.PORT || 5000;
+const BACKEND_URL = process.env.BACKEND_URL || 'http://0.0.0.0:5001';
 
 // Request logging middleware
 app.use((req, res, next) => {

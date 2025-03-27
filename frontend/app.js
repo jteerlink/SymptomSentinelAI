@@ -361,85 +361,100 @@ window.SymptomSentryApp.handleRegistration = function() {
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing in...';
         
         try {
-            // Create the payload
-            const payload = JSON.stringify({ email, password });
-            console.log('[Fetch] Executing fetch to: /api/login');
-            console.log('[Fetch] Request payload:', { email, password: '********' });
-            
-            // Call login API
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: payload,
-                credentials: 'include' // Important: Include cookies in the request
-            });
-            
-            console.log('[Fetch] Response status:', response.status, response.statusText);
-            console.log('[Fetch] Response headers:', Object.fromEntries([...response.headers.entries()]));
-            
-            // Get the response text first to debug any parsing issues
-            const responseText = await response.text();
-            console.log('[Fetch] Raw response text:', responseText);
-            
-            // Try to parse the response as JSON
-            let data;
-            try {
-                data = JSON.parse(responseText);
-                console.log('[Fetch] Parsed response data:', data);
-            } catch (parseError) {
-                console.error('[Fetch] JSON parse error:', parseError);
-                console.error('[Fetch] Failed to parse response text:', responseText);
-                throw new Error('Server response format error. Please try again.');
-            }
-            
-            // Check if the response contains an error 
-            if (!response.ok) {
-                console.error('[Fetch] Error response:', data);
-                throw new Error(data.message || 'Login failed');
-            }
-            
-            // Enhanced logging for response structure debugging
-            console.log('[Auth] Full response structure:', JSON.stringify(data));
-            console.log('[Auth] Response keys:', Object.keys(data));
-            
-            // Validate the response structure
-            if (!data.accessToken) {
-                console.error('[Fetch] Missing access token in response:', data);
-                // Check if the token is under a different key name
-                if (data.token) {
-                    console.log('[Auth] Found token under "token" key instead of "accessToken" - will use this');
-                    data.accessToken = data.token;
-                } else {
-                    throw new Error('Invalid server response: Missing authentication token');
+            // Use AuthManager for login if available
+            if (window.SymptomSentryAuth) {
+                console.log('[Auth] Using AuthManager for login');
+                
+                // Call the login method from AuthManager
+                const data = await window.SymptomSentryAuth.login(email, password);
+                
+                // Close the modal
+                authModal.hide();
+                
+                console.log('[Auth] Login successful via AuthManager');
+            } else {
+                // Fallback to the direct API call if AuthManager is not available
+                console.log('[Auth] Falling back to direct API call for login');
+                
+                // Create the payload
+                const payload = JSON.stringify({ email, password });
+                console.log('[Fetch] Executing fetch to: /api/login');
+                console.log('[Fetch] Request payload:', { email, password: '********' });
+                
+                // Call login API
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: payload,
+                    credentials: 'include' // Important: Include cookies in the request
+                });
+                
+                console.log('[Fetch] Response status:', response.status, response.statusText);
+                
+                // Get the response text first to debug any parsing issues
+                const responseText = await response.text();
+                console.log('[Fetch] Raw response text:', responseText);
+                
+                // Try to parse the response as JSON
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('[Fetch] Parsed response data:', data);
+                } catch (parseError) {
+                    console.error('[Fetch] JSON parse error:', parseError);
+                    console.error('[Fetch] Failed to parse response text:', responseText);
+                    throw new Error('Server response format error. Please try again.');
                 }
+                
+                // Check if the response contains an error 
+                if (!response.ok) {
+                    console.error('[Fetch] Error response:', data);
+                    throw new Error(data.message || 'Login failed');
+                }
+                
+                // Enhanced logging for response structure debugging
+                console.log('[Auth] Full response structure:', JSON.stringify(data));
+                console.log('[Auth] Response keys:', Object.keys(data));
+                
+                // Validate the response structure
+                if (!data.accessToken) {
+                    console.error('[Fetch] Missing access token in response:', data);
+                    // Check if the token is under a different key name
+                    if (data.token) {
+                        console.log('[Auth] Found token under "token" key instead of "accessToken" - will use this');
+                        data.accessToken = data.token;
+                    } else {
+                        throw new Error('Invalid server response: Missing authentication token');
+                    }
+                }
+                
+                if (!data.user) {
+                    console.error('[Fetch] Missing user data in response:', data);
+                    throw new Error('Invalid server response: Missing user data');
+                }
+                
+                console.log('[Auth] Login successful, storing tokens and user data');
+                
+                // Store the tokens and user information
+                localStorage.setItem('authToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken);
+                
+                // Calculate token expiration time (1 hour from now)
+                const expiresAt = new Date();
+                expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
+                localStorage.setItem('tokenExpires', expiresAt.toISOString());
+                
+                // Set the user's profile information
+                window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
+                
+                // Close the modal
+                authModal.hide();
+                
+                // Show success message
+                window.SymptomSentryUtils.showNotification('Login successful! Welcome back.', 'success');
             }
-            
-            if (!data.user) {
-                console.error('[Fetch] Missing user data in response:', data);
-                throw new Error('Invalid server response: Missing user data');
-            }
-            
-            console.log('[Auth] Login successful, storing tokens and user data');
-            
-            // Store the tokens and user information
-            localStorage.setItem('authToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
-            
-            // Calculate token expiration time (1 hour from now)
-            const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
-            localStorage.setItem('tokenExpires', expiresAt.toISOString());
-            
-            // Set the user's profile information
-            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
-            
-            // Close the modal
-            authModal.hide();
-            
-            // Show success message
-            window.SymptomSentryUtils.showNotification('Login successful! Welcome back.', 'success');
             
         } catch (error) {
             console.error('[Auth] Login error:', error);
@@ -504,95 +519,118 @@ window.SymptomSentryApp.handleRegistration = function() {
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
         
         try {
-            console.log('[Registration] 🔄 Sending registration request to server...');
-            console.log('[Registration] Payload:', { name, email, password: '********' });
+            console.log('[Registration] 🔄 Preparing registration request...');
             
-            // Call register API
-            const response = await fetch('/api/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name, email, password }),
-                credentials: 'include' // Include cookies in the request
-            });
+            // Prepare the user data
+            const userData = {
+                name,
+                email,
+                password
+            };
             
-            console.log('[Registration] 📥 Server response received');
-            console.log('[Registration] Response status:', response.status, response.statusText);
-            console.log('[Registration] Response headers:', Object.fromEntries([...response.headers.entries()]));
-            
-            // Get the response text first to debug any parsing issues
-            const responseText = await response.text();
-            console.log('[Registration] Raw response text:', responseText);
-            
-            // Try to parse the response as JSON
-            let data;
-            try {
-                data = JSON.parse(responseText);
-                console.log('[Registration] Parsed response data:', data);
-            } catch (parseError) {
-                console.error('[Registration] ❌ JSON parse error:', parseError);
-                console.error('[Registration] ❌ Failed to parse response text:', responseText);
-                throw new Error('Server response format error. Please try again.');
+            // Use AuthManager for registration if available
+            if (window.SymptomSentryAuth) {
+                console.log('[Registration] Using AuthManager for registration');
+                
+                // Call the register method from AuthManager
+                await window.SymptomSentryAuth.register(userData);
+                
+                console.log('[Registration] ✅ Registration successful via AuthManager!');
+                
+                // Close the modal
+                authModal.hide();
+            } else {
+                // Fallback to direct API call if AuthManager not available
+                console.log('[Registration] 🔄 Sending registration request to server (legacy method)...');
+                console.log('[Registration] Payload:', { name, email, password: '********' });
+                
+                // Call register API
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userData),
+                    credentials: 'include' // Include cookies in the request
+                });
+                
+                console.log('[Registration] 📥 Server response received');
+                console.log('[Registration] Response status:', response.status, response.statusText);
+                console.log('[Registration] Response headers:', Object.fromEntries([...response.headers.entries()]));
+                
+                // Get the response text first to debug any parsing issues
+                const responseText = await response.text();
+                console.log('[Registration] Raw response text:', responseText);
+                
+                // Try to parse the response as JSON
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                    console.log('[Registration] Parsed response data:', data);
+                } catch (parseError) {
+                    console.error('[Registration] ❌ JSON parse error:', parseError);
+                    console.error('[Registration] ❌ Failed to parse response text:', responseText);
+                    throw new Error('Server response format error. Please try again.');
+                }
+                
+                if (!response.ok) {
+                    console.error('[Registration] ❌ Server returned error response:', data);
+                    console.error('[Registration] Status code:', response.status);
+                    throw new Error(data.message || 'Registration failed');
+                }
+                
+                // Enhanced logging for response structure debugging
+                console.log('[Registration] ✅ Registration successful!');
+                console.log('[Registration] Full response structure:', JSON.stringify(data));
+                console.log('[Registration] Response keys:', Object.keys(data));
+                
+                // Verify response contains the expected data
+                if (!data.user) {
+                    console.error('[Registration] ❌ Missing user data in response');
+                    throw new Error('Invalid server response: Missing user data');
+                }
+                
+                console.log('[Registration] User data received:', {
+                    id: data.user.id,
+                    email: data.user.email,
+                    name: data.user.name,
+                    subscription: data.user.subscription
+                });
+                
+                // Handle token key variations
+                if (!data.accessToken && data.token) {
+                    console.log('[Registration] Token naming inconsistency detected');
+                    console.log('[Registration] ⚠️ Found token under "token" key instead of "accessToken" - will use this');
+                    data.accessToken = data.token;
+                }
+                
+                if (!data.accessToken) {
+                    console.error('[Registration] ❌ Missing access token in response');
+                    throw new Error('Invalid server response: Missing authentication token');
+                }
+                
+                console.log('[Registration] 🔐 Storing authentication tokens...');
+                
+                // Store the tokens
+                localStorage.setItem('authToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken || ''); // Handle case where refreshToken might be missing
+                
+                // Calculate token expiration time (1 hour from now)
+                const expiresAt = new Date();
+                expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
+                localStorage.setItem('tokenExpires', expiresAt.toISOString());
+                console.log('[Registration] Token expiration set to:', expiresAt.toISOString());
+                
+                console.log('[Registration] 👤 Updating user interface with profile information...');
+                // Set the user's profile information
+                window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
+                
+                // Close the modal
+                authModal.hide();
+                
+                // Show success message
+                window.SymptomSentryUtils.showNotification('Registration successful! Welcome to SymptomSentryAI.', 'success');
             }
-            
-            if (!response.ok) {
-                console.error('[Registration] ❌ Server returned error response:', data);
-                console.error('[Registration] Status code:', response.status);
-                throw new Error(data.message || 'Registration failed');
-            }
-            
-            // Enhanced logging for response structure debugging
-            console.log('[Registration] ✅ Registration successful!');
-            console.log('[Registration] Full response structure:', JSON.stringify(data));
-            console.log('[Registration] Response keys:', Object.keys(data));
-            
-            // Verify response contains the expected data
-            if (!data.user) {
-                console.error('[Registration] ❌ Missing user data in response');
-                throw new Error('Invalid server response: Missing user data');
-            }
-            
-            console.log('[Registration] User data received:', {
-                id: data.user.id,
-                email: data.user.email,
-                name: data.user.name,
-                subscription: data.user.subscription
-            });
-            
-            // Handle token key variations
-            if (!data.accessToken && data.token) {
-                console.log('[Registration] Token naming inconsistency detected');
-                console.log('[Registration] ⚠️ Found token under "token" key instead of "accessToken" - will use this');
-                data.accessToken = data.token;
-            }
-            
-            if (!data.accessToken) {
-                console.error('[Registration] ❌ Missing access token in response');
-                throw new Error('Invalid server response: Missing authentication token');
-            }
-            
-            console.log('[Registration] 🔐 Storing authentication tokens...');
-            
-            // Store the tokens
-            localStorage.setItem('authToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken || ''); // Handle case where refreshToken might be missing
-            
-            // Calculate token expiration time (1 hour from now)
-            const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
-            localStorage.setItem('tokenExpires', expiresAt.toISOString());
-            console.log('[Registration] Token expiration set to:', expiresAt.toISOString());
-            
-            console.log('[Registration] 👤 Updating user interface with profile information...');
-            // Set the user's profile information
-            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
-            
-            // Close the modal
-            authModal.hide();
-            
-            // Show success message
-            window.SymptomSentryUtils.showNotification('Registration successful! Welcome to SymptomSentryAI.', 'success');
             
         } catch (error) {
             console.error('[Registration] ❌ Registration failed with error:', error);
@@ -632,85 +670,27 @@ window.SymptomSentryApp.handleRegistration = function() {
 
 // Check if the user has a valid authentication token
 function checkAuthState() {
-    console.log('[Auth] Checking auth state...');
+    console.log('[Auth] Checking auth state using AuthManager...');
     
-    // Use helper function to check if authenticated
-    const isAuthenticated = window.SymptomSentryUtils.isAuthenticated();
-    const authToken = isAuthenticated ? window.SymptomSentryUtils.getAuthToken() : null;
-    const refreshToken = localStorage.getItem('refreshToken');
-    const tokenExpires = localStorage.getItem('tokenExpires');
-    
-    if (authToken && tokenExpires) {
-        // Check if token is expired
-        const now = new Date();
-        const expiresAt = new Date(tokenExpires);
+    // Use the centralized AuthManager to check authentication state
+    if (window.SymptomSentryAuth) {
+        const isAuthenticated = window.SymptomSentryAuth.isAuthenticated();
+        console.log('[Auth] Current auth state:', isAuthenticated ? 'Authenticated' : 'Not Authenticated');
         
-        if (now > expiresAt) {
-            console.log('[Auth] Token expired, attempting to refresh');
-            
-            // If we have a refresh token, try to get a new access token
-            if (refreshToken) {
-                // Attempt token refresh
-                fetch('/api/refresh-token', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ refreshToken }),
-                    credentials: 'include' // Include cookies in request
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.accessToken) {
-                        console.log('[Auth] Token refreshed successfully');
-                        
-                        // Update stored tokens
-                        localStorage.setItem('authToken', data.accessToken);
-                        
-                        // Calculate new expiration (1 hour from now)
-                        const newExpiresAt = new Date();
-                        newExpiresAt.setHours(newExpiresAt.getHours() + 1);
-                        localStorage.setItem('tokenExpires', newExpiresAt.toISOString());
-                        
-                        // Get and update user profile
-                        window.SymptomSentryApp.getUserProfile();
-                    } else {
-                        console.log('[Auth] Token refresh failed, clearing auth data');
-                        // Clear auth data and show as logged out
-                        localStorage.removeItem('authToken');
-                        localStorage.removeItem('refreshToken');
-                        localStorage.removeItem('tokenExpires');
-                        
-                        // Update UI to show logged out state
-                        window.SymptomSentryUtils.updateProfileUI(null, null, null);
-                    }
-                })
-                .catch(error => {
-                    console.error('[Auth] Token refresh error:', error);
-                    // Clear auth data and show as logged out
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('refreshToken');
-                    localStorage.removeItem('tokenExpires');
-                    
-                    // Update UI to show logged out state
-                    window.SymptomSentryUtils.updateProfileUI(null, null, null);
-                });
-            } else {
-                console.log('[Auth] No refresh token found, clearing auth data');
-                // No refresh token, clear auth data
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('tokenExpires');
-                
-                // Update UI to show logged out state
-                window.SymptomSentryUtils.updateProfileUI(null, null, null);
-            }
-        } else {
-            console.log('[Auth] Token valid, fetching user profile');
-            // Token is still valid, fetch user profile
-            window.SymptomSentryApp.getUserProfile();
+        // If not authenticated, validate with server to ensure we're in sync
+        if (!isAuthenticated) {
+            window.SymptomSentryAuth.validateWithServer();
         }
+        
+        return isAuthenticated;
     } else {
-        console.log('[Auth] No existing auth token found');
+        console.error('[Auth] AuthManager not available! Falling back to legacy method');
+        
+        // Legacy fallback to the old method
+        const isAuthenticated = window.SymptomSentryUtils.isAuthenticated();
+        const authToken = isAuthenticated ? window.SymptomSentryUtils.getAuthToken() : null;
+        
+        return isAuthenticated;
     }
 }
 
@@ -726,8 +706,16 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
             credentials: 'include' // Include cookies in request
         };
         
-        // Add authentication token if available
-        const token = localStorage.getItem('authToken');
+        // Get authentication token from AuthManager if available
+        let token = null;
+        if (window.SymptomSentryAuth) {
+            token = window.SymptomSentryAuth.getAuthToken();
+        } else {
+            // Fallback to localStorage if AuthManager not available
+            token = localStorage.getItem('authToken');
+        }
+        
+        // Add token to headers if available
         if (token) {
             options.headers['Authorization'] = `Bearer ${token}`;
             console.log('[API Request] Using authentication token');
@@ -751,6 +739,17 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
         // Make the request
         const response = await fetch(apiEndpoint, options);
         
+        // Check for authentication errors (401 Unauthorized)
+        if (response.status === 401) {
+            console.log('[API Request] Authentication error, attempting token refresh');
+            
+            // Try to refresh token using AuthManager
+            if (window.SymptomSentryAuth) {
+                // Validate with server to refresh token
+                window.SymptomSentryAuth.validateWithServer();
+            }
+        }
+        
         // Parse response data once
         const responseData = await response.json().catch(() => null);
         
@@ -771,29 +770,59 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
 
 // Get user profile from the API
 window.SymptomSentryApp.getUserProfile = function() {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-        console.log('[Auth] No token found, cannot get user profile');
-        return;
+    // Check if we're authenticated using AuthManager if available
+    let isAuthenticated = false;
+    
+    if (window.SymptomSentryAuth) {
+        isAuthenticated = window.SymptomSentryAuth.isAuthenticated();
+    } else {
+        // Fallback to old method
+        const token = localStorage.getItem('authToken');
+        isAuthenticated = !!token;
     }
     
-    window.SymptomSentryApp.apiRequest('user-profile')
+    if (!isAuthenticated) {
+        console.log('[Auth] Not authenticated, cannot get user profile');
+        return Promise.reject(new Error('Not authenticated'));
+    }
+    
+    return window.SymptomSentryApp.apiRequest('user-profile')
         .then(data => {
             console.log('[Auth] User profile data:', data);
+            
+            // If we have an AuthManager, update its state
+            if (window.SymptomSentryAuth) {
+                // Update AuthManager with the user data
+                window.SymptomSentryAuth.updateAuthState({
+                    user: data,
+                    isAuthenticated: true
+                });
+            }
+            
             // Update profile UI with user data
             window.SymptomSentryUtils.updateProfileUI(data.email, data.name, data);
+            
+            return data;
         })
         .catch(error => {
             console.error('[Auth] Error fetching user profile:', error);
+            
             // If we get a 401 error, token is invalid
             if (error.message && error.message.includes('401')) {
-                // Clear auth data
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('refreshToken');
-                localStorage.removeItem('tokenExpires');
-                
-                // Update UI to show logged out state
-                window.SymptomSentryUtils.updateProfileUI(null, null, null);
+                if (window.SymptomSentryAuth) {
+                    // Clear auth properly through the manager
+                    window.SymptomSentryAuth.clearAuth();
+                } else {
+                    // Fallback to manual clearing
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('refreshToken');
+                    localStorage.removeItem('tokenExpires');
+                    
+                    // Update UI to show logged out state
+                    window.SymptomSentryUtils.updateProfileUI(null, null, null);
+                }
             }
+            
+            throw error;
         });
 };

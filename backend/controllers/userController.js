@@ -15,7 +15,8 @@ const COOKIE_OPTIONS = {
     httpOnly: true,           // Prevents client-side JavaScript from accessing cookies
     secure: process.env.NODE_ENV === 'production', // In production use HTTPS only
     sameSite: 'lax',          // Provides some CSRF protection
-    maxAge: COOKIE_MAX_AGE    // Expire cookie at the same time as the token (1 hour)
+    maxAge: COOKIE_MAX_AGE,   // Expire cookie at the same time as the token (1 hour)
+    path: '/'                 // Make cookie available for all paths to ensure compatibility
 };
 
 /**
@@ -394,14 +395,55 @@ function formatNameProperCase(name) {
 
 /**
  * Validate user's authentication token
+ * This function validates the authentication token and provides user information
+ * It may also refresh the token if it's about to expire
  */
 exports.validateToken = async (req, res, next) => {
     try {
-        // The authenticate middleware has already verified the token
-        // and attached the user to the request object
-        // So if we've reached this point, the token is valid
+        // If we've reached this point, the auth middleware has already validated the token
+        console.log('[ValidateToken] Token is valid for user:', req.user.id);
         
-        return res.status(200).json({
+        // Check if token will expire soon (within next 10 minutes)
+        let tokenNeedsRefresh = false;
+        let newAccessToken = null;
+        let newRefreshToken = null;
+        
+        // We don't have direct access to token expiry, 
+        // but we could check if a X-New-Access-Token header was set by the auth middleware
+        // which would indicate the token was automatically refreshed
+        if (res.get('X-New-Access-Token')) {
+            // The middleware already refreshed the token due to expiration
+            // We can use this new token in the response
+            console.log('[ValidateToken] Token was already refreshed by auth middleware');
+            tokenNeedsRefresh = true;
+            newAccessToken = res.get('X-New-Access-Token');
+        }
+        
+        // Alternatively, we can proactively refresh tokens on validation
+        // to ensure the frontend always has a fresh token
+        if (!tokenNeedsRefresh) {
+            // Generate new tokens
+            const { accessToken, refreshToken } = generateTokens(req.user);
+            newAccessToken = accessToken;
+            newRefreshToken = refreshToken;
+            tokenNeedsRefresh = true;
+            
+            // Set new cookies
+            res.cookie('authToken', accessToken, {
+                ...COOKIE_OPTIONS,
+                maxAge: COOKIE_MAX_AGE
+            });
+            
+            res.cookie('refreshToken', refreshToken, {
+                ...COOKIE_OPTIONS,
+                maxAge: REFRESH_COOKIE_MAX_AGE
+            });
+            
+            console.log('[ValidateToken] Proactively refreshed token for user:', req.user.id);
+        }
+        
+        // Build response object
+        const responseObject = {
             valid: true,
             user: {
                 id: req.user.id,
@@ -409,9 +451,20 @@ exports.validateToken = async (req, res, next) => {
                 name: req.user.name,
                 subscription: req.user.subscription
             }
-        });
+        };
+        
+        // Add new tokens to response if refreshed
+        if (tokenNeedsRefresh) {
+            responseObject.accessToken = newAccessToken;
+            if (newRefreshToken) {
+                responseObject.refreshToken = newRefreshToken;
+            }
+            responseObject.tokenExpiration = JWT_EXPIRATION;
+        }
+        
+        return res.status(200).json(responseObject);
     } catch (error) {
-        console.error('Error validating token:', error);
+        console.error('[ValidateToken] Error validating token:', error);
         return res.status(401).json({
             valid: false,
             error: true,
@@ -643,15 +696,21 @@ exports.logout = async (req, res, next) => {
         // For our implementation, we'll rely on clearing client-side tokens
         // Here we'll set an empty auth cookie with immediate expiration
         res.cookie('authToken', '', {
-            ...COOKIE_OPTIONS,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
             maxAge: 0, // Expire immediately
             expires: new Date(0), // Expire immediately
+            path: '/' // Important: must match the cookie path when it was set
         });
         
         res.cookie('refreshToken', '', {
-            ...COOKIE_OPTIONS,
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
             maxAge: 0, // Expire immediately
             expires: new Date(0), // Expire immediately
+            path: '/' // Important: must match the cookie path when it was set
         });
         
         console.log('[Logout] Logout successful for user:', req.user.id);

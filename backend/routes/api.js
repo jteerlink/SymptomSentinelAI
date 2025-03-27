@@ -5,6 +5,7 @@ const router = express.Router();
 const imageAnalysisController = require('../controllers/imageAnalysisController');
 const imageUploadController = require('../controllers/imageUploadController');
 const userController = require('../controllers/userController');
+const adminController = require('../controllers/adminController');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 
 // Configure multer for memory storage
@@ -133,6 +134,13 @@ router.post('/update-subscription', authenticate, userController.updateSubscript
 router.post('/request-password-reset', userController.requestPasswordReset);
 router.post('/reset-password', userController.resetPassword);
 router.post('/refresh-token', userController.refreshToken);
+
+// Admin Routes (for development/testing only)
+router.post('/admin/clear-all-users', adminController.clearAllUsers);
+router.get('/admin/user-count', adminController.getUserCount);
+router.post('/admin/create-test-user', adminController.createTestUser);
+router.get('/health/detailed', adminController.getSystemHealth);
+router.get('/ml-status', adminController.getMLStatus);
 
 // Error handling middleware
 router.use((err, req, res, next) => {

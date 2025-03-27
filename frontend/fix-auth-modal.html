@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Reset</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+        h1 {
+            color: #0066cc;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .container {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #log {
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 10px;
+            font-family: monospace;
+            height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .warning {
+            color: #ffc107;
+        }
+        .info {
+            color: #17a2b8;
+        }
+        button {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Authentication System Reset</h1>
+    
+    <div class="container">
+        <h2>Reset Process</h2>
+        <p>This utility will:</p>
+        <ol>
+            <li>Log out any currently logged in user</li>
+            <li>Clear all authentication data (tokens, cookies, localStorage)</li>
+            <li>Fix the login modal ID mismatch issue</li>
+            <li>Update all component references to use the correct modal ID</li>
+        </ol>
+        <button id="startButton">Start Reset Process</button>
+    </div>
+    
+    <div class="container">
+        <h2>Process Log</h2>
+        <div id="log">Waiting to start the reset process...</div>
+    </div>
+
+    <script>
+        const logElement = document.getElementById('log');
+        const startButton = document.getElementById('startButton');
+        
+        // Override console methods to capture output
+        const originalConsole = {
+            log: console.log,
+            error: console.error,
+            warn: console.warn,
+            info: console.info
+        };
+        
+        function addLog(message, type = 'normal') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            logLine.classList.add(type);
+            logLine.textContent = `[${timestamp}] ${message}`;
+            logElement.appendChild(logLine);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        console.log = function(message) {
+            originalConsole.log(message);
+            addLog(message);
+        };
+        
+        console.error = function(message) {
+            originalConsole.error(message);
+            addLog(message, 'error');
+        };
+        
+        console.warn = function(message) {
+            originalConsole.warn(message);
+            addLog(message, 'warning');
+        };
+        
+        console.info = function(message) {
+            originalConsole.info(message);
+            addLog(message, 'info');
+        };
+        
+        startButton.addEventListener('click', async function() {
+            startButton.disabled = true;
+            logElement.innerHTML = '';
+            addLog('Starting authentication reset process...');
+            
+            // 1. Log out the current user and clear auth data
+            addLog('Force logging out any existing user...');
+            document.cookie = 'authToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;';
+            document.cookie = 'refreshToken=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/;';
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('tokenExpires');
+            localStorage.removeItem('userProfile');
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userName');
+            sessionStorage.clear();
+            
+            try {
+                await fetch('/api/logout', {
+                    method: 'POST',
+                    credentials: 'include'
+                });
+                addLog('Server logout request successful', 'success');
+            } catch (error) {
+                addLog('Error during logout request: ' + error.message, 'error');
+            }
+            
+            addLog('Auth data cleared from browser storage', 'success');
+            
+            // 2. Load and execute the reset script
+            addLog('Loading the reset script...');
+            try {
+                const script = document.createElement('script');
+                script.src = '/resetAuth.js';
+                script.onload = () => {
+                    addLog('Reset script loaded and executed successfully', 'success');
+                    addLog('Authentication system has been reset. You can now return to the app.', 'success');
+                    startButton.disabled = false;
+                    startButton.textContent = 'Return to App';
+                    startButton.onclick = () => {
+                        window.location.href = '/';
+                    };
+                };
+                script.onerror = (error) => {
+                    addLog('Failed to load reset script: ' + error.message, 'error');
+                    startButton.disabled = false;
+                };
+                document.body.appendChild(script);
+            } catch (error) {
+                addLog('Error during reset process: ' + error.message, 'error');
+                startButton.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

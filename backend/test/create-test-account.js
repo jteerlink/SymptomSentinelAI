@@ -1,45 +1,43 @@
 /**
- * Create Test User Script
+ * Create Test Account Script
  * 
- * This script creates a test user for API testing purposes.
- * Usage: node create-test-user.js <email> <password> <firstName> <lastName>
- * Example: node create-test-user.js test@example.com password123 Test User
+ * This script creates a new test account with the provided credentials.
+ * It's useful for testing the system without automatic login.
+ * 
+ * Usage: 
+ * node test/create-test-account.js email password firstName lastName
+ * Example:
+ * node test/create-test-account.js test@example.com password123 Test User
  */
 
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const db = require('./db/db');
+const db = require('../db/db');
 
-async function createTestUser() {
+async function createTestAccount() {
+    // Get command line arguments
+    const args = process.argv.slice(2);
+    if (args.length < 4) {
+        console.error('Usage: node test/create-test-account.js email password firstName lastName');
+        process.exit(1);
+    }
+    
+    const [email, password, firstName, lastName] = args;
+    const name = `${firstName} ${lastName}`;
+    
+    console.log('----------------------------------------');
+    console.log('Creating test account:');
+    console.log('Email:', email);
+    console.log('Name:', name);
+    console.log('----------------------------------------');
+    
     try {
-        // Get command line arguments
-        const args = process.argv.slice(2);
-        
-        if (args.length < 4) {
-            console.error('\x1b[31mError: Insufficient arguments.\x1b[0m');
-            console.log('\x1b[33mUsage: node create-test-user.js <email> <password> <firstName> <lastName>\x1b[0m');
-            console.log('Example: node create-test-user.js test@example.com password123 Test User');
-            process.exit(1);
-        }
-        
-        const email = args[0];
-        const password = args[1];
-        const firstName = args[2];
-        const lastName = args.slice(3).join(' ');
-        const name = `${firstName} ${lastName}`;
-        
-        console.log('----------------------------------------');
-        console.log('\x1b[36mCreating test user:\x1b[0m');
-        console.log('Email:', email);
-        console.log('Name:', name);
-        console.log('----------------------------------------');
-        
         // Check if user already exists
         const existingUser = await db('users').where({ email }).first();
         
         if (existingUser) {
-            console.log('\x1b[33m⚠️ User already exists with this email. Updating instead of creating new account.\x1b[0m');
+            console.log('⚠️ User already exists with this email. Updating instead of creating new account.');
             
             // Update existing user
             const hashedPassword = await bcrypt.hash(password, 10);
@@ -53,7 +51,7 @@ async function createTestUser() {
                     last_reset_date: new Date()
                 });
                 
-            console.log('\x1b[32m✅ User updated successfully\x1b[0m');
+            console.log('✅ User updated successfully');
             console.log('User ID:', existingUser.id);
         } else {
             // Create new user
@@ -72,17 +70,17 @@ async function createTestUser() {
                 last_reset_date: new Date()
             });
             
-            console.log('\x1b[32m✅ User created successfully\x1b[0m');
+            console.log('✅ User created successfully');
             console.log('User ID:', userId);
         }
         
         console.log('----------------------------------------');
-        console.log('\x1b[36mLOGIN CREDENTIALS:\x1b[0m');
+        console.log('LOGIN CREDENTIALS:');
         console.log('Email:', email);
         console.log('Password:', password);
         console.log('----------------------------------------');
     } catch (error) {
-        console.error('\x1b[31m❌ Error creating test user:\x1b[0m', error);
+        console.error('❌ Error creating test user:', error);
         process.exit(1);
     } finally {
         // Close database connection
@@ -91,4 +89,4 @@ async function createTestUser() {
 }
 
 // Execute the function
-createTestUser();
+createTestAccount();

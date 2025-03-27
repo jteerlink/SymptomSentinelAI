@@ -122,6 +122,7 @@ router.delete('/image', authenticate, imageUploadController.deleteImage);
 // User Routes
 router.post('/register', userController.register);
 router.post('/login', userController.login);
+router.post('/logout', authenticate, userController.logout);
 router.get('/user-profile', authenticate, userController.getUserProfile);
 router.put('/update-profile', authenticate, userController.updateProfile);
 router.put('/update-password', authenticate, userController.updatePassword);

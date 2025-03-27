@@ -38,20 +38,25 @@ const authenticate = async (req, res, next) => {
       return next();
     }
     
-    // Get the token from the Authorization header
-    const authHeader = req.headers.authorization;
+    // Check for token in multiple sources
+    let token;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
-        error: true,
-        message: 'Authentication required. Please provide a valid token.'
-      });
+    // 1. Try to get token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+      console.log('Found token in Authorization header');
     }
     
-    // Extract the token
-    const token = authHeader.split(' ')[1];
+    // 2. If no token in header, check cookie
+    if (!token && req.cookies && req.cookies.authToken) {
+      token = req.cookies.authToken;
+      console.log('Found token in cookies');
+    }
     
+    // If no token found anywhere, return authentication error
     if (!token) {
+      console.log('No authentication token found in request');
       return res.status(401).json({
         error: true,
         message: 'Authentication required. Please provide a valid token.'
@@ -128,19 +133,25 @@ const optionalAuthenticate = async (req, res, next) => {
       return next();
     }
     
-    // Get the token from the Authorization header
-    const authHeader = req.headers.authorization;
+    // Check for token in multiple sources
+    let token;
     
-    // If no authorization header, continue without authentication
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return next();
+    // 1. Try to get token from Authorization header
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+      console.log('Found token in Authorization header (optional auth)');
     }
     
-    // Extract the token
-    const token = authHeader.split(' ')[1];
+    // 2. If no token in header, check cookie
+    if (!token && req.cookies && req.cookies.authToken) {
+      token = req.cookies.authToken;
+      console.log('Found token in cookies (optional auth)');
+    }
     
-    // If no token, continue without authentication
+    // If no token found anywhere, continue without authentication
     if (!token) {
+      console.log('No authentication token found in request (optional auth)');
       return next();
     }
     

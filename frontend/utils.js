@@ -292,8 +292,27 @@ function showNotification(message, type) {
  */
 window.SymptomSentryUtils.isAuthenticated = function() {
     const token = localStorage.getItem('authToken');
-    console.log('[Auth Helper] isAuthenticated check - token exists:', !!token);
-    return !!token;
+    const tokenExpires = localStorage.getItem('tokenExpires');
+    
+    // Check if token exists
+    if (!token) {
+        console.log('[Auth Helper] isAuthenticated check - No token found');
+        return false;
+    }
+    
+    // Check if token is expired
+    if (tokenExpires) {
+        const now = new Date();
+        const expiresAt = new Date(tokenExpires);
+        
+        if (now > expiresAt) {
+            console.log('[Auth Helper] isAuthenticated check - Token expired');
+            return false;
+        }
+    }
+    
+    console.log('[Auth Helper] isAuthenticated check - Valid token exists');
+    return true;
 }
 
 /**
@@ -302,33 +321,70 @@ window.SymptomSentryUtils.isAuthenticated = function() {
  * @returns {string|null} The auth token or null if not authenticated
  */
 window.SymptomSentryUtils.getAuthToken = function() {
-    return localStorage.getItem('authToken');
+    // Only return the token if it's valid (not expired)
+    if (this.isAuthenticated()) {
+        return localStorage.getItem('authToken');
+    }
+    return null;
 }
 
 /**
  * Clear all authentication data and log user out
  */
 window.SymptomSentryUtils.clearAuthData = function() {
+    console.log('[Auth] Clearing all authentication data');
+    
+    // Clear tokens
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpires');
+    
+    // Clear analysis data
     localStorage.removeItem('hasPerformedAnalysis');
-    sessionStorage.clear(); // Clear any session data
+    localStorage.removeItem('lastAnalysisId');
+    localStorage.removeItem('lastAnalysisResults');
+    
+    // Clear any user profile data
+    localStorage.removeItem('userProfile');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    
+    // Clear session storage completely
+    sessionStorage.clear();
+    
+    console.log('[Auth] Authentication data cleared successfully');
 }
 
 /**
  * Log the user out completely
  */
 window.SymptomSentryUtils.logout = function() {
-    // Clear all auth data
-    this.clearAuthData();
-    
-    // Update the UI
-    this.updateProfileUI(null);
-    this.showNotification('You have been logged out successfully', 'info');
-    
-    // Redirect to home page
-    const navEvent = new CustomEvent('navigate', {
-        detail: { pageId: 'home' }
+    // Make a server request to invalidate the session and clear cookies
+    fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include'
+    })
+    .then(response => {
+        console.log('[Logout] Server logout response:', response.status);
+    })
+    .catch(error => {
+        console.error('[Logout] Error during server logout:', error);
+    })
+    .finally(() => {
+        // Clear all auth data
+        this.clearAuthData();
+        
+        // Remove token expiration
+        localStorage.removeItem('tokenExpires');
+        
+        // Update the UI
+        this.updateProfileUI(null);
+        this.showNotification('You have been logged out successfully', 'info');
+        
+        // Redirect to home page
+        const navEvent = new CustomEvent('navigate', {
+            detail: { pageId: 'home' }
+        });
+        document.dispatchEvent(navEvent);
     });
-    document.dispatchEvent(navEvent);
 }

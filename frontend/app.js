@@ -367,7 +367,8 @@ window.SymptomSentryApp.handleRegistration = function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: payload
+                body: payload,
+                credentials: 'include' // Important: Include cookies in the request
             });
             
             console.log('[Fetch] Response status:', response.status, response.statusText);
@@ -507,7 +508,8 @@ window.SymptomSentryApp.handleRegistration = function() {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ name, email, password })
+                body: JSON.stringify({ name, email, password }),
+                credentials: 'include' // Include cookies in the request
             });
             
             console.log('[Registration] 📥 Server response received');
@@ -649,7 +651,8 @@ function checkAuthState() {
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ refreshToken })
+                    body: JSON.stringify({ refreshToken }),
+                    credentials: 'include' // Include cookies in request
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -714,13 +717,17 @@ window.SymptomSentryApp.apiRequest = async function(endpoint, method = 'GET', da
             method,
             headers: {
                 'Content-Type': 'application/json',
-            }
+            },
+            credentials: 'include' // Include cookies in request
         };
         
         // Add authentication token if available
         const token = localStorage.getItem('authToken');
         if (token) {
             options.headers['Authorization'] = `Bearer ${token}`;
+            console.log('[API Request] Using authentication token');
+        } else {
+            console.log('[API Request] No authentication token available');
         }
         
         // Add body data for POST/PUT requests

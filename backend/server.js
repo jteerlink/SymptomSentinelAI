@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
 const apiRoutes = require('./routes/api');
 
 // Create Express app
@@ -41,6 +42,9 @@ app.use(bodyParser.urlencoded({
   limit: '50mb',
   parameterLimit: 100000 // Increased parameter limit for large requests
 }));
+
+// 4a. Cookie parser middleware - needed for authentication cookies
+app.use(cookieParser());
 
 // 5. Request body logging for debugging API requests
 app.use((req, res, next) => {

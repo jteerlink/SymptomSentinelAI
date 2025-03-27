@@ -4,6 +4,16 @@ const { generateTokens, JWT_EXPIRATION, JWT_REFRESH_EXPIRATION } = require('../m
 const { validatePassword } = require('../utils/passwordValidator');
 
 /**
+ * Constants for cookie configuration
+ */
+const COOKIE_OPTIONS = {
+    httpOnly: true,           // Prevents client-side JavaScript from accessing cookies
+    secure: process.env.NODE_ENV === 'production', // In production use HTTPS only
+    sameSite: 'lax',          // Provides some CSRF protection
+    maxAge: JWT_EXPIRATION    // Expire cookie at the same time as the token
+};
+
+/**
  * Register a new user
  */
 exports.register = async (req, res, next) => {
@@ -69,6 +79,17 @@ exports.register = async (req, res, next) => {
         console.log('🔑 Generating authentication tokens...');
         const { accessToken, refreshToken } = generateTokens(newUser);
         
+        // Set cookies for authentication
+        res.cookie('authToken', accessToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_EXPIRATION
+        });
+        
+        res.cookie('refreshToken', refreshToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_REFRESH_EXPIRATION
+        });
+        
         // Prepare response object
         const responseObject = {
             message: 'User registered successfully',
@@ -90,6 +111,7 @@ exports.register = async (req, res, next) => {
             accessToken: '***truncated***',
             refreshToken: '***truncated***'
         }, null, 2));
+        console.log('🍪 Auth cookies set for user:', email);
 
         res.status(201).json(responseObject);
     } catch (error) {
@@ -167,6 +189,17 @@ exports.login = async (req, res, next) => {
         
         // Generate tokens
         const { accessToken, refreshToken } = generateTokens(user);
+        
+        // Set cookies for authentication
+        res.cookie('authToken', accessToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_EXPIRATION
+        });
+        
+        res.cookie('refreshToken', refreshToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_REFRESH_EXPIRATION
+        });
 
         // Prepare response object
         const responseObject = {
@@ -188,6 +221,7 @@ exports.login = async (req, res, next) => {
             accessToken: '***truncated***',
             refreshToken: '***truncated***'
         }, null, 2));
+        console.log('🍪 Auth cookies set for user:', email);
         
         res.status(200).json(responseObject);
     } catch (error) {
@@ -318,6 +352,19 @@ exports.updatePassword = async (req, res, next) => {
         // Generate new tokens after password change
         const user = await User.getById(userId);
         const { accessToken, refreshToken } = generateTokens(user);
+        
+        // Set cookies for the new tokens
+        res.cookie('authToken', accessToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_EXPIRATION
+        });
+        
+        res.cookie('refreshToken', refreshToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_REFRESH_EXPIRATION
+        });
+        
+        console.log('🔑 Password updated, new auth cookies set for user:', user.id);
         
         res.status(200).json({
             message: 'Password updated successfully',
@@ -551,6 +598,19 @@ exports.refreshToken = async (req, res, next) => {
             });
         }
         
+        // Set new cookies for refreshed tokens
+        res.cookie('authToken', result.accessToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_EXPIRATION
+        });
+        
+        res.cookie('refreshToken', result.refreshToken, {
+            ...COOKIE_OPTIONS,
+            maxAge: JWT_REFRESH_EXPIRATION
+        });
+        
+        console.log('[Token Refresh] Auth cookies refreshed successfully');
+        
         return res.json({
             error: false,
             accessToken: result.accessToken,
@@ -562,5 +622,42 @@ exports.refreshToken = async (req, res, next) => {
             error: true,
             message: 'Internal server error during token refresh'
         });
+    }
+};
+
+/**
+ * User logout
+ */
+exports.logout = async (req, res, next) => {
+    try {
+        console.log('[Logout] Processing logout request for user:', req.user.id);
+        
+        // In a stateful server, we might invalidate the token in a database
+        // or add it to a blocklist to prevent it from being used again
+        
+        // For our implementation, we'll rely on clearing client-side tokens
+        // Here we'll set an empty auth cookie with immediate expiration
+        res.cookie('authToken', '', {
+            ...COOKIE_OPTIONS,
+            maxAge: 0, // Expire immediately
+            expires: new Date(0), // Expire immediately
+        });
+        
+        res.cookie('refreshToken', '', {
+            ...COOKIE_OPTIONS,
+            maxAge: 0, // Expire immediately
+            expires: new Date(0), // Expire immediately
+        });
+        
+        console.log('[Logout] Logout successful for user:', req.user.id);
+        
+        // Return a success response
+        return res.status(200).json({
+            success: true,
+            message: 'Logout successful'
+        });
+    } catch (error) {
+        console.error('[Logout] Error during logout:', error);
+        next(error);
     }
 };

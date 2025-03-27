@@ -394,8 +394,13 @@ function setupUploadEventListeners(container) {
     
     // Analyze button click
     analyzeButton.addEventListener('click', async () => {
+        console.log('[AnalyzeButton] Click event triggered');
+        
         // Double-check authentication before proceeding
+        console.log('[AnalyzeButton] Authentication check: isAuthenticated =', window.SymptomSentryUtils.isAuthenticated());
+        
         if (!window.SymptomSentryUtils.isAuthenticated()) {
+            console.log('[AnalyzeButton] User not authenticated, showing error');
             showAnalysisError('You must be logged in to analyze images');
             
             // Redirect to login page after a short delay
@@ -404,6 +409,8 @@ function setupUploadEventListeners(container) {
             }, 1500);
             return;
         }
+        
+        console.log('[AnalyzeButton] User authenticated, proceeding with analysis');
         
         // Validate the analysis type is selected
         if (!selectedAnalysisType) {
@@ -692,7 +699,10 @@ function setupUploadEventListeners(container) {
     // Handle files selected either via drop or input
     function handleFiles(files) {
         // Check if the user is authenticated
+        console.log('[ImageUpload] Authentication check: isAuthenticated =', window.SymptomSentryUtils.isAuthenticated());
+        
         if (!window.SymptomSentryUtils.isAuthenticated()) {
+            console.log('[ImageUpload] User not authenticated, showing alert');
             alert('You must be logged in to upload images');
             
             // Redirect to the login page
@@ -701,6 +711,8 @@ function setupUploadEventListeners(container) {
             }, 500);
             return;
         }
+        
+        console.log('[ImageUpload] User authenticated, proceeding with file handling');
         
         if (files.length === 0) return;
         

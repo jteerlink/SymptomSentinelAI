@@ -12,6 +12,25 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
+    // Add a debug button for testing logout
+    const debugDiv = document.createElement('div');
+    debugDiv.style.position = 'fixed';
+    debugDiv.style.bottom = '20px';
+    debugDiv.style.right = '20px';
+    debugDiv.style.zIndex = '9999';
+    debugDiv.innerHTML = `
+        <button id="test-logout-btn" class="btn btn-sm btn-outline-danger">
+            Test Logout
+        </button>
+    `;
+    document.body.appendChild(debugDiv);
+    
+    // Add event listener for the logout test button
+    document.getElementById('test-logout-btn').addEventListener('click', () => {
+        console.log('[Debug] Testing logout function');
+        window.SymptomSentryUtils.logout();
+    });
+    
     // Listen for subscription updated events from Analysis.js
     document.addEventListener('subscriptionUpdated', (event) => {
         console.log('Subscription updated event received:', event.detail);

@@ -19,8 +19,11 @@ window.SymptomSentryComponents.initializeAnalysis = function(container) {
 
 function renderInitialAnalysisUI(container) {
     // Check if user is authenticated using the helper function
+    console.log('[Analysis] Authentication check: isAuthenticated =', window.SymptomSentryUtils.isAuthenticated());
+    
     if (!window.SymptomSentryUtils.isAuthenticated()) {
         // User is not logged in, show login prompt
+        console.log('[Analysis] User not authenticated, showing login prompt');
         container.innerHTML = `
             <div class="auth-required-message text-center p-5">
                 <div class="mb-4">

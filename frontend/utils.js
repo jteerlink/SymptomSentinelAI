@@ -283,7 +283,9 @@ function showNotification(message, type) {
  * @returns {boolean} True if authenticated, false otherwise
  */
 window.SymptomSentryUtils.isAuthenticated = function() {
-    return !!localStorage.getItem('authToken');
+    const token = localStorage.getItem('authToken');
+    console.log('[Auth Helper] isAuthenticated check - token exists:', !!token);
+    return !!token;
 }
 
 /**

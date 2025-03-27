@@ -15,6 +15,34 @@ window.SymptomSentryComponents.initializeImageUpload = function(container) {
 }
 
 function renderUploadUI(container) {
+    // Check if user is authenticated
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!authToken) {
+        // User is not logged in, show login prompt
+        container.innerHTML = `
+            <div class="upload-container">
+                <div class="auth-required-message text-center p-5">
+                    <div class="mb-4">
+                        <i class="fas fa-lock fa-4x text-muted"></i>
+                    </div>
+                    <h3>Authentication Required</h3>
+                    <p class="text-muted mb-4">You must be logged in to upload and analyze images.</p>
+                    <div class="d-grid gap-2 col-md-6 mx-auto">
+                        <button class="btn btn-primary login-prompt-btn">
+                            <i class="fas fa-sign-in-alt"></i> Sign In
+                        </button>
+                        <button class="btn btn-outline-secondary register-prompt-btn">
+                            <i class="fas fa-user-plus"></i> Create Account
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        return;
+    }
+    
+    // User is logged in, show normal UI
     container.innerHTML = `
         <div class="upload-container">
             <div class="upload-instructions mb-4">
@@ -133,6 +161,55 @@ function renderUploadUI(container) {
 }
 
 function setupUploadEventListeners(container) {
+    // Check if user is authenticated
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!authToken) {
+        // If not authenticated, add event listeners for login/register buttons
+        const loginBtn = container.querySelector('.login-prompt-btn');
+        const registerBtn = container.querySelector('.register-prompt-btn');
+        
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                // Attempt to open login modal
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    const modal = new bootstrap.Modal(loginModal);
+                    modal.show();
+                    
+                    // Switch to login tab if needed
+                    const loginTab = document.querySelector('a[href="#login-tab"]');
+                    if (loginTab) loginTab.click();
+                } else {
+                    // Fallback - try to navigate to a login page
+                    navigateToPage('profile');
+                }
+            });
+        }
+        
+        if (registerBtn) {
+            registerBtn.addEventListener('click', () => {
+                // Attempt to open registration modal
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    const modal = new bootstrap.Modal(loginModal);
+                    modal.show();
+                    
+                    // Switch to register tab if needed
+                    const registerTab = document.querySelector('a[href="#register-tab"]');
+                    if (registerTab) registerTab.click();
+                } else {
+                    // Fallback - try to navigate to a register page
+                    navigateToPage('profile');
+                }
+            });
+        }
+        
+        // No need to set up other event listeners if the user is not authenticated
+        return;
+    }
+    
+    // User is authenticated, set up normal event listeners
     // Get DOM elements
     const dropArea = container.querySelector('#dropArea');
     const fileInput = container.querySelector('#fileInput');
@@ -986,6 +1063,14 @@ function setupUploadEventListeners(container) {
         
         // Log error for analytics
         console.log(`[Analysis] Error shown to user: Type=${errorType}, Message="${message}"`);
+    }
+    
+    // Helper function for navigation
+    function navigateToPage(pageId) {
+        const navEvent = new CustomEvent('navigate', {
+            detail: { pageId: pageId }
+        });
+        document.dispatchEvent(navEvent);
     }
 }
 

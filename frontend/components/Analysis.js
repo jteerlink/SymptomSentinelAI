@@ -18,8 +18,73 @@ window.SymptomSentryComponents.initializeAnalysis = function(container) {
 }
 
 function renderInitialAnalysisUI(container) {
-    // Always show an empty container until an analysis result is available
-    // This hides the "No Analysis Yet" box until we actually have results
+    // Check if user is authenticated
+    const authToken = localStorage.getItem('authToken');
+    
+    if (!authToken) {
+        // User is not logged in, show login prompt
+        container.innerHTML = `
+            <div class="auth-required-message text-center p-5">
+                <div class="mb-4">
+                    <i class="fas fa-lock fa-4x text-muted"></i>
+                </div>
+                <h3>Authentication Required</h3>
+                <p class="text-muted mb-4">You must be logged in to view and perform analyses.</p>
+                <div class="d-grid gap-2 col-md-6 mx-auto">
+                    <button class="btn btn-primary login-prompt-btn">
+                        <i class="fas fa-sign-in-alt"></i> Sign In
+                    </button>
+                    <button class="btn btn-outline-secondary register-prompt-btn">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Add event listeners for login/register buttons
+        const loginBtn = container.querySelector('.login-prompt-btn');
+        const registerBtn = container.querySelector('.register-prompt-btn');
+        
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => {
+                // Attempt to open login modal
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    const modal = new bootstrap.Modal(loginModal);
+                    modal.show();
+                    
+                    // Switch to login tab if needed
+                    const loginTab = document.querySelector('a[href="#login-tab"]');
+                    if (loginTab) loginTab.click();
+                } else {
+                    // Fallback - try to navigate to a login page
+                    navigateToPage('profile');
+                }
+            });
+        }
+        
+        if (registerBtn) {
+            registerBtn.addEventListener('click', () => {
+                // Attempt to open registration modal
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    const modal = new bootstrap.Modal(loginModal);
+                    modal.show();
+                    
+                    // Switch to register tab if needed
+                    const registerTab = document.querySelector('a[href="#register-tab"]');
+                    if (registerTab) registerTab.click();
+                } else {
+                    // Fallback - try to navigate to a register page
+                    navigateToPage('profile');
+                }
+            });
+        }
+        
+        return;
+    }
+    
+    // User is authenticated, show empty container until an analysis result is available
     container.innerHTML = `<div class="analysis-results"></div>`;
 }
 

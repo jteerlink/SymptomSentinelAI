@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 8000;
-const BACKEND_URL = 'http://localhost:5000';
+const BACKEND_URL = 'http://0.0.0.0:5000';
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -28,6 +28,9 @@ app.all('/api/*', (req, res) => {
   const fullBackendUrl = `${BACKEND_URL}${backendPath}`;
   
   console.log(`[Direct Proxy] ${req.method} ${req.originalUrl} → ${fullBackendUrl}`);
+  
+  // Add connection timeout handling
+  req.setTimeout(60000); // 60 second timeout for client requests
   
   // Check if this is a multipart/form-data request (for file uploads)
   const isMultipart = (req.headers['content-type'] || '').includes('multipart/form-data');
@@ -140,7 +143,26 @@ app.get('*', (req, res) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Frontend server running on http://0.0.0.0:${PORT}`);
   console.log(`API requests will be forwarded to ${BACKEND_URL}`);
+});
+
+// Set timeout for server to 2 minutes to handle image uploads
+server.timeout = 120000;
+
+// Improve server robustness with proper error handling
+server.on('error', (err) => {
+  console.error('Frontend server error:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use. Please use a different port.`);
+  }
+});
+
+// Handle process signals
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down frontend server gracefully');
+  server.close(() => {
+    console.log('Frontend server closed');
+  });
 });

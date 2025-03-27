@@ -50,6 +50,33 @@ class Analysis {
         // For demonstration purposes, return an empty array
         return [];
     }
+    
+    // Static method to find a specific analysis by ID
+    static async findById(id, userId) {
+        // In a real implementation, this would query the database for an analysis with the given ID
+        // that belongs to the specified user (security check)
+        console.log(`Finding analysis ${id} for user ${userId}`);
+        
+        // For demonstration purposes, return a mock analysis
+        // In production, this would return null if not found
+        return new Analysis(
+            id,
+            userId,
+            'throat', // mock type
+            [
+                {
+                    id: 'strep_throat',
+                    name: 'Strep Throat',
+                    confidence: 0.78,
+                    description: 'A bacterial infection that causes inflammation and pain in the throat.',
+                    symptoms: ['Throat pain', 'Red and swollen tonsils'],
+                    isPotentiallySerious: true
+                }
+            ],
+            null, // imageUrl
+            new Date() // createdAt
+        );
+    }
 
     // Static method to delete an analysis by ID
     static async deleteById(id, userId) {

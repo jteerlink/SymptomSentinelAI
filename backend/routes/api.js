@@ -109,6 +109,7 @@ router.get('/sample-analysis', (req, res) => {
 router.post('/analyze', authenticate, upload.single('image'), imageAnalysisController.analyzeImage);
 router.post('/save-analysis', authenticate, imageAnalysisController.saveAnalysis);
 router.get('/analysis-history', authenticate, imageAnalysisController.getAnalysisHistory);
+router.get('/analysis/:id', authenticate, imageAnalysisController.getAnalysisById);
 router.delete('/analysis/:id', authenticate, imageAnalysisController.deleteAnalysis);
 router.post('/clear-analyses', authenticate, imageAnalysisController.clearAnalyses);
 

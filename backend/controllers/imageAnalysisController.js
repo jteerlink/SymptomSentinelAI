@@ -734,6 +734,101 @@ exports.getAnalysisHistory = async (req, res, next) => {
 };
 
 /**
+ * Get a specific analysis by ID
+ * 
+ * @route GET /api/analysis/:id
+ * @param {string} id - Analysis ID to retrieve
+ * @returns {Object} Analysis data
+ * @throws {ApiError} For auth, permission, or not found errors
+ */
+exports.getAnalysisById = async (req, res, next) => {
+    try {
+        // Validate user is authenticated
+        if (!req.user) {
+            throw ApiError.unauthorized('Authentication required to view analysis', 'AUTH_REQUIRED');
+        }
+        
+        const analysisId = req.params.id;
+        if (!analysisId) {
+            throw ApiError.badRequest('Analysis ID is required', 'MISSING_ID');
+        }
+        
+        console.log(`Fetching analysis ${analysisId} for user ${req.user.id}`);
+        
+        // Fetch analysis from database
+        const analysis = await Analysis.findById(analysisId, req.user.id);
+        
+        if (!analysis) {
+            throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
+        }
+        
+        // Check if this analysis belongs to the authenticated user
+        if (analysis.user_id !== req.user.id) {
+            throw ApiError.forbidden('You do not have permission to view this analysis', 'FORBIDDEN');
+        }
+        
+        console.log(`Found analysis ${analysisId} for user ${req.user.id}`);
+        
+        return res.status(200).json({
+            analysis: analysis
+        });
+    } catch (error) {
+        console.error('Error fetching analysis:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Generate a unique error ID for tracking
+        const errorId = uuidv4();
+        
+        // Default error information
+        let errorCode = 'ANALYSIS_RETRIEVAL_ERROR';
+        let errorStatus = 500;
+        let errorMessage = 'Error retrieving analysis';
+        let errorCategory = 'database';
+        let recoveryAction = 'Please try again later';
+        
+        // Handle specific error types
+        if (error.isApiError) {
+            errorCode = error.code || 'API_ERROR';
+            errorStatus = error.status || 500;
+            errorMessage = error.message;
+            
+            if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
+                errorCategory = 'authentication';
+                recoveryAction = 'Please log in and try again';
+            } else if (error.code === 'FORBIDDEN') {
+                errorCategory = 'permissions';
+                recoveryAction = 'Your account does not have permission to view this data';
+            } else if (error.code === 'ANALYSIS_NOT_FOUND') {
+                errorCategory = 'not_found';
+                recoveryAction = 'The requested analysis could not be found';
+            }
+        }
+        
+        // Log the categorized error
+        console.error(`[Analysis Retrieval Error]`);
+        console.error(`ID: ${errorId}`);
+        console.error(`Code: ${errorCode}`);
+        console.error(`Category: ${errorCategory}`);
+        console.error(`Status: ${errorStatus}`);
+        console.error(`Message: ${errorMessage}`);
+        
+        return res.status(errorStatus).json({
+            error: true,
+            message: errorMessage,
+            code: errorCode,
+            category: errorCategory,
+            recovery_action: recoveryAction,
+            error_id: errorId,
+            details: process.env.NODE_ENV === 'development' ? {
+                error_message: error.message,
+                error_code: error.code,
+                timestamp: new Date().toISOString()
+            } : undefined
+        });
+    }
+};
+
+/**
  * Delete a specific analysis by ID
  * 
  * @route DELETE /api/analysis/:id

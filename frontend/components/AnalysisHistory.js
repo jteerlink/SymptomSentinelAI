@@ -419,12 +419,16 @@ function viewAnalysisDetails(analysisId) {
         }
         return response.json();
     })
-    .then(analysis => {
-        console.log('[Analysis History] Analysis details loaded:', analysis);
+    .then(data => {
+        console.log('[Analysis History] Analysis details loaded:', data);
+        
+        // Extract the analysis object from the response
+        // Our new endpoint returns { analysis: {...} }
+        const analysis = data.analysis || data;
         
         if (modalBody) {
             // Format date and time
-            const date = new Date(analysis.created_at || analysis.timestamp);
+            const date = new Date(analysis.created_at || analysis.timestamp || analysis.createdAt);
             const formattedDate = date.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',

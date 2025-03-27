@@ -76,9 +76,25 @@ class User {
      */
     static async verifyPassword(plainPassword, hashedPassword) {
         try {
-            return await bcrypt.compare(plainPassword, hashedPassword);
+            console.log(`[Password Verification] Comparing password with bcrypt.compare`);
+            console.log(`[Password Verification] Plain password length: ${plainPassword.length}`);
+            console.log(`[Password Verification] Hashed password starts with: ${hashedPassword.substring(0, 7)}...`);
+            
+            // Check if the hashed password has a valid bcrypt format
+            if (!hashedPassword.startsWith('$2a$') && !hashedPassword.startsWith('$2b$') && !hashedPassword.startsWith('$2y$')) {
+                console.error('[Password Verification] Invalid bcrypt hash format:', hashedPassword.substring(0, 10) + '...');
+                console.error('[Password Verification] This suggests the password was not properly hashed originally');
+                return false;
+            }
+            
+            // Verify using bcrypt
+            const isValid = await bcrypt.compare(plainPassword, hashedPassword);
+            console.log(`[Password Verification] bcrypt.compare result: ${isValid}`);
+            return isValid;
         } catch (error) {
-            console.error('Error verifying password:', error);
+            console.error('[Password Verification] Error verifying password:', error);
+            console.error('[Password Verification] Error details:', error.message);
+            console.error('[Password Verification] Stack trace:', error.stack);
             return false;
         }
     }

@@ -102,13 +102,29 @@ exports.login = async (req, res, next) => {
         console.log('✅ User found:', { id: user.id, email: user.email });
         console.log('🔐 Verifying password...');
         
+        // Enhanced password verification logging
+        console.log('🔐 Password verification details:');
+        console.log('- Input password:', password);
+        console.log('- Stored hashed password (first 15 chars):', user.password.substring(0, 15) + '...');
+        console.log('- Hash type appears to be:', user.password.startsWith('$2a$') || user.password.startsWith('$2b$') ? 'bcrypt' : 'unknown');
+        
         // Verify password
-        const isPasswordValid = await User.verifyPassword(password, user.password);
-        if (!isPasswordValid) {
-            console.log('❌ Password verification failed for user:', email);
+        try {
+            const isPasswordValid = await User.verifyPassword(password, user.password);
+            console.log('🔐 Password verification result:', isPasswordValid ? '✅ VALID' : '❌ INVALID');
+            
+            if (!isPasswordValid) {
+                console.log('❌ Password verification failed for user:', email);
+                return res.status(401).json({
+                    error: true,
+                    message: 'Invalid credentials'
+                });
+            }
+        } catch (verifyError) {
+            console.error('❌ Password verification error:', verifyError);
             return res.status(401).json({
                 error: true,
-                message: 'Invalid credentials'
+                message: 'Authentication error'
             });
         }
 

@@ -332,10 +332,20 @@ window.SymptomSentryApp.handleRegistration = function() {
                 throw new Error(data.message || 'Login failed');
             }
             
+            // Enhanced logging for response structure debugging
+            console.log('[Auth] Full response structure:', JSON.stringify(data));
+            console.log('[Auth] Response keys:', Object.keys(data));
+            
             // Validate the response structure
             if (!data.accessToken) {
                 console.error('[Fetch] Missing access token in response:', data);
-                throw new Error('Invalid server response: Missing authentication token');
+                // Check if the token is under a different key name
+                if (data.token) {
+                    console.log('[Auth] Found token under "token" key instead of "accessToken" - will use this');
+                    data.accessToken = data.token;
+                } else {
+                    throw new Error('Invalid server response: Missing authentication token');
+                }
             }
             
             if (!data.user) {
@@ -409,15 +419,39 @@ window.SymptomSentryApp.handleRegistration = function() {
                 body: JSON.stringify({ name, email, password })
             });
             
-            const data = await response.json();
+            // Get the response text first to debug any parsing issues
+            const responseText = await response.text();
+            console.log('[Fetch] Raw registration response text:', responseText);
+            
+            // Try to parse the response as JSON
+            let data;
+            try {
+                data = JSON.parse(responseText);
+                console.log('[Fetch] Parsed registration response data:', data);
+            } catch (parseError) {
+                console.error('[Fetch] JSON parse error:', parseError);
+                console.error('[Fetch] Failed to parse response text:', responseText);
+                throw new Error('Server response format error. Please try again.');
+            }
             
             if (!response.ok) {
+                console.error('[Fetch] Registration error response:', data);
                 throw new Error(data.message || 'Registration failed');
+            }
+            
+            // Enhanced logging for response structure debugging
+            console.log('[Auth] Registration response structure:', JSON.stringify(data));
+            console.log('[Auth] Registration response keys:', Object.keys(data));
+            
+            // Handle token key variations
+            if (!data.accessToken && data.token) {
+                console.log('[Auth] Found token under "token" key instead of "accessToken" - will use this');
+                data.accessToken = data.token;
             }
             
             // Store the tokens
             localStorage.setItem('authToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
+            localStorage.setItem('refreshToken', data.refreshToken || ''); // Handle case where refreshToken might be missing
             
             // Calculate token expiration time (1 hour from now)
             const expiresAt = new Date();

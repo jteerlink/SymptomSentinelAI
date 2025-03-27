@@ -11,11 +11,16 @@ const PORT = process.env.PORT || 5000;
 
 // Basic middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Set CORS headers for all routes
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
   next();
 });
 
@@ -90,6 +95,21 @@ app.get('/health', (req, res) => {
 app.get('/api', (req, res) => {
   res.json({
     message: 'API is operational'
+  });
+});
+
+// Create a static folder for serving static files
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Additional diagnostic endpoint
+app.get('/debug', (req, res) => {
+  res.json({
+    environment: process.env.NODE_ENV || 'development',
+    port: PORT,
+    hostname: '0.0.0.0',
+    headers: req.headers,
+    timestamp: new Date().toISOString()
   });
 });
 

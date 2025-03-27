@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SymptomSentryAI - Static File</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 40px;
+      line-height: 1.6;
+      color: #333;
+    }
+    h1 {
+      color: #0066cc;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      background-color: #f9f9f9;
+    }
+    .success {
+      color: green;
+      font-weight: bold;
+    }
+    .info {
+      color: #0066cc;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>SymptomSentryAI Test Page (Static)</h1>
+    <p class="success">✅ Static file server is running successfully!</p>
+    <p>This is a static HTML file served from the public directory.</p>
+    <p class="info">Server Status: Online</p>
+    <p class="info">Time: <span id="timestamp"></span></p>
+    <hr>
+    <p>Available endpoints:</p>
+    <ul>
+      <li><strong>/</strong> - Main endpoint (dynamic)</li>
+      <li><strong>/health</strong> - Health check endpoint</li>
+      <li><strong>/api</strong> - API base endpoint</li>
+      <li><strong>/debug</strong> - Debug information</li>
+    </ul>
+  </div>
+
+  <script>
+    document.getElementById('timestamp').textContent = new Date().toLocaleString();
+    
+    // Check server connectivity
+    fetch('/health')
+      .then(response => response.json())
+      .then(data => {
+        console.log('Server health check successful:', data);
+      })
+      .catch(err => {
+        console.error('Server health check failed:', err);
+      });
+  </script>
+</body>
+</html>

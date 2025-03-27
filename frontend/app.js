@@ -12,12 +12,14 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
-    // Add a debug button for testing logout
+    // Create the debug button for testing logout (initially hidden)
     const debugDiv = document.createElement('div');
+    debugDiv.id = 'debug-logout-container';
     debugDiv.style.position = 'fixed';
     debugDiv.style.bottom = '20px';
     debugDiv.style.right = '20px';
     debugDiv.style.zIndex = '9999';
+    debugDiv.style.display = 'none'; // Initially hidden
     debugDiv.innerHTML = `
         <button id="test-logout-btn" class="btn btn-sm btn-outline-danger">
             Test Logout
@@ -192,6 +194,17 @@ function showPage(pageId) {
     const targetPage = document.getElementById(`${pageId}-page`);
     if (targetPage) {
         targetPage.classList.add('active');
+    }
+    
+    // Show/hide debug logout button based on the active page
+    const debugLogoutContainer = document.getElementById('debug-logout-container');
+    if (debugLogoutContainer) {
+        // Only show on profile page
+        if (pageId === 'profile') {
+            debugLogoutContainer.style.display = 'block';
+        } else {
+            debugLogoutContainer.style.display = 'none';
+        }
     }
 }
 

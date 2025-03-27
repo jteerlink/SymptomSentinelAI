@@ -247,36 +247,109 @@ exports.analyzeImage = async (req, res, next) => {
             let errorCode = 'ANALYSIS_ERROR';
             let errorStatus = 500;
             let errorMessage = 'Internal server error during image analysis';
+            let errorCategory = 'system';
+            let errorRecoveryAction = 'Try again later or contact support';
             
-            // Categorize common errors for better client-side handling
-            if (error.message && error.message.includes('decode')) {
+            // Categorize common errors for better client-side handling with more specific categories and recovery actions
+            if (error.problem === 'MALFORMED_BASE64') {
+                errorCode = 'MALFORMED_IMAGE_DATA';
+                errorMessage = 'Image data is malformed or corrupted. Please try uploading again with the correct format.';
+                errorStatus = 400;
+                errorCategory = 'image_format';
+                errorRecoveryAction = 'Try taking a new photo or uploading a different image file';
+            } else if (error.problem === 'INVALID_BASE64_FORMAT') {
+                errorCode = 'INVALID_IMAGE_FORMAT';
+                errorMessage = 'Invalid image data format. Please ensure you are using a proper image format.';
+                errorStatus = 400;
+                errorCategory = 'image_format';
+                errorRecoveryAction = 'Try using a JPEG or PNG image';
+            } else if (error.problem === 'DATA_TOO_SMALL' || error.problem === 'BUFFER_TOO_SMALL') {
+                errorCode = 'IMAGE_TOO_SMALL';
+                errorMessage = 'Image data is too small to be valid. Please upload a proper image.';
+                errorStatus = 400;
+                errorCategory = 'image_size';
+                errorRecoveryAction = 'Make sure you are uploading a complete image file';
+            } else if (error.problem === 'MISSING_DATA') {
+                errorCode = 'MISSING_IMAGE_DATA';
+                errorMessage = 'No image data found. Please ensure you are uploading an image.';
+                errorStatus = 400;
+                errorCategory = 'image_missing';
+                errorRecoveryAction = 'Select an image file before uploading';
+            } else if (error.problem === 'UNSUPPORTED_DATA_TYPE') {
+                errorCode = 'UNSUPPORTED_IMAGE_TYPE';
+                errorMessage = 'The image format is not supported. Please use JPEG or PNG images.';
+                errorStatus = 400;
+                errorCategory = 'image_format';
+                errorRecoveryAction = 'Convert your image to a standard format like JPEG or PNG';
+            } else if (error.message && error.message.includes('decode')) {
                 errorCode = 'IMAGE_DECODE_ERROR';
                 errorMessage = 'Could not decode image data. Please ensure you are uploading a valid image file.';
                 errorStatus = 400;
+                errorCategory = 'image_format';
+                errorRecoveryAction = 'Try uploading a different image file';
             } else if (error.message && error.message.includes('tensor')) {
                 errorCode = 'IMAGE_PROCESSING_ERROR';
                 errorMessage = 'Error processing image. Please try using a clearer image.';
                 errorStatus = 400;
+                errorCategory = 'image_quality';
+                errorRecoveryAction = 'Take a clearer, well-lit photo and try again';
+            } else if (error.problem === 'TENSOR_SHAPE_MISMATCH') {
+                errorCode = 'IMAGE_SIZE_ERROR';
+                errorMessage = 'The image dimensions could not be processed correctly.';
+                errorStatus = 400;
+                errorCategory = 'image_dimensions';
+                errorRecoveryAction = 'Try using an image with standard dimensions';
+            } else if (error.problem === 'OUT_OF_MEMORY') {
+                errorCode = 'IMAGE_TOO_LARGE';
+                errorMessage = 'The image is too large to process. Please use a smaller image (under 5MB).';
+                errorStatus = 400;
+                errorCategory = 'image_size';
+                errorRecoveryAction = 'Resize your image to be smaller than 5MB';
             } else if (error.stage === 'image_preprocessing') {
                 errorCode = 'IMAGE_PREPROCESSING_ERROR';
                 errorMessage = 'Could not prepare image for analysis. The image might be corrupted or in an unsupported format.';
                 errorStatus = 400;
+                errorCategory = 'image_processing';
+                errorRecoveryAction = 'Try using a standard JPEG or PNG image';
+            } else if (error.stage === 'model_loading') {
+                errorCode = 'MODEL_LOADING_ERROR';
+                errorMessage = 'Could not load the analysis model. This is a temporary system issue.';
+                errorStatus = 503;
+                errorCategory = 'system';
+                errorRecoveryAction = 'Please try again in a few minutes';
             } else if (error.stage === 'model_inference') {
                 errorCode = 'MODEL_INFERENCE_ERROR';
                 errorMessage = 'Could not analyze image. The analysis system encountered a technical problem.';
+                errorStatus = 500;
+                errorCategory = 'system';
+                errorRecoveryAction = 'Try again with a different image or try later';
+            } else if (error.stage === 'model_creation') {
+                errorCode = 'MODEL_CREATION_ERROR';
+                errorMessage = 'Could not create analysis model. This is a temporary system issue.';
+                errorStatus = 503;
+                errorCategory = 'system';
+                errorRecoveryAction = 'Please try again in a few minutes';
             }
             
-            // Log specific error details for monitoring
-            console.error(`[Image Analysis Error] Code=${errorCode}, Status=${errorStatus}, Message=${errorMessage}`);
+            // Log specific error details for monitoring and analytics
+            console.error(`[Image Analysis Error]`);
+            console.error(`Code: ${errorCode}`);
+            console.error(`Category: ${errorCategory}`);
+            console.error(`Status: ${errorStatus}`);
+            console.error(`Message: ${errorMessage}`);
+            console.error(`Recovery Action: ${errorRecoveryAction}`);
             
-            // Send a detailed error response
+            // Send a comprehensive error response with recovery guidance
             return res.status(errorStatus).json({
                 error: true,
                 message: errorMessage,
                 code: errorCode,
+                category: errorCategory,
+                recovery_action: errorRecoveryAction,
                 details: process.env.NODE_ENV === 'development' ? {
                     error_message: error.message,
                     stage: error.stage || 'unknown',
+                    problem: error.problem || 'unknown',
                     data_source: dataSource,
                     timestamp: new Date().toISOString()
                 } : undefined
@@ -286,20 +359,52 @@ exports.analyzeImage = async (req, res, next) => {
         console.error('❌❌ CRITICAL ERROR IN ANALYZE ENDPOINT:', outer_error);
         console.error('Stack trace:', outer_error.stack);
         
+        // Generate a unique error ID for tracking in logs
+        const errorId = uuidv4();
+        console.error(`Error ID: ${errorId}`);
+        
         // Handle specific API errors from our utility
         if (outer_error.isApiError) {
+            // Determine the error category for client-side handling
+            let errorCategory = 'system';
+            let recoveryAction = 'Try again later or contact support';
+            
+            // Categorize common API errors
+            if (outer_error.code === 'UNAUTHORIZED' || outer_error.code === 'AUTH_REQUIRED') {
+                errorCategory = 'authentication';
+                recoveryAction = 'Please log in to continue';
+            } else if (outer_error.code === 'FORBIDDEN') {
+                errorCategory = 'permissions';
+                recoveryAction = 'Your account does not have permission for this action';
+            } else if (outer_error.code === 'VALIDATION_ERROR') {
+                errorCategory = 'input';
+                recoveryAction = 'Please check your input and try again';
+            } else if (outer_error.code === 'RATE_LIMIT') {
+                errorCategory = 'rate_limit';
+                recoveryAction = 'Please wait before trying again';
+            } else if (outer_error.code === 'ANALYSIS_LIMIT_EXCEEDED') {
+                errorCategory = 'subscription';
+                recoveryAction = 'Upgrade your subscription or wait until your monthly limit resets';
+            }
+            
             return res.status(outer_error.status || 500).json({
                 error: true,
                 message: outer_error.message,
-                code: outer_error.code || 'SERVER_ERROR'
+                code: outer_error.code || 'SERVER_ERROR',
+                category: errorCategory,
+                recovery_action: recoveryAction,
+                error_id: errorId
             });
         }
         
-        // Create a safe error response for other errors
+        // Create a comprehensive error response for non-API errors
         return res.status(500).json({
             error: true,
             message: 'A critical error occurred while processing your request',
-            errorId: uuidv4() // For tracking in logs
+            code: 'CRITICAL_ERROR',
+            category: 'system',
+            recovery_action: 'Please try again later or contact support if the problem persists',
+            error_id: errorId // For tracking in logs
         });
     }
 };
@@ -403,18 +508,130 @@ exports.saveAnalysis = async (req, res, next) => {
             });
         } catch (dbError) {
             console.error('Database operation error:', dbError);
-            return res.status(500).json({
+            console.error('Stack trace:', dbError.stack);
+            
+            // Generate a unique error ID for tracking
+            const errorId = uuidv4();
+            
+            // Default error information
+            let errorCode = 'DATABASE_OPERATION_ERROR';
+            let errorStatus = 500;
+            let errorMessage = 'Error saving analysis to database';
+            let errorCategory = 'database';
+            let recoveryAction = 'Please try again later';
+            
+            // Handle specific database error types
+            if (dbError.code === 'ER_DUP_ENTRY') {
+                errorCode = 'DUPLICATE_ANALYSIS';
+                errorStatus = 409;
+                errorMessage = 'This analysis has already been saved';
+                errorCategory = 'duplicate';
+                recoveryAction = 'This analysis has already been saved. You can view it in your history.';
+            } else if (dbError.code === 'ER_NO_REFERENCED_ROW') {
+                errorCode = 'INVALID_REFERENCE';
+                errorStatus = 400;
+                errorMessage = 'Invalid reference in analysis data';
+                errorCategory = 'validation';
+                recoveryAction = 'Please try again with valid data';
+            } else if (dbError.code === 'ER_DATA_TOO_LONG') {
+                errorCode = 'DATA_TOO_LONG';
+                errorStatus = 400;
+                errorMessage = 'Analysis data is too large';
+                errorCategory = 'validation';
+                recoveryAction = 'Please try again with smaller data';
+            } else if (dbError.code === 'ER_NO_SUCH_TABLE') {
+                errorCode = 'MISSING_TABLE';
+                errorStatus = 500;
+                errorMessage = 'Database configuration issue';
+                errorCategory = 'system';
+                recoveryAction = 'This appears to be a system issue. Please try again later.';
+            }
+            
+            // Log the categorized error
+            console.error(`[Database Error]`);
+            console.error(`ID: ${errorId}`);
+            console.error(`Code: ${errorCode}`);
+            console.error(`Category: ${errorCategory}`);
+            console.error(`Status: ${errorStatus}`);
+            console.error(`Message: ${errorMessage}`);
+            
+            return res.status(errorStatus).json({
                 error: true,
-                message: 'Error saving analysis to database',
-                details: process.env.NODE_ENV === 'development' ? dbError.message : undefined
+                message: errorMessage,
+                code: errorCode,
+                category: errorCategory,
+                recovery_action: recoveryAction,
+                error_id: errorId,
+                details: process.env.NODE_ENV === 'development' ? {
+                    error_message: dbError.message,
+                    error_code: dbError.code,
+                    timestamp: new Date().toISOString()
+                } : undefined
             });
         }
     } catch (error) {
         console.error('Error saving analysis:', error);
-        return res.status(500).json({
+        console.error('Stack trace:', error.stack);
+        
+        // Generate a unique error ID for tracking
+        const errorId = uuidv4();
+        
+        // Determine specific error type and category
+        let errorCode = 'SAVE_ANALYSIS_ERROR';
+        let errorStatus = 500;
+        let errorMessage = 'Error processing analysis save request';
+        let errorCategory = 'database';
+        let recoveryAction = 'Please try again later';
+        
+        // Handle specific error types
+        if (error.isApiError) {
+            errorCode = error.code || 'API_ERROR';
+            errorStatus = error.status || 500;
+            errorMessage = error.message;
+            
+            if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
+                errorCategory = 'authentication';
+                recoveryAction = 'Please log in and try again';
+            } else if (error.code === 'VALIDATION_ERROR') {
+                errorCategory = 'validation';
+                recoveryAction = 'Please check your input data and try again';
+            } else if (error.code === 'ANALYSIS_LIMIT_EXCEEDED') {
+                errorCategory = 'subscription';
+                recoveryAction = 'Upgrade your subscription or wait until your monthly limit resets';
+            }
+        } else if (error.code === 'ER_DUP_ENTRY') {
+            errorCode = 'DUPLICATE_ANALYSIS';
+            errorStatus = 409;
+            errorMessage = 'This analysis has already been saved';
+            errorCategory = 'duplicate';
+            recoveryAction = 'Try saving with a different ID or update the existing analysis';
+        } else if (error.code === 'ER_NO_REFERENCED_ROW') {
+            errorCode = 'INVALID_REFERENCE';
+            errorStatus = 400;
+            errorMessage = 'Invalid reference in analysis data';
+            errorCategory = 'validation';
+            recoveryAction = 'Check that all referenced data exists and try again';
+        }
+        
+        // Log the categorized error
+        console.error(`[Analysis Save Error]`);
+        console.error(`ID: ${errorId}`);
+        console.error(`Code: ${errorCode}`);
+        console.error(`Category: ${errorCategory}`);
+        console.error(`Message: ${errorMessage}`);
+        
+        return res.status(errorStatus).json({
             error: true,
-            message: 'Error processing analysis save request',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            message: errorMessage,
+            code: errorCode,
+            category: errorCategory,
+            recovery_action: recoveryAction,
+            error_id: errorId,
+            details: process.env.NODE_ENV === 'development' ? {
+                error_message: error.message,
+                error_code: error.code,
+                timestamp: new Date().toISOString()
+            } : undefined
         });
     }
 };
@@ -456,10 +673,62 @@ exports.getAnalysisHistory = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error fetching analysis history:', error);
-        return res.status(500).json({
+        console.error('Stack trace:', error.stack);
+        
+        // Generate a unique error ID for tracking
+        const errorId = uuidv4();
+        
+        // Default error information
+        let errorCode = 'HISTORY_RETRIEVAL_ERROR';
+        let errorStatus = 500;
+        let errorMessage = 'Error retrieving analysis history';
+        let errorCategory = 'database';
+        let recoveryAction = 'Please try again later';
+        
+        // Handle specific error types
+        if (error.isApiError) {
+            errorCode = error.code || 'API_ERROR';
+            errorStatus = error.status || 500;
+            errorMessage = error.message;
+            
+            if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
+                errorCategory = 'authentication';
+                recoveryAction = 'Please log in and try again';
+            } else if (error.code === 'FORBIDDEN') {
+                errorCategory = 'permissions';
+                recoveryAction = 'Your account does not have permission to view this data';
+            }
+        } else if (error.code === 'ER_NO_SUCH_TABLE') {
+            errorCode = 'DATABASE_ERROR';
+            errorMessage = 'Database table not found';
+            errorCategory = 'system';
+            recoveryAction = 'This appears to be a system issue. Please try again later.';
+        } else if (error.code && error.code.startsWith('ER_')) {
+            // Handle other database errors
+            errorCode = 'DATABASE_ERROR';
+            errorCategory = 'database';
+        }
+        
+        // Log the categorized error
+        console.error(`[Analysis History Error]`);
+        console.error(`ID: ${errorId}`);
+        console.error(`Code: ${errorCode}`);
+        console.error(`Category: ${errorCategory}`);
+        console.error(`Status: ${errorStatus}`);
+        console.error(`Message: ${errorMessage}`);
+        
+        return res.status(errorStatus).json({
             error: true,
-            message: 'Error retrieving analysis history',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            message: errorMessage,
+            code: errorCode,
+            category: errorCategory,
+            recovery_action: recoveryAction,
+            error_id: errorId,
+            details: process.env.NODE_ENV === 'development' ? {
+                error_message: error.message,
+                error_code: error.code,
+                timestamp: new Date().toISOString()
+            } : undefined
         });
     }
 };
@@ -499,7 +768,63 @@ exports.deleteAnalysis = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error deleting analysis:', error);
-        next(error);
+        console.error('Stack trace:', error.stack);
+        
+        // Generate a unique error ID for tracking
+        const errorId = uuidv4();
+        
+        // Default error information
+        let errorCode = 'DELETE_ANALYSIS_ERROR';
+        let errorStatus = 500;
+        let errorMessage = 'Error deleting analysis';
+        let errorCategory = 'database';
+        let recoveryAction = 'Please try again later';
+        
+        // Handle specific error types
+        if (error.isApiError) {
+            errorCode = error.code || 'API_ERROR';
+            errorStatus = error.status || 500;
+            errorMessage = error.message;
+            
+            if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
+                errorCategory = 'authentication';
+                recoveryAction = 'Please log in and try again';
+            } else if (error.code === 'FORBIDDEN') {
+                errorCategory = 'permissions';
+                recoveryAction = 'Your account does not have permission to delete this data';
+            } else if (error.code === 'NOT_FOUND') {
+                errorCategory = 'not_found';
+                recoveryAction = 'The analysis may have already been deleted';
+            }
+        } else if (error.code === 'ER_ROW_NOT_FOUND') {
+            errorCode = 'ANALYSIS_NOT_FOUND';
+            errorStatus = 404;
+            errorMessage = 'Analysis not found';
+            errorCategory = 'not_found';
+            recoveryAction = 'The requested analysis does not exist or may have already been deleted';
+        }
+        
+        // Log the categorized error
+        console.error(`[Delete Analysis Error]`);
+        console.error(`ID: ${errorId}`);
+        console.error(`Code: ${errorCode}`);
+        console.error(`Category: ${errorCategory}`);
+        console.error(`Status: ${errorStatus}`);
+        console.error(`Message: ${errorMessage}`);
+        
+        return res.status(errorStatus).json({
+            error: true,
+            message: errorMessage,
+            code: errorCode,
+            category: errorCategory,
+            recovery_action: recoveryAction,
+            error_id: errorId,
+            details: process.env.NODE_ENV === 'development' ? {
+                error_message: error.message,
+                error_code: error.code,
+                timestamp: new Date().toISOString()
+            } : undefined
+        });
     }
 };
 
@@ -533,6 +858,58 @@ exports.clearAnalyses = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error clearing analyses:', error);
-        next(error);
+        console.error('Stack trace:', error.stack);
+        
+        // Generate a unique error ID for tracking
+        const errorId = uuidv4();
+        
+        // Default error information
+        let errorCode = 'CLEAR_ANALYSES_ERROR';
+        let errorStatus = 500;
+        let errorMessage = 'Error clearing analyses';
+        let errorCategory = 'database';
+        let recoveryAction = 'Please try again later';
+        
+        // Handle specific error types
+        if (error.isApiError) {
+            errorCode = error.code || 'API_ERROR';
+            errorStatus = error.status || 500;
+            errorMessage = error.message;
+            
+            if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
+                errorCategory = 'authentication';
+                recoveryAction = 'Please log in and try again';
+            } else if (error.code === 'FORBIDDEN') {
+                errorCategory = 'permissions';
+                recoveryAction = 'Your account does not have permission to clear analyses';
+            }
+        } else if (error.code === 'ER_NO_SUCH_TABLE') {
+            errorCode = 'DATABASE_ERROR';
+            errorMessage = 'Database table not found';
+            errorCategory = 'system';
+            recoveryAction = 'This appears to be a system issue. Please try again later.';
+        }
+        
+        // Log the categorized error
+        console.error(`[Clear Analyses Error]`);
+        console.error(`ID: ${errorId}`);
+        console.error(`Code: ${errorCode}`);
+        console.error(`Category: ${errorCategory}`);
+        console.error(`Status: ${errorStatus}`);
+        console.error(`Message: ${errorMessage}`);
+        
+        return res.status(errorStatus).json({
+            error: true,
+            message: errorMessage,
+            code: errorCode,
+            category: errorCategory,
+            recovery_action: recoveryAction,
+            error_id: errorId,
+            details: process.env.NODE_ENV === 'development' ? {
+                error_message: error.message,
+                error_code: error.code,
+                timestamp: new Date().toISOString()
+            } : undefined
+        });
     }
 };

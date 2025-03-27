@@ -268,43 +268,87 @@ function setupUploadEventListeners(container) {
     
     // Analyze button click
     analyzeButton.addEventListener('click', async () => {
+        // Validate the analysis type is selected
+        if (!selectedAnalysisType) {
+            showAnalysisError('Please select a scan type (throat or ear) first');
+            return;
+        }
+        
         // Use the resized image if available (from our previous resizing step)
         // Otherwise create a new optimized version
         let imageData;
+        let imageSize = 0;
+        let originalWidth = 0;
+        let originalHeight = 0;
+        let optimizedWidth = 0;
+        let optimizedHeight = 0;
         
-        if (previewImage.dataset.resizedImage) {
-            // Use already resized image
-            imageData = previewImage.dataset.resizedImage;
-            console.log('Using pre-resized image for analysis');
-        } else {
-            // Create a new optimized version (fallback)
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
+        try {
+            // Get original image dimensions for validation
+            originalWidth = previewImage.naturalWidth;
+            originalHeight = previewImage.naturalHeight;
             
-            // Set a max size for the image to keep file size reasonable
-            const MAX_SIZE = 800;
-            let width = previewImage.naturalWidth;
-            let height = previewImage.naturalHeight;
-            
-            // Scale down if needed
-            if (width > height && width > MAX_SIZE) {
-                height = Math.round(height * (MAX_SIZE / width));
-                width = MAX_SIZE;
-            } else if (height > MAX_SIZE) {
-                width = Math.round(width * (MAX_SIZE / height));
-                height = MAX_SIZE;
+            // Validate that the image appears to be valid
+            if (!originalWidth || !originalHeight) {
+                throw new Error('The selected image appears to be invalid or corrupted');
             }
             
-            // Set canvas dimensions to the optimized size
-            canvas.width = width;
-            canvas.height = height;
+            // Log original dimensions
+            console.log(`[Analysis] Original image dimensions: ${originalWidth}x${originalHeight}`);
             
-            // Draw the image onto the canvas
-            ctx.drawImage(previewImage, 0, 0, width, height);
+            if (previewImage.dataset.resizedImage) {
+                // Use already resized image
+                imageData = previewImage.dataset.resizedImage;
+                // Calculate approximate size of base64 data (for validation)
+                imageSize = imageData.length * 0.75; // base64 is ~33% larger than binary
+                console.log('[Analysis] Using pre-resized image for analysis');
+            } else {
+                // Create a new optimized version (fallback)
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set a max size for the image to keep file size reasonable
+                const MAX_SIZE = 800;
+                let width = originalWidth;
+                let height = originalHeight;
+                
+                // Scale down if needed
+                if (width > height && width > MAX_SIZE) {
+                    height = Math.round(height * (MAX_SIZE / width));
+                    width = MAX_SIZE;
+                } else if (height > MAX_SIZE) {
+                    width = Math.round(width * (MAX_SIZE / height));
+                    height = MAX_SIZE;
+                }
+                
+                // Save optimized dimensions for logging
+                optimizedWidth = width;
+                optimizedHeight = height;
+                
+                // Set canvas dimensions to the optimized size
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw the image onto the canvas
+                ctx.drawImage(previewImage, 0, 0, width, height);
+                
+                // Get optimized base64 representation
+                imageData = canvas.toDataURL('image/jpeg', 0.85);
+                imageSize = imageData.length * 0.75; // base64 is ~33% larger than binary
+                console.log(`[Analysis] Image optimized from ${originalWidth}x${originalHeight} to ${width}x${height}`);
+            }
             
-            // Get optimized base64 representation
-            imageData = canvas.toDataURL('image/jpeg', 0.85);
-            console.log(`Image optimized from ${previewImage.naturalWidth}x${previewImage.naturalHeight} to ${width}x${height}`);
+            // Validate file size before sending
+            const MAX_SIZE_MB = 5;
+            const MAX_SIZE_BYTES = MAX_SIZE_MB * 1024 * 1024;
+            
+            if (imageSize > MAX_SIZE_BYTES) {
+                throw new Error(`Image is too large (${(imageSize / (1024 * 1024)).toFixed(2)}MB). Maximum size is ${MAX_SIZE_MB}MB.`);
+            }
+        } catch (imageError) {
+            console.error('[Analysis] Image preparation error:', imageError);
+            showAnalysisError(imageError.message || 'Failed to process image');
+            return;
         }
         
         // Show loading state
@@ -657,14 +701,27 @@ function setupUploadEventListeners(container) {
     
     // Show error message if analysis fails
     function showAnalysisError(message) {
+        // Track whether the error message was shown for analytics
+        console.log('[Analysis] Showing error to user:', message);
+        
         const errorAlert = document.createElement('div');
         errorAlert.className = 'alert alert-danger mt-3';
         
-        // If this is an authentication error, add a login button
-        if (message.includes('need to be logged in') || message.includes('sign in')) {
+        // Enhanced error categorization with more specific error types
+        
+        // CATEGORY 1: Authentication Errors
+        if (message.includes('need to be logged in') || 
+            message.includes('sign in') || 
+            message.includes('Authentication required') ||
+            message.includes('session expired') ||
+            message.includes('unauthorized')) {
+            
+            console.log('[Analysis] Detected authentication error');
+            errorAlert.dataset.errorType = 'auth';
             errorAlert.innerHTML = `
                 <i class="fas fa-exclamation-circle"></i> 
-                <div class="mb-2">Analysis Error: ${message || 'Failed to analyze image. Please try again.'}</div>
+                <div class="mb-2"><strong>Authentication Required</strong></div>
+                <div class="mb-2">${message || 'You need to be logged in to analyze images.'}</div>
                 <button class="btn btn-primary btn-sm login-btn mt-2">
                     <i class="fas fa-sign-in-alt"></i> Sign In / Register
                 </button>
@@ -675,8 +732,7 @@ function setupUploadEventListeners(container) {
                 const loginBtn = errorAlert.querySelector('.login-btn');
                 if (loginBtn) {
                     loginBtn.addEventListener('click', function() {
-                        // Trigger login modal - this assumes a global function or event
-                        // that can be used to show the login modal
+                        // Trigger login modal
                         const authModal = new bootstrap.Modal(document.getElementById('authModal'));
                         authModal.show();
                         
@@ -689,12 +745,32 @@ function setupUploadEventListeners(container) {
                 }
             }, 100);
         } 
-        // If this is a file size error, add a try again button with helpful info
-        else if (message.includes('file is too large') || message.includes('5MB limit')) {
+        // CATEGORY 2: File Size/Format Errors
+        else if (message.includes('file is too large') || 
+                message.includes('5MB limit') || 
+                message.includes('image size') ||
+                message.includes('MB. Maximum size') ||
+                message.includes('file format') ||
+                message.includes('invalid image') ||
+                message.includes('corrupted')) {
+            
+            console.log('[Analysis] Detected file size/format error');
+            errorAlert.dataset.errorType = 'file';
+            
+            // Determine if this is specifically a size issue or format issue
+            const isSizeIssue = message.includes('too large') || 
+                               message.includes('5MB limit') || 
+                               message.includes('Maximum size');
+            
+            const formatTip = isSizeIssue ? 
+                'Try reducing the image resolution or compressing the file before uploading.' :
+                'Ensure you are uploading a valid JPG or PNG image in good condition.';
+            
             errorAlert.innerHTML = `
                 <i class="fas fa-file-alt"></i> 
-                <div class="mb-2">Analysis Error: ${message || 'Failed to analyze image. Please try again.'}</div>
-                <div class="small text-muted mb-2">Try reducing the image resolution or compressing the file before uploading.</div>
+                <div class="mb-2"><strong>${isSizeIssue ? 'File Size Error' : 'Image Format Error'}</strong></div>
+                <div class="mb-2">${message || 'There was a problem with your image file.'}</div>
+                <div class="small text-muted mb-2">${formatTip}</div>
                 <button class="btn btn-primary btn-sm try-again-btn mt-2">
                     <i class="fas fa-redo"></i> Try Another Image
                 </button>
@@ -709,11 +785,19 @@ function setupUploadEventListeners(container) {
                 }
             }, 100);
         }
-        // If this is a subscription limit error, add an upgrade button
-        else if (message.includes('upgrade to Premium') || message.includes('analysis limit')) {
+        // CATEGORY 3: Subscription Limit Errors
+        else if (message.includes('upgrade to Premium') || 
+                message.includes('analysis limit') ||
+                message.includes('monthly limit') ||
+                message.includes('upgrade your account')) {
+            
+            console.log('[Analysis] Detected subscription limit error');
+            errorAlert.dataset.errorType = 'subscription';
             errorAlert.innerHTML = `
                 <i class="fas fa-exclamation-circle"></i> 
-                <div class="mb-2">Analysis Error: ${message || 'Failed to analyze image. Please try again.'}</div>
+                <div class="mb-2"><strong>Subscription Limit Reached</strong></div>
+                <div class="mb-2">${message || 'You have reached your monthly analysis limit.'}</div>
+                <div class="small text-muted mb-2">Upgrade to Premium for unlimited analyses and additional features.</div>
                 <button class="btn btn-warning btn-sm upgrade-btn mt-2">
                     <i class="fas fa-crown"></i> Upgrade to Premium
                 </button>
@@ -729,12 +813,105 @@ function setupUploadEventListeners(container) {
                 }
             }, 100);
         }
-        // Standard error message for other errors
+        // CATEGORY 4: Server/Network Errors
+        else if (message.includes('server error') || 
+                message.includes('try again later') ||
+                message.includes('network') ||
+                message.includes('connection') ||
+                message.includes('timeout') ||
+                message.includes('communicate with')) {
+            
+            console.log('[Analysis] Detected server/network error');
+            errorAlert.dataset.errorType = 'server';
+            errorAlert.innerHTML = `
+                <i class="fas fa-server"></i> 
+                <div class="mb-2"><strong>Server Communication Error</strong></div>
+                <div class="mb-2">${message || 'There was a problem communicating with the server.'}</div>
+                <div class="small text-muted mb-2">This may be a temporary issue. Please try again in a few moments.</div>
+                <button class="btn btn-primary btn-sm retry-btn mt-2">
+                    <i class="fas fa-sync"></i> Try Again
+                </button>
+            `;
+            
+            setTimeout(() => {
+                const retryBtn = errorAlert.querySelector('.retry-btn');
+                if (retryBtn) {
+                    retryBtn.addEventListener('click', function() {
+                        // Close error and retry analysis with current image
+                        if (errorAlert.parentNode) {
+                            errorAlert.remove();
+                        }
+                        analyzeButton.click();
+                    });
+                }
+            }, 100);
+        }
+        // CATEGORY 5: Image Analysis Errors
+        else if (message.includes('could not analyze') || 
+                message.includes('analysis failed') ||
+                message.includes('processing error') ||
+                message.includes('detection failed') ||
+                message.includes('no conditions detected')) {
+            
+            console.log('[Analysis] Detected analysis processing error');
+            errorAlert.dataset.errorType = 'analysis';
+            errorAlert.innerHTML = `
+                <i class="fas fa-microscope"></i> 
+                <div class="mb-2"><strong>Analysis Error</strong></div>
+                <div class="mb-2">${message || 'The system could not analyze this image properly.'}</div>
+                <div class="small text-muted mb-2">Try using a clearer image with good lighting and focus on the area of concern.</div>
+                <button class="btn btn-primary btn-sm try-again-btn mt-2">
+                    <i class="fas fa-camera"></i> Take New Photo
+                </button>
+            `;
+            
+            setTimeout(() => {
+                const tryAgainBtn = errorAlert.querySelector('.try-again-btn');
+                if (tryAgainBtn) {
+                    tryAgainBtn.addEventListener('click', function() {
+                        resetUpload();
+                    });
+                }
+            }, 100);
+        }
+        // CATEGORY 6: User Input Errors
+        else if (message.includes('select a scan type') || 
+                message.includes('missing information') ||
+                message.includes('must select') ||
+                message.includes('choose') ||
+                message.includes('not selected')) {
+            
+            console.log('[Analysis] Detected user input error');
+            errorAlert.dataset.errorType = 'input';
+            errorAlert.innerHTML = `
+                <i class="fas fa-exclamation-triangle"></i> 
+                <div class="mb-2"><strong>Input Required</strong></div>
+                <div class="mb-2">${message || 'Please complete all required fields.'}</div>
+            `;
+        }
+        // CATEGORY 7: Generic/Fallback Errors
         else {
+            console.log('[Analysis] Detected general error');
+            errorAlert.dataset.errorType = 'general';
             errorAlert.innerHTML = `
                 <i class="fas fa-exclamation-circle"></i> 
-                Analysis Error: ${message || 'Failed to analyze image. Please try again.'}
+                <div class="mb-2"><strong>Analysis Error</strong></div>
+                <div class="mb-2">${message || 'Failed to analyze image. Please try again.'}</div>
+                <button class="btn btn-secondary btn-sm try-again-btn mt-2">
+                    <i class="fas fa-redo"></i> Try Again
+                </button>
             `;
+            
+            setTimeout(() => {
+                const tryAgainBtn = errorAlert.querySelector('.try-again-btn');
+                if (tryAgainBtn) {
+                    tryAgainBtn.addEventListener('click', function() {
+                        if (errorAlert.parentNode) {
+                            errorAlert.remove();
+                        }
+                    });
+                }
+            }, 100);
         }
         
         // Remove any existing error messages
@@ -746,16 +923,21 @@ function setupUploadEventListeners(container) {
         // Add the error message to the container
         previewContainer.appendChild(errorAlert);
         
-        // Auto-remove standard errors after 5 seconds, but leave auth/subscription/file size errors
-        if (!message.includes('sign in') && 
-            !message.includes('upgrade to Premium') && 
-            !message.includes('file is too large') && 
-            !message.includes('5MB limit')) {
+        // Auto-remove certain types of errors after 10 seconds (increased from 5 to give user more time)
+        const persistentErrorTypes = ['auth', 'subscription', 'file'];
+        const errorType = errorAlert.dataset.errorType || 'general';
+        
+        if (!persistentErrorTypes.includes(errorType)) {
             setTimeout(() => {
                 if (errorAlert.parentNode) {
                     errorAlert.remove();
                 }
-            }, 5000);
+            }, 10000);
         }
+        
+        // Log error for analytics
+        console.log(`[Analysis] Error shown to user: Type=${errorType}, Message="${message}"`);
     }
 }
+
+// End of component

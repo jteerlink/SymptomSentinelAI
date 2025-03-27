@@ -21,40 +21,81 @@ const pendingModelRequests = {
  * @returns {Promise<tf.LayersModel>} The loaded TensorFlow.js model
  */
 async function loadModel(type) {
+    const startTime = Date.now();
+    console.log(`🔄 BEGIN LOAD MODEL: ${type}`);
+    
     try {
-        // Input validation
+        // Enhanced input validation with detailed error reporting
+        if (!type) {
+            const error = new Error('Model type is null or undefined');
+            error.problem = 'MISSING_MODEL_TYPE';
+            console.error(`❌ ${error.message} (${error.problem})`);
+            throw error;
+        }
+        
         if (type !== 'throat' && type !== 'ear') {
-            throw new Error('Invalid model type');
+            const error = new Error(`Invalid model type: ${type}. Must be 'throat' or 'ear'`);
+            error.problem = 'INVALID_MODEL_TYPE';
+            error.providedType = type;
+            error.validTypes = ['throat', 'ear'];
+            console.error(`❌ ${error.message} (${error.problem})`);
+            throw error;
         }
         
         // Return cached model if already loaded
         if (type === 'throat' && throatModel) {
-            console.log('✅ Using cached throat model');
+            console.log(`✅ Using cached throat model (already loaded)`);
             return throatModel;
         } else if (type === 'ear' && earModel) {
-            console.log('✅ Using cached ear model');
+            console.log(`✅ Using cached ear model (already loaded)`);
             return earModel;
         }
         
-        // If a model is already loading, queue this request
+        // If a model is already loading, queue this request with timeout handling
         if (modelLoading) {
-            console.log(`⏳ Model is already loading, queuing request for ${type} model`);
+            console.log(`⏳ Model loading in progress, queueing request for ${type} model`);
             return new Promise((resolve, reject) => {
-                pendingModelRequests[type].push({ resolve, reject });
+                // Add this request to the queue with a timeout
+                const requestId = Date.now().toString();
+                console.log(`Added request ${requestId} to queue for ${type} model`);
+                
+                // Set a timeout to prevent hanging promises
+                const timeoutId = setTimeout(() => {
+                    // Find and remove this specific request
+                    const index = pendingModelRequests[type].findIndex(req => req.id === requestId);
+                    if (index !== -1) {
+                        pendingModelRequests[type].splice(index, 1);
+                        const timeoutError = new Error(`Request for ${type} model timed out after 30 seconds`);
+                        timeoutError.problem = 'MODEL_LOAD_TIMEOUT';
+                        reject(timeoutError);
+                    }
+                }, 30000); // 30 second timeout
+                
+                pendingModelRequests[type].push({ 
+                    resolve, 
+                    reject,
+                    id: requestId,
+                    cancelTimeout: () => clearTimeout(timeoutId)
+                });
             });
         }
         
-        // Set loading state to true
+        // Set loading state to true to prevent concurrent loads
         modelLoading = true;
-        const startTime = Date.now();
+        console.log(`Starting to load ${type} model (no cached version available)`);
         
         try {
-            console.log(`🔄 Loading ${type} analysis model...`);
+            console.log(`📥 Loading ${type} analysis model...`);
+            
+            // Track model loading stages for better debugging
+            let loadingStage = 'initialization';
             
             // In a real app, this would load an actual model from a file or URL
-            // For the demo, we'll create a mock model with a simulated delay
+            // For the demo, we'll create a mock model
+            loadingStage = 'mock_model_creation';
             const model = await createMockModel();
             
+            loadingStage = 'caching';
             // Cache the model
             if (type === 'throat') {
                 throatModel = model;
@@ -62,34 +103,85 @@ async function loadModel(type) {
                 earModel = model;
             }
             
-            console.log(`✅ ${type} model loaded successfully in ${Date.now() - startTime}ms`);
+            const loadTime = Date.now() - startTime;
+            console.log(`⏱️ ${type} model loaded successfully in ${loadTime}ms`);
+            console.log(`Model input shape: ${model.inputs[0].shape}`);
+            console.log(`Model output shape: ${model.outputs[0].shape}`);
             
             // Resolve any pending requests for this model type
             if (pendingModelRequests[type].length > 0) {
-                console.log(`Resolving ${pendingModelRequests[type].length} pending ${type} model requests`);
-                pendingModelRequests[type].forEach(({ resolve }) => resolve(model));
+                console.log(`✅ Resolving ${pendingModelRequests[type].length} pending ${type} model requests`);
+                pendingModelRequests[type].forEach(request => {
+                    // Cancel the timeout for this request
+                    if (request.cancelTimeout) {
+                        request.cancelTimeout();
+                    }
+                    // Resolve the promise with the model
+                    request.resolve(model);
+                });
                 pendingModelRequests[type] = [];
             }
             
+            console.log(`✅ END LOAD MODEL: ${type} (Success)`);
             return model;
         } catch (loadError) {
+            // Enhanced error handling with detailed diagnostics
             console.error(`❌ Error loading ${type} model:`, loadError);
+            console.error('Stack trace:', loadError.stack);
             
-            // Reject any pending requests for this model type
+            // Add detailed error context
+            loadError.stage = 'model_loading';
+            loadError.modelType = type;
+            loadError.loadTime = Date.now() - startTime;
+            
+            if (!loadError.problem) {
+                // Categorize common errors based on error message patterns
+                if (loadError.message && loadError.message.includes('fetch')) {
+                    loadError.problem = 'NETWORK_ERROR';
+                } else if (loadError.message && loadError.message.includes('memory')) {
+                    loadError.problem = 'OUT_OF_MEMORY';
+                } else if (loadError.message && loadError.message.includes('format')) {
+                    loadError.problem = 'MODEL_FORMAT_ERROR';
+                } else {
+                    loadError.problem = 'MODEL_LOAD_FAILED';
+                }
+            }
+            
+            console.error(`[Model Loading] ${loadError.message} (${loadError.problem})`);
+            
+            // Reject any pending requests with the detailed error
             if (pendingModelRequests[type].length > 0) {
                 console.log(`Rejecting ${pendingModelRequests[type].length} pending ${type} model requests due to error`);
-                pendingModelRequests[type].forEach(({ reject }) => reject(loadError));
+                pendingModelRequests[type].forEach(request => {
+                    // Cancel the timeout for this request
+                    if (request.cancelTimeout) {
+                        request.cancelTimeout();
+                    }
+                    // Reject the promise with the error
+                    request.reject(loadError);
+                });
                 pendingModelRequests[type] = [];
             }
             
-            return null;
+            throw loadError;
         } finally {
             // Always reset the loading state
             modelLoading = false;
+            console.log(`Model loading lock released for ${type}`);
         }
     } catch (error) {
-        console.error('Error in loadModel function:', error);
-        return null;
+        console.error('Unhandled error in loadModel function:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Ensure the error is properly categorized
+        if (!error.stage) {
+            error.stage = 'model_loading_outer';
+        }
+        if (!error.problem) {
+            error.problem = 'UNHANDLED_ERROR';
+        }
+        
+        throw error;
     }
 }
 
@@ -100,26 +192,67 @@ async function loadModel(type) {
  * @returns {Promise<tf.LayersModel>} A TensorFlow.js model
  */
 async function createMockModel() {
-    // Create a simple sequential model
-    const model = tf.sequential();
-    model.add(tf.layers.conv2d({
-        inputShape: [224, 224, 3],
-        filters: 16,
-        kernelSize: 3,
-        activation: 'relu'
-    }));
-    model.add(tf.layers.maxPooling2d({ poolSize: 2, strides: 2 }));
-    model.add(tf.layers.flatten());
-    model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+    console.log('Creating mock TensorFlow.js model for demonstration');
     
-    // Compile the model
-    model.compile({
-        optimizer: 'adam',
-        loss: 'categoricalCrossentropy',
-        metrics: ['accuracy']
-    });
-    
-    return model;
+    try {
+        // Create a simple sequential model
+        const model = tf.sequential();
+        
+        // Add first convolutional layer - this handles the initial image input
+        console.log('Adding convolutional input layer with shape [224, 224, 3]');
+        model.add(tf.layers.conv2d({
+            inputShape: [224, 224, 3],
+            filters: 16,
+            kernelSize: 3,
+            activation: 'relu'
+        }));
+        
+        // Add pooling to reduce dimensionality
+        console.log('Adding maxPooling2d layer');
+        model.add(tf.layers.maxPooling2d({ poolSize: 2, strides: 2 }));
+        
+        // Flatten the 2D representation to 1D for the dense layers
+        console.log('Adding flatten layer');
+        model.add(tf.layers.flatten());
+        
+        // Output layer with 10 units (for 10 potential medical conditions)
+        console.log('Adding dense output layer with 10 units and softmax activation');
+        model.add(tf.layers.dense({ units: 10, activation: 'softmax' }));
+        
+        // Compile the model with appropriate loss function for classification
+        console.log('Compiling model with categorical cross-entropy loss');
+        model.compile({
+            optimizer: 'adam',
+            loss: 'categoricalCrossentropy',
+            metrics: ['accuracy']
+        });
+        
+        console.log('Mock model successfully created and compiled');
+        console.log(`Model input shape: ${model.inputs[0].shape}`);
+        console.log(`Model output shape: ${model.outputs[0].shape}`);
+        
+        return model;
+    } catch (error) {
+        console.error('❌ ERROR CREATING MOCK MODEL:', error);
+        console.error('Stack trace:', error.stack);
+        
+        // Add detailed error information
+        error.stage = 'model_creation';
+        
+        // Check for specific TensorFlow.js errors and provide more context
+        if (error.message && error.message.includes('dtype')) {
+            error.problem = 'INVALID_DTYPE';
+        } else if (error.message && error.message.includes('shape')) {
+            error.problem = 'INVALID_SHAPE';
+        } else if (error.message && error.message.includes('incompatible')) {
+            error.problem = 'INCOMPATIBLE_LAYERS';
+        } else {
+            error.problem = 'MODEL_CREATION_FAILED';
+        }
+        
+        console.error(`[Model Creation] ${error.message} (${error.problem})`);
+        throw error;
+    }
 }
 
 /**
@@ -181,11 +314,39 @@ async function preprocessImage(imageData) {
         // Add detailed debugging info to the error
         error.stage = 'image_preprocessing';
         error.imageType = typeof imageData;
+        
+        // Add context-specific information for better debugging
         if (typeof imageData === 'string') {
             error.imageLength = imageData.length;
+            error.imageStartsWith = imageData.substring(0, 20);
+            
+            // If this is a base64 string that seems malformed, provide more specific info
+            if (imageData.includes('base64') && !imageData.includes('data:image')) {
+                error.message = 'Malformed base64 image data: Missing proper data:image/* prefix';
+                error.problem = 'MALFORMED_BASE64';
+            } else if (imageData.includes('base64') && imageData.split(',').length < 2) {
+                error.message = 'Invalid base64 image format: Could not extract data portion';
+                error.problem = 'INVALID_BASE64_FORMAT';
+            } else if (imageData.length < 100) {
+                error.message = 'Image data too small to be valid';
+                error.problem = 'DATA_TOO_SMALL';
+            }
         } else if (Buffer.isBuffer(imageData)) {
             error.imageSize = imageData.length;
+            // Provide specific error message for empty or very small buffers
+            if (imageData.length < 100) {
+                error.message = 'Image buffer too small to be valid';
+                error.problem = 'BUFFER_TOO_SMALL';
+            }
+        } else if (imageData === null || imageData === undefined) {
+            error.message = 'Image data is null or undefined';
+            error.problem = 'MISSING_DATA';
+        } else {
+            error.message = `Unsupported image data type: ${typeof imageData}`;
+            error.problem = 'UNSUPPORTED_DATA_TYPE';
         }
+        
+        console.error(`[Image Processing] ${error.message || 'Image preprocessing failed'} (${error.problem || 'unknown issue'})`);
         
         throw error;
     }
@@ -323,13 +484,39 @@ async function runInference(model, imageTensor, type) {
         error.modelType = type;
         error.inferenceTime = Date.now() - startTime;
         
+        // Add context-specific information to enhance troubleshooting
+        if (!model) {
+            error.message = 'Model is null or undefined';
+            error.problem = 'MISSING_MODEL';
+        } else if (!imageTensor) {
+            error.message = 'Image tensor is null or undefined';
+            error.problem = 'MISSING_TENSOR';
+        } else if (imageTensor && typeof imageTensor.shape === 'undefined') {
+            error.message = 'Image tensor has invalid shape';
+            error.problem = 'INVALID_TENSOR_SHAPE';
+        }
+        
+        // Add tensor shape if possible for debugging
         if (imageTensor) {
             try {
                 error.tensorShape = imageTensor.shape;
+                // Additional tensor diagnostics
+                error.tensorRank = imageTensor.rank;
+                error.tensorDType = imageTensor.dtype;
             } catch (e) {
+                error.tensorInfoError = e.message;
                 // Ignore errors when trying to access tensor properties
             }
         }
+        
+        // For model-specific errors
+        if (error.message && error.message.includes('shape')) {
+            error.problem = 'TENSOR_SHAPE_MISMATCH';
+        } else if (error.message && error.message.includes('memory')) {
+            error.problem = 'OUT_OF_MEMORY';
+        }
+        
+        console.error(`[Model Inference] ${error.message || 'Inference failed'} (${error.problem || 'unknown issue'})`);
         
         throw error;
     } finally {

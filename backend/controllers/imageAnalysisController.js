@@ -243,14 +243,42 @@ exports.analyzeImage = async (req, res, next) => {
             console.error('❌ Error during image analysis process:', error);
             console.error('Stack trace:', error.stack);
             
+            // Determine specific error type for better client-side handling
+            let errorCode = 'ANALYSIS_ERROR';
+            let errorStatus = 500;
+            let errorMessage = 'Internal server error during image analysis';
+            
+            // Categorize common errors for better client-side handling
+            if (error.message && error.message.includes('decode')) {
+                errorCode = 'IMAGE_DECODE_ERROR';
+                errorMessage = 'Could not decode image data. Please ensure you are uploading a valid image file.';
+                errorStatus = 400;
+            } else if (error.message && error.message.includes('tensor')) {
+                errorCode = 'IMAGE_PROCESSING_ERROR';
+                errorMessage = 'Error processing image. Please try using a clearer image.';
+                errorStatus = 400;
+            } else if (error.stage === 'image_preprocessing') {
+                errorCode = 'IMAGE_PREPROCESSING_ERROR';
+                errorMessage = 'Could not prepare image for analysis. The image might be corrupted or in an unsupported format.';
+                errorStatus = 400;
+            } else if (error.stage === 'model_inference') {
+                errorCode = 'MODEL_INFERENCE_ERROR';
+                errorMessage = 'Could not analyze image. The analysis system encountered a technical problem.';
+            }
+            
+            // Log specific error details for monitoring
+            console.error(`[Image Analysis Error] Code=${errorCode}, Status=${errorStatus}, Message=${errorMessage}`);
+            
             // Send a detailed error response
-            return res.status(500).json({
+            return res.status(errorStatus).json({
                 error: true,
-                message: 'Internal server error during image analysis',
+                message: errorMessage,
+                code: errorCode,
                 details: process.env.NODE_ENV === 'development' ? {
                     error_message: error.message,
                     stage: error.stage || 'unknown',
-                    data_source: dataSource
+                    data_source: dataSource,
+                    timestamp: new Date().toISOString()
                 } : undefined
             });
         }

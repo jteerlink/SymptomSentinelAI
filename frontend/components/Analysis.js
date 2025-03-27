@@ -18,21 +18,30 @@ window.SymptomSentryComponents.initializeAnalysis = function(container) {
 }
 
 function renderInitialAnalysisUI(container) {
-    container.innerHTML = `
-        <div class="analysis-results">
-            <div class="text-center p-5">
-                <div class="empty-state">
-                    <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <h4 class="mt-3">No Analysis Yet</h4>
-                    <p class="text-muted">Upload and analyze an image to see results here</p>
+    // Check if this is the initial load or an analysis has been performed previously
+    const hasPerformedAnalysis = localStorage.getItem('hasPerformedAnalysis') === 'true';
+    
+    // Only show the empty state message if an analysis has been performed before
+    if (hasPerformedAnalysis) {
+        container.innerHTML = `
+            <div class="analysis-results">
+                <div class="text-center p-5">
+                    <div class="empty-state">
+                        <svg width="100" height="100" viewBox="0 0 24 24" fill="none" stroke="#6c757d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <h4 class="mt-3">No Analysis Yet</h4>
+                        <p class="text-muted">Upload and analyze an image to see results here</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    `;
+        `;
+    } else {
+        // If no analysis has been performed, just show an empty container
+        container.innerHTML = `<div class="analysis-results"></div>`;
+    }
 }
 
 function renderAnalysisResults(container, results) {
@@ -41,6 +50,10 @@ function renderAnalysisResults(container, results) {
         showError(container, 'Invalid analysis results received');
         return;
     }
+    
+    // Set flag that an analysis has been performed so we can show the "No Analysis Yet"
+    // message on subsequent visits if needed
+    localStorage.setItem('hasPerformedAnalysis', 'true');
     
     // Sort conditions by confidence score (highest first)
     const sortedConditions = [...results.conditions].sort((a, b) => b.confidence - a.confidence);

@@ -55,20 +55,27 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
             const usageInfo = document.createElement('div');
             usageInfo.className = 'mt-2 usage-info';
             
-            // Calculate remaining analyses
-            const analysisRemaining = user.analysisLimit - user.analysisCount;
+            // Ensure the analysis count and limit are valid numbers with defaults
+            const analysisCount = Number.isFinite(user.analysisCount) ? user.analysisCount : 0;
+            const analysisLimit = Number.isFinite(user.analysisLimit) ? user.analysisLimit : 2;
+            
+            // Calculate remaining analyses with safeguard against NaN
+            const analysisRemaining = Math.max(0, analysisLimit - analysisCount);
+            
+            // Calculate the percentage with safeguards
+            const percentageUsed = analysisLimit > 0 ? (analysisCount / analysisLimit) * 100 : 0;
             
             usageInfo.innerHTML = `
                 <div class="progress" style="height: 10px;">
                     <div class="progress-bar bg-primary" role="progressbar" 
-                        style="width: ${(user.analysisCount / user.analysisLimit) * 100}%;" 
-                        aria-valuenow="${user.analysisCount}" 
+                        style="width: ${percentageUsed}%;" 
+                        aria-valuenow="${analysisCount}" 
                         aria-valuemin="0" 
-                        aria-valuemax="${user.analysisLimit}">
+                        aria-valuemax="${analysisLimit}">
                     </div>
                 </div>
                 <small class="text-muted mt-1 d-block">
-                    ${analysisRemaining} of ${user.analysisLimit} analyses remaining this month
+                    ${analysisRemaining} of ${analysisLimit} analyses remaining this month
                 </small>
             `;
             

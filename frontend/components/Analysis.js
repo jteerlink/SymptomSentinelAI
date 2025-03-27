@@ -320,10 +320,15 @@ function renderAnalysisResults(container, results) {
                         const remainingMessage = analysisRemaining === 0 
                             ? 'You have reached your monthly analysis limit.'
                             : `You have ${analysisRemaining} analysis ${analysisRemaining === 1 ? 'credit' : 'credits'} remaining this month.`;
+                        
+                        // Remove any existing subscription alerts first
+                        const existingAlerts = container.querySelectorAll('.alert.alert-warning');
+                        existingAlerts.forEach(alert => alert.remove());
                             
                         // Show subscription alert
                         const subscriptionAlert = document.createElement('div');
                         subscriptionAlert.className = 'alert alert-warning mt-3';
+                        subscriptionAlert.id = 'subscription-alert'; // Add an ID for easier removal
                         subscriptionAlert.innerHTML = `
                             <strong><i class="fas fa-exclamation-circle"></i> ${remainingMessage}</strong>
                             <p class="mb-1">Upgrade to Premium for unlimited analyses and advanced features.</p>
@@ -522,6 +527,10 @@ function resetAnalysis() {
     // Reset the analysis results component
     const analysisContainer = document.getElementById('analysis-results-component');
     if (analysisContainer) {
+        // Remove any subscription alerts if they exist
+        const existingAlerts = document.querySelectorAll('.alert.alert-warning');
+        existingAlerts.forEach(alert => alert.remove());
+        
         renderInitialAnalysisUI(analysisContainer);
     }
 }

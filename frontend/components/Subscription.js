@@ -285,11 +285,52 @@ function showSubscriptionModal(planType) {
     // Add event listener to the confirm button
     const confirmButton = document.getElementById('confirmSubscription');
     if (confirmButton) {
-        confirmButton.addEventListener('click', () => {
-            // In a real app, this would process the payment
-            // For demo purposes, we'll just show a success message
-            modal.hide();
-            showNotification(`You have successfully subscribed to the ${plan.name} plan!`, 'success');
+        confirmButton.addEventListener('click', async () => {
+            // In a real app, this would process the payment and get a payment token
+            // For demo purposes, we'll use a mock payment token
+            const paymentToken = 'demo_payment_token_' + Date.now();
+            
+            try {
+                // Get authentication token
+                const token = window.SymptomSentryUtils.getAuthToken();
+                
+                if (!token) {
+                    showNotification('You must be logged in to update your subscription', 'warning');
+                    modal.hide();
+                    return;
+                }
+                
+                // Call the API to update subscription
+                const response = await fetch('/api/update-subscription', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        subscription_level: planType,
+                        payment_token: paymentToken
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    modal.hide();
+                    showNotification(`You have successfully subscribed to the ${plan.name} plan!`, 'success');
+                    
+                    // Update the UI to reflect the new subscription
+                    if (window.SymptomSentryUtils && window.SymptomSentryUtils.updateProfileUI) {
+                        window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
+                    }
+                } else {
+                    throw new Error(data.message || 'Failed to update subscription');
+                }
+            } catch (error) {
+                console.error('Subscription update error:', error);
+                showNotification(`Error updating subscription: ${error.message}`, 'danger');
+            }
         });
     }
 }

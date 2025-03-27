@@ -12,26 +12,31 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
-    // Create the debug button for testing logout (initially hidden)
-    const debugDiv = document.createElement('div');
-    debugDiv.id = 'debug-logout-container';
-    debugDiv.style.position = 'fixed';
-    debugDiv.style.bottom = '20px';
-    debugDiv.style.right = '20px';
-    debugDiv.style.zIndex = '9999';
-    debugDiv.style.display = 'none'; // Initially hidden
-    debugDiv.innerHTML = `
-        <button id="test-logout-btn" class="btn btn-sm btn-outline-danger">
-            Test Logout
-        </button>
-    `;
-    document.body.appendChild(debugDiv);
+    // We'll only create the debug button if we're in debug mode
+    const isDebugMode = false; // Set to true only during development/testing
     
-    // Add event listener for the logout test button
-    document.getElementById('test-logout-btn').addEventListener('click', () => {
-        console.log('[Debug] Testing logout function');
-        window.SymptomSentryUtils.logout();
-    });
+    if (isDebugMode) {
+        // Create the debug button for testing logout (initially hidden)
+        const debugDiv = document.createElement('div');
+        debugDiv.id = 'debug-logout-container';
+        debugDiv.style.position = 'fixed';
+        debugDiv.style.bottom = '20px';
+        debugDiv.style.right = '20px';
+        debugDiv.style.zIndex = '9999';
+        debugDiv.style.display = 'none'; // Initially hidden
+        debugDiv.innerHTML = `
+            <button id="test-logout-btn" class="btn btn-sm btn-outline-danger">
+                Test Logout
+            </button>
+        `;
+        document.body.appendChild(debugDiv);
+        
+        // Add event listener for the logout test button
+        document.getElementById('test-logout-btn').addEventListener('click', () => {
+            console.log('[Debug] Testing logout function');
+            window.SymptomSentryUtils.logout();
+        });
+    }
     
     // Listen for subscription updated events from Analysis.js
     document.addEventListener('subscriptionUpdated', (event) => {

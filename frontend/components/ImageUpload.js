@@ -62,13 +62,38 @@ function renderUploadUI(container) {
                     </div>
                 </div>
                 
-                <div class="alert alert-info mt-3">
-                    <strong>For best results:</strong>
-                    <ul class="mb-0">
-                        <li>Ensure good lighting</li>
-                        <li>Keep the camera steady</li>
-                        <li>Focus on the area of concern</li>
-                    </ul>
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Tips for Image Upload</h5>
+                        <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#tipCollapse" aria-expanded="false" aria-controls="tipCollapse">
+                            <i class="fas fa-lightbulb"></i> Show Tips
+                        </button>
+                    </div>
+                    <div class="collapse" id="tipCollapse">
+                        <div class="card-body">
+                            <div id="throatTips" class="scan-type-tips" style="display: none;">
+                                <h6><i class="fas fa-check-circle text-success"></i> Tips for Throat Images:</h6>
+                                <ul class="mb-3">
+                                    <li>Position in good lighting (natural light is best)</li>
+                                    <li>Open mouth wide and say "Ahh" to expose the throat area</li>
+                                    <li>Hold phone 6-8 inches from mouth</li>
+                                    <li>Keep steady and focus on the back of the throat</li>
+                                    <li>Use flash only if necessary and avoid shadows</li>
+                                </ul>
+                            </div>
+                            
+                            <div id="earTips" class="scan-type-tips" style="display: none;">
+                                <h6><i class="fas fa-check-circle text-success"></i> Tips for Ear Images:</h6>
+                                <ul class="mb-3">
+                                    <li>Ensure good lighting (bright, indirect light works best)</li>
+                                    <li>Gently pull top of ear upward and back to straighten ear canal</li>
+                                    <li>Hold phone 1-2 inches from ear opening</li>
+                                    <li>Keep steady and focus on the ear canal</li>
+                                    <li>For children, have another adult help hold them still</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             
@@ -161,6 +186,12 @@ function setupUploadEventListeners(container) {
             // Reset instructions
             throatInstructions.style.display = 'none';
             earInstructions.style.display = 'none';
+            
+            // Hide tips sections
+            const throatTips = container.querySelector('#throatTips');
+            const earTips = container.querySelector('#earTips');
+            if (throatTips) throatTips.style.display = 'none';
+            if (earTips) earTips.style.display = 'none';
         }, 300);
     });
     
@@ -183,6 +214,12 @@ function setupUploadEventListeners(container) {
                 dropArea.style.display = 'none';
                 throatInstructions.style.display = 'none';
                 earInstructions.style.display = 'none';
+                
+                // Hide tips sections
+                const throatTips = container.querySelector('#throatTips');
+                const earTips = container.querySelector('#earTips');
+                if (throatTips) throatTips.style.display = 'none';
+                if (earTips) earTips.style.display = 'none';
             }, 300);
             
             return;
@@ -195,14 +232,26 @@ function setupUploadEventListeners(container) {
         throatOption.classList.remove('selected');
         earOption.classList.remove('selected');
         
+        // Get tip sections
+        const throatTips = container.querySelector('#throatTips');
+        const earTips = container.querySelector('#earTips');
+        
         if (type === 'throat') {
             throatOption.classList.add('selected');
             throatInstructions.style.display = 'block';
             earInstructions.style.display = 'none';
+            
+            // Show throat tips and hide ear tips
+            if (throatTips) throatTips.style.display = 'block';
+            if (earTips) earTips.style.display = 'none';
         } else {
             earOption.classList.add('selected');
             throatInstructions.style.display = 'none';
             earInstructions.style.display = 'block';
+            
+            // Show ear tips and hide throat tips
+            if (throatTips) throatTips.style.display = 'none';
+            if (earTips) earTips.style.display = 'block';
         }
         
         // Show instructions and drop area

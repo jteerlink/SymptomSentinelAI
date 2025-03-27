@@ -49,13 +49,13 @@ function renderInitialAnalysisUI(container) {
         if (loginBtn) {
             loginBtn.addEventListener('click', () => {
                 // Attempt to open login modal
-                const loginModal = document.getElementById('loginModal');
-                if (loginModal) {
-                    const modal = new bootstrap.Modal(loginModal);
+                const authModal = document.getElementById('authModal');
+                if (authModal) {
+                    const modal = new bootstrap.Modal(authModal);
                     modal.show();
                     
                     // Switch to login tab if needed
-                    const loginTab = document.querySelector('a[href="#login-tab"]');
+                    const loginTab = document.querySelector('#login-tab');
                     if (loginTab) loginTab.click();
                 } else {
                     // Fallback - try to navigate to a login page
@@ -67,13 +67,13 @@ function renderInitialAnalysisUI(container) {
         if (registerBtn) {
             registerBtn.addEventListener('click', () => {
                 // Attempt to open registration modal
-                const loginModal = document.getElementById('loginModal');
-                if (loginModal) {
-                    const modal = new bootstrap.Modal(loginModal);
+                const authModal = document.getElementById('authModal');
+                if (authModal) {
+                    const modal = new bootstrap.Modal(authModal);
                     modal.show();
                     
                     // Switch to register tab if needed
-                    const registerTab = document.querySelector('a[href="#register-tab"]');
+                    const registerTab = document.querySelector('#register-tab');
                     if (registerTab) registerTab.click();
                 } else {
                     // Fallback - try to navigate to a register page
@@ -368,10 +368,10 @@ function renderAnalysisResults(container, results) {
             e.preventDefault();
             
             // Show the login/registration modal
-            const loginModal = document.getElementById('loginModal');
-            if (loginModal) {
+            const authModal = document.getElementById('authModal');
+            if (authModal) {
                 // Create Bootstrap modal instance if it exists
-                const modal = new bootstrap.Modal(loginModal);
+                const modal = new bootstrap.Modal(authModal);
                 modal.show();
                 
                 // Store current analysis results to save after login

@@ -121,7 +121,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd backend && NODE_ENV=development node server.js"
+args = "cd backend && node server.js"
 waitForPort = 5000
 
 [[workflows.workflow]]
@@ -136,7 +136,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd frontend && NODE_ENV=development node server.js"
+args = "cd frontend && node server.js"
 waitForPort = 8000
 
 [deployment]

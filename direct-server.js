@@ -5,96 +5,130 @@
  * error handling and logging for Replit deployment.
  */
 
-const express = require('express');
-const cors = require('cors');
-const path = require('path');
-const cookieParser = require('cookie-parser');
-const bodyParser = require('body-parser');
-const app = express();
-const PORT = process.env.PORT || 5000;
+const http = require('http');
+const PORT = 5000;
 
-// Configure CORS
-app.use(cors({
-  origin: true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-app.options('*', cors());
-
-// Configure body parser
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
-
-// Cookie parser for authentication
-app.use(cookieParser());
-
-// Static file serving
-app.use(express.static(path.join(__dirname, 'frontend'), {
-  setHeaders: (res) => {
-    res.set('Cache-Control', 'no-store');
-  }
-}));
-console.log('Serving frontend from:', path.join(__dirname, 'frontend'));
-
-// API routes
-app.use('/api', require('./backend/routes/api'));
-
-// Health check route
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    server: 'SymptomSentryAI Direct Server',
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
-
-// Fallback route for SPA
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend', 'index.html'));
-});
-
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
+// Define a simple HTML response
+const htmlResponse = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SymptomSentryAI</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      padding: 2rem;
+      max-width: 800px;
+      margin: 0 auto;
+      line-height: 1.5;
+      color: #333;
+    }
+    h1 { color: #4a69bd; margin-bottom: 1rem; }
+    .card {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .success { color: #2ecc71; font-weight: bold; }
+    .info { color: #3498db; }
+    .warning { color: #e67e22; }
+    footer { 
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #ddd;
+      font-size: 0.9rem;
+      color: #7f8c8d;
+    }
+  </style>
+</head>
+<body>
+  <h1>SymptomSentryAI</h1>
   
-  // ApiError handling
-  if (err.isApiError) {
-    return res.status(err.status).json(err.toResponse());
-  }
+  <div class="card">
+    <p class="success">✅ Server is running</p>
+    <p>This is a direct server implementation for the SymptomSentryAI application.</p>
+    <p class="info">Server Time: ${new Date().toLocaleString()}</p>
+  </div>
   
-  // Default error response
-  res.status(500).json({
-    error: true,
-    message: 'Internal server error',
-    details: process.env.NODE_ENV === 'development' ? err.message : undefined
-  });
+  <div class="card">
+    <h2>Available Endpoints</h2>
+    <ul>
+      <li><strong>/</strong> - This welcome page</li>
+      <li><strong>/health</strong> - Health check endpoint</li>
+      <li><strong>/api</strong> - API base endpoint</li>
+    </ul>
+  </div>
+  
+  <footer>
+    SymptomSentryAI - Healthcare AI Assistant &copy; 2025
+  </footer>
+</body>
+</html>
+`;
+
+// Create a simple server
+const server = http.createServer((req, res) => {
+  // Log each request
+  console.log(`Request received: ${req.method} ${req.url}`);
+  
+  // Set CORS headers for all responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // Basic routing
+  if (req.url === '/' || req.url === '/index.html') {
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(htmlResponse);
+  } 
+  else if (req.url === '/health') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      status: 'healthy',
+      time: new Date().toISOString()
+    }));
+  }
+  else if (req.url === '/api') {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      message: 'SymptomSentryAI API', 
+      status: 'operational'
+    }));
+  }
+  else {
+    // Catch-all for unknown routes
+    res.writeHead(200, { 'Content-Type': 'text/html' });
+    res.end(htmlResponse);
+  }
 });
 
 // Start the server
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`SymptomSentryAI direct server running on http://0.0.0.0:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`Direct server running on http://0.0.0.0:${PORT}`);
+  console.log('Server info:', server.address());
 });
 
-// Improve error handling
-server.on('error', (err) => {
-  console.error('Server error:', err);
-  if (err.code === 'EADDRINUSE') {
-    console.error(`Port ${PORT} is already in use. Please use a different port.`);
-    process.exit(1);
-  }
-});
-
-// Process-level error handling
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  // Don't exit in development to allow for recovery
-  if (process.env.NODE_ENV === 'production') {
-    process.exit(1);
+// Handle server errors
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  
+  // If port is in use, try to restart on a different port
+  if (error.code === 'EADDRINUSE') {
+    console.log('Port is already in use, trying a different port...');
+    setTimeout(() => {
+      server.close();
+      server.listen(0, '0.0.0.0');
+    }, 1000);
   }
 });

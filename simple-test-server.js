@@ -1,21 +1,36 @@
 /**
  * Simple Test Server for Replit
  * 
- * This is a minimal Express server that serves static HTML content
- * to verify if the Replit preview is working.
+ * This is a minimal Express server specifically configured for Replit environment.
+ * It serves static HTML content to verify if the Replit preview is working.
  */
 
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Serve static content
+// Basic middleware
+app.use(express.json());
+
+// Set CORS headers for all routes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  next();
+});
+
+// Root endpoint
 app.get('/', (req, res) => {
+  console.log('Root endpoint accessed');
+  
+  // Send a simple HTML page
   res.send(`
     <!DOCTYPE html>
     <html>
     <head>
       <title>SymptomSentryAI Test Page</title>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <style>
         body {
           font-family: Arial, sans-serif;
@@ -63,24 +78,28 @@ app.get('/', (req, res) => {
   `);
 });
 
-// Health check
+// Health endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Server is running', time: new Date().toISOString() });
-});
-
-// API test endpoint
-app.get('/api', (req, res) => {
   res.json({
-    message: 'API is operational',
-    status: 'success',
-    endpoints: [
-      { path: '/health', method: 'GET', description: 'Server health check' },
-      { path: '/api', method: 'GET', description: 'API status check' }
-    ]
+    status: 'ok',
+    time: new Date().toISOString()
   });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Simple test server running on port ${PORT}`);
+// API endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    message: 'API is operational'
+  });
+});
+
+// Start the server
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Simple test server running at http://0.0.0.0:${PORT}`);
+  console.log('Server address:', server.address());
+});
+
+// Handle server errors
+server.on('error', (err) => {
+  console.error('Server error:', err);
 });

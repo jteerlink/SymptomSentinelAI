@@ -276,3 +276,49 @@ window.SymptomSentryUtils.formatNameProperCase = function(name) {
 function showNotification(message, type) {
     window.SymptomSentryUtils.showNotification(message, type);
 }
+
+/**
+ * Check if the user is authenticated
+ * 
+ * @returns {boolean} True if authenticated, false otherwise
+ */
+window.SymptomSentryUtils.isAuthenticated = function() {
+    return !!localStorage.getItem('authToken');
+}
+
+/**
+ * Get the current authentication token
+ * 
+ * @returns {string|null} The auth token or null if not authenticated
+ */
+window.SymptomSentryUtils.getAuthToken = function() {
+    return localStorage.getItem('authToken');
+}
+
+/**
+ * Clear all authentication data and log user out
+ */
+window.SymptomSentryUtils.clearAuthData = function() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('hasPerformedAnalysis');
+    sessionStorage.clear(); // Clear any session data
+}
+
+/**
+ * Log the user out completely
+ */
+window.SymptomSentryUtils.logout = function() {
+    // Clear all auth data
+    this.clearAuthData();
+    
+    // Update the UI
+    this.updateProfileUI(null);
+    this.showNotification('You have been logged out successfully', 'info');
+    
+    // Redirect to home page
+    const navEvent = new CustomEvent('navigate', {
+        detail: { pageId: 'home' }
+    });
+    document.dispatchEvent(navEvent);
+}

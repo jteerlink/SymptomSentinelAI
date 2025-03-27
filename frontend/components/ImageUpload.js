@@ -394,6 +394,17 @@ function setupUploadEventListeners(container) {
     
     // Analyze button click
     analyzeButton.addEventListener('click', async () => {
+        // Double-check authentication before proceeding
+        if (!window.SymptomSentryUtils.isAuthenticated()) {
+            showAnalysisError('You must be logged in to analyze images');
+            
+            // Redirect to login page after a short delay
+            setTimeout(() => {
+                navigateToPage('profile');
+            }, 1500);
+            return;
+        }
+        
         // Validate the analysis type is selected
         if (!selectedAnalysisType) {
             showAnalysisError('Please select a scan type (throat or ear) first');
@@ -680,6 +691,17 @@ function setupUploadEventListeners(container) {
     
     // Handle files selected either via drop or input
     function handleFiles(files) {
+        // Check if the user is authenticated
+        if (!window.SymptomSentryUtils.isAuthenticated()) {
+            alert('You must be logged in to upload images');
+            
+            // Redirect to the login page
+            setTimeout(() => {
+                navigateToPage('profile');
+            }, 500);
+            return;
+        }
+        
         if (files.length === 0) return;
         
         const file = files[0];

@@ -565,7 +565,9 @@ window.SymptomSentryApp.handleRegistration = function() {
 function checkAuthState() {
     console.log('[Auth] Checking auth state...');
     
-    const authToken = localStorage.getItem('authToken');
+    // Use helper function to check if authenticated
+    const isAuthenticated = window.SymptomSentryUtils.isAuthenticated();
+    const authToken = isAuthenticated ? window.SymptomSentryUtils.getAuthToken() : null;
     const refreshToken = localStorage.getItem('refreshToken');
     const tokenExpires = localStorage.getItem('tokenExpires');
     

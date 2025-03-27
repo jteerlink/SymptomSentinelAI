@@ -18,10 +18,8 @@ window.SymptomSentryComponents.initializeAnalysis = function(container) {
 }
 
 function renderInitialAnalysisUI(container) {
-    // Check if user is authenticated
-    const authToken = localStorage.getItem('authToken');
-    
-    if (!authToken) {
+    // Check if user is authenticated using the helper function
+    if (!window.SymptomSentryUtils.isAuthenticated()) {
         // User is not logged in, show login prompt
         container.innerHTML = `
             <div class="auth-required-message text-center p-5">
@@ -263,12 +261,12 @@ function renderAnalysisResults(container, results) {
     
 
     
-    // Check authentication status
-    const authToken = localStorage.getItem('authToken');
+    // Check authentication status using the helper function
+    const isAuthenticated = window.SymptomSentryUtils.isAuthenticated();
     const loginPrompt = container.querySelector('#login-prompt');
     const saveResultsBtn = container.querySelector('.save-results-btn');
     
-    if (!authToken) {
+    if (!isAuthenticated) {
         // Not authenticated, disable save button and show login prompt
         if (saveResultsBtn) {
             saveResultsBtn.disabled = true;
@@ -289,9 +287,8 @@ function renderAnalysisResults(container, results) {
     if (saveResultsBtn) {
         saveResultsBtn.addEventListener('click', async () => {
             try {
-                // Check if user is authenticated
-                const authToken = localStorage.getItem('authToken');
-                if (!authToken) {
+                // Check if user is authenticated using the helper function
+                if (!window.SymptomSentryUtils.isAuthenticated()) {
                     // Show the login prompt
                     loginPrompt.style.display = 'block';
                     showNotification(container, 'Please sign in to save your results', 'warning');

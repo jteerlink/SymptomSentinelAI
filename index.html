@@ -1,184 +1,98 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <title>SymptomSentryAI</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      font-family: 'Segoe UI', Arial, sans-serif;
-      max-width: 800px;
-      margin: 0 auto;
-      padding: 20px;
-      line-height: 1.6;
-      color: #333;
-      background-color: #f9f9f9;
-    }
-    h1, h2, h3 {
-      color: #2c3e50;
-    }
-    h1 {
-      border-bottom: 2px solid #3498db;
-      padding-bottom: 10px;
-    }
-    .card {
-      background-color: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-      padding: 20px;
-      margin-bottom: 25px;
-    }
-    .success {
-      color: #28a745;
-      font-weight: bold;
-    }
-    .warning {
-      color: #ffc107;
-      font-weight: bold;
-    }
-    .error {
-      color: #dc3545;
-      font-weight: bold;
-    }
-    .api-endpoint {
-      background-color: #f8f9fa;
-      padding: 12px;
-      border-radius: 5px;
-      font-family: monospace;
-      margin-bottom: 10px;
-      border-left: 4px solid #3498db;
-    }
-    button {
-      background-color: #3498db;
-      color: white;
-      border: none;
-      padding: 10px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: background-color 0.2s;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    pre {
-      background-color: #f8f9fa;
-      padding: 10px;
-      border-radius: 5px;
-      overflow-x: auto;
-    }
-    #api-response {
-      min-height: 50px;
-    }
-    .loading {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(0,0,0,0.1);
-      border-radius: 50%;
-      border-top-color: #3498db;
-      animation: spin 1s ease-in-out infinite;
-      margin-left: 10px;
-      vertical-align: middle;
-    }
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-  </style>
+  <meta name="description" content="AI-powered healthcare application that provides intelligent medical insights">
+  <link rel="stylesheet" href="/public/css/style.css">
 </head>
 <body>
-  <h1>SymptomSentryAI</h1>
-  
-  <div class="card">
-    <h2>Server Status</h2>
-    <p class="success">✓ Web server is running successfully</p>
-    <p>Current time: <span id="current-time"></span></p>
-    <p>Server uptime: <span id="server-uptime">Checking...</span></p>
-  </div>
-
-  <div class="card">
-    <h2>API Endpoints</h2>
-    <p>The following API endpoints are available:</p>
-    
-    <div class="api-endpoint">
-      <strong>GET /api/health</strong><br>
-      <small>Health check endpoint that returns server status information</small>
-      <div>
-        <button onclick="testEndpoint('/api/health')">Test Endpoint</button>
-      </div>
+  <header>
+    <div class="container">
+      <div class="logo">SymptomSentryAI</div>
+      <nav>
+        <ul>
+          <li><a href="/">Home</a></li>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#api">API</a></li>
+          <li><a href="#about">About</a></li>
+        </ul>
+      </nav>
     </div>
-    
-    <div class="api-endpoint">
-      <strong>GET /api/info</strong><br>
-      <small>Returns information about available API endpoints</small>
-      <div>
-        <button onclick="testEndpoint('/api/info')">Test Endpoint</button>
+  </header>
+
+  <main class="container">
+    <section id="status" class="card">
+      <h2>Server Status</h2>
+      <div class="status">
+        <div id="server-status">
+          <span class="status-indicator status-healthy"></span>
+          <span>Server is running</span>
+        </div>
       </div>
+      <p>Current time: <span id="current-time"></span></p>
+      <p>Server uptime: <span id="server-uptime">Checking...</span></p>
+    </section>
+
+    <section id="features" class="card">
+      <h2>Features</h2>
+      <p>SymptomSentryAI is a cutting-edge healthcare application with the following features:</p>
+      
+      <ul>
+        <li>AI-powered medical image analysis</li>
+        <li>Secure patient data management</li>
+        <li>Comprehensive health tracking</li>
+        <li>Educational medical content</li>
+        <li>Telemedicine integration</li>
+      </ul>
+    </section>
+
+    <section id="api" class="card">
+      <h2>API Endpoints</h2>
+      <p>The following API endpoints are available for testing:</p>
+      
+      <div class="api-endpoint">
+        <strong>GET /api/health</strong>
+        <p>Health check endpoint that returns server status information</p>
+        <button data-api-endpoint="/api/health">Test Endpoint</button>
+      </div>
+      
+      <div class="api-endpoint">
+        <strong>GET /api/info</strong>
+        <p>Returns information about available API endpoints</p>
+        <button data-api-endpoint="/api/info">Test Endpoint</button>
+      </div>
+      
+      <h3>Response:</h3>
+      <pre id="api-response">Select "Test Endpoint" to see the response</pre>
+    </section>
+
+    <section id="about" class="card">
+      <h2>About SymptomSentryAI</h2>
+      <p>
+        This is a healthcare application that provides intelligent medical insights, diagnostic support, 
+        and comprehensive user health management through cutting-edge machine learning technologies.
+      </p>
+      
+      <h3>Key Technologies:</h3>
+      <ul>
+        <li>SwiftUI for responsive iOS interface</li>
+        <li>TensorFlow.js for machine learning inference</li>
+        <li>Node.js/Express backend with secure authentication</li>
+        <li>Advanced medical image analysis algorithms</li>
+        <li>Comprehensive user profile and health tracking infrastructure</li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <p>&copy; 2025 SymptomSentryAI. All rights reserved.</p>
     </div>
-    
-    <h3>Response:</h3>
-    <pre id="api-response">Click a "Test Endpoint" button to see the response.</pre>
-  </div>
+  </footer>
 
-  <div class="card">
-    <h2>SymptomSentryAI Project</h2>
-    <p>This is a healthcare application that provides intelligent medical insights, diagnostic support, and comprehensive user health management through cutting-edge machine learning technologies.</p>
-    
-    <h3>Key Technologies:</h3>
-    <ul>
-      <li>SwiftUI for responsive iOS interface</li>
-      <li>TensorFlow.js for machine learning inference</li>
-      <li>Node.js/Express backend with secure authentication</li>
-      <li>Advanced medical image analysis algorithms</li>
-      <li>Comprehensive user profile and health tracking infrastructure</li>
-    </ul>
-  </div>
-
-  <script>
-    // Update current time
-    function updateTime() {
-      document.getElementById('current-time').textContent = new Date().toLocaleString();
-    }
-    
-    // Test an API endpoint
-    async function testEndpoint(endpoint) {
-      const responseElement = document.getElementById('api-response');
-      responseElement.innerHTML = '<span class="loading"></span> Loading...';
-      
-      try {
-        const response = await fetch(endpoint);
-        const data = await response.json();
-        responseElement.textContent = JSON.stringify(data, null, 2);
-        
-        // If this is the health endpoint, update the uptime
-        if (endpoint === '/api/health' && data.serverInfo && data.serverInfo.uptime) {
-          document.getElementById('server-uptime').textContent = 
-            formatUptime(data.serverInfo.uptime);
-        }
-      } catch (error) {
-        responseElement.innerHTML = `<span class="error">Error: ${error.message}</span>`;
-      }
-    }
-    
-    // Format uptime in a human-readable way
-    function formatUptime(seconds) {
-      const days = Math.floor(seconds / 86400);
-      const hours = Math.floor((seconds % 86400) / 3600);
-      const minutes = Math.floor((seconds % 3600) / 60);
-      const secs = Math.floor(seconds % 60);
-      
-      return `${days}d ${hours}h ${minutes}m ${secs}s`;
-    }
-    
-    // Automatically check the health endpoint on load
-    window.addEventListener('load', () => {
-      updateTime();
-      setInterval(updateTime, 1000);
-      testEndpoint('/api/health');
-      
-      // Refresh health data every 30 seconds
-      setInterval(() => testEndpoint('/api/health'), 30000);
-    });
-  </script>
+  <!-- Application scripts -->
+  <script src="/public/js/app.js"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import http from 'http';
+import fs from 'fs';
 
 // Get __dirname equivalent in ES module
 const __filename = fileURLToPath(import.meta.url);
@@ -134,12 +135,34 @@ app.all('/api/*', (req, res) => {
   }
 });
 
+// Block direct access to the old auth reset path
+app.get('/fix-auth-modal.html', (req, res) => {
+  // Redirect to the admin version 
+  res.redirect('/admin/auth-reset.html');
+});
+
 // Static file serving - after API routes to avoid conflicts
 app.use(express.static(__dirname));
 
-// Serve index.html for all other routes
+// Admin routes handling
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin/index.html'));
+});
+
+// Serve index.html for all other routes except admin paths
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+  // Check if this is an admin route
+  if (req.path.startsWith('/admin/')) {
+    const adminFile = path.join(__dirname, req.path);
+    // Verify file exists
+    if (fs.existsSync(adminFile)) {
+      res.sendFile(adminFile);
+    } else {
+      res.sendFile(path.join(__dirname, 'admin/index.html'));
+    }
+  } else {
+    res.sendFile(path.join(__dirname, 'index.html'));
+  }
 });
 
 // Start server

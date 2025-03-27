@@ -35,8 +35,11 @@ function forceLogout() {
     
     console.log('[ResetAuth] All authentication data cleared');
     
-    // Return to home page and refresh
-    window.location.href = '/';
+    // Return to home page and refresh only
+    // Do not redirect to auth-reset page
+    if (window.location.pathname !== '/admin/auth-reset.html') {
+        window.location.href = '/';
+    }
 }
 
 // Function to verify and fix the login modal

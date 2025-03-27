@@ -211,6 +211,14 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
         element.classList.remove('disabled');
     });
     
+    // Refresh Analysis History component if it exists
+    if (window.SymptomSentryAnalysisHistory && window.SymptomSentryAnalysisHistory.loadAnalysisHistory) {
+        const historyContainer = document.getElementById('analysis-history-component');
+        if (historyContainer) {
+            window.SymptomSentryAnalysisHistory.loadAnalysisHistory(historyContainer);
+        }
+    }
+    
     // Dispatch an event to notify other components about login
     const loginEvent = new CustomEvent('userLoggedIn', {
         detail: {

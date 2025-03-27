@@ -117,6 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
     window.SymptomSentryComponents.initializeEducation(document.getElementById('education-component'));
     window.SymptomSentryComponents.initializeSubscription(document.getElementById('subscription-component'));
     
+    // Initialize Analysis History component
+    if (window.SymptomSentryAnalysisHistory && window.SymptomSentryAnalysisHistory.init) {
+        window.SymptomSentryAnalysisHistory.init(document.getElementById('analysis-history-component'));
+    }
+    
     // Set up navigation
     setupNavigation();
     

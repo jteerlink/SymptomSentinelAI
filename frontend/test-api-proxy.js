@@ -24,7 +24,9 @@ async function testApiProxy() {
     console.log('🔷 Testing backend directly');
     console.log(`📤 Sending GET to ${BACKEND_URL}/api/health`);
     
-    const directResponse = await fetch(`${BACKEND_URL}/api/health`)
+    const directResponse = await fetch(`${BACKEND_URL}/api/health`, {
+        credentials: 'include' // Include cookies in the request
+      })
       .catch(err => {
         console.error('❌ Direct backend request failed:', err.message);
         return { status: 'error', ok: false };
@@ -57,7 +59,8 @@ async function testApiProxy() {
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(loginPayload)
+      body: JSON.stringify(loginPayload),
+      credentials: 'include' // Include cookies in the request
     });
     
     console.log(`📥 Response status: ${response.status} ${response.statusText}`);
@@ -66,8 +69,8 @@ async function testApiProxy() {
       const jsonData = await response.json();
       console.log('📥 Response JSON:', jsonData);
       
-      if (jsonData.token) {
-        console.log('✅ Login successful, received auth token');
+      if (jsonData.accessToken) {
+        console.log('✅ Login successful, received access token');
       } else if (jsonData.error) {
         console.log(`❌ Login error: ${jsonData.message || 'Unknown error'}`);
       } else {
@@ -87,7 +90,9 @@ async function testApiProxy() {
     console.log('\n🔷 Testing health endpoint through frontend proxy');
     console.log(`📤 Sending GET to ${FRONTEND_URL}/api/health`);
     
-    const response = await fetch(`${FRONTEND_URL}/api/health`);
+    const response = await fetch(`${FRONTEND_URL}/api/health`, {
+      credentials: 'include' // Include cookies in the request
+    });
     console.log(`📥 Response status: ${response.status} ${response.statusText}`);
     
     if (response.headers.get('content-type')?.includes('application/json')) {

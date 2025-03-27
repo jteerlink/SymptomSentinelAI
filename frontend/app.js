@@ -66,6 +66,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Always capture the original URL for debugging
         const originalUrl = url;
         
+        // Ensure credentials are included by default if not explicitly set
+        if (!options.credentials) {
+            options.credentials = 'include';
+        }
+        
         try {
             // CRITICAL: Detect and handle Replit URLs by forcing them to be relative
             // This is needed because even with our previous interceptor, the URL was still being

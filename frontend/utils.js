@@ -126,15 +126,18 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
             newSignOutButton.addEventListener('click', () => {
                 console.log('Sign Out button clicked');
                 
-                // Clear authentication tokens
-                localStorage.removeItem('authToken');
-                localStorage.removeItem('refreshToken');
+                // Use the proper logout function that communicates with the server
+                window.SymptomSentryUtils.logout();
                 
-                // Reset UI to show not logged in state
-                if (profileTitle) profileTitle.textContent = 'Guest User';
-                if (profilePlan) profilePlan.innerHTML = '<em>Not signed in</em>';
-                if (profileIcon) profileIcon.textContent = '?';
-                if (profileIcon) profileIcon.classList.remove('premium-user');
+                // The logout function will handle all necessary cleanup steps including:
+                // 1. Server-side logout to clear cookies
+                // 2. Clearing localStorage tokens
+                // 3. Updating the UI
+                // 4. Showing a notification
+                // 5. Redirecting to the home page
+                
+                // Prevent the code below from executing as it's now handled by logout()
+                return;
                 
                 // Reset the button back to Sign In / Register
                 newSignOutButton.textContent = 'Sign In / Register';
@@ -294,25 +297,77 @@ window.SymptomSentryUtils.isAuthenticated = function() {
     const token = localStorage.getItem('authToken');
     const tokenExpires = localStorage.getItem('tokenExpires');
     
-    // Check if token exists
-    if (!token) {
-        console.log('[Auth Helper] isAuthenticated check - No token found');
-        return false;
-    }
-    
-    // Check if token is expired
-    if (tokenExpires) {
-        const now = new Date();
-        const expiresAt = new Date(tokenExpires);
-        
-        if (now > expiresAt) {
-            console.log('[Auth Helper] isAuthenticated check - Token expired');
-            return false;
+    // First check for localStorage token
+    if (token) {
+        // Check if token is expired
+        if (tokenExpires) {
+            const now = new Date();
+            const expiresAt = new Date(tokenExpires);
+            
+            if (now > expiresAt) {
+                console.log('[Auth Helper] isAuthenticated check - Token expired in localStorage');
+                // Don't return false yet - we'll check for cookies next
+            } else {
+                console.log('[Auth Helper] isAuthenticated check - Valid token exists in localStorage');
+                return true;
+            }
+        } else {
+            // No expiration info but we have a token, assume it's valid
+            console.log('[Auth Helper] isAuthenticated check - Token exists in localStorage (no expiration info)');
+            return true;
         }
+    } else {
+        console.log('[Auth Helper] isAuthenticated check - No token found in localStorage');
     }
     
-    console.log('[Auth Helper] isAuthenticated check - Valid token exists');
-    return true;
+    // If we reach here, we don't have a valid localStorage token
+    // Let's validate authentication with the server using cookies
+    // We'll do this asynchronously but return our best guess for now
+    
+    // Return false immediately, but initiate a validation check in the background
+    // that will update our localStorage if cookies are valid
+    setTimeout(() => {
+        console.log('[Auth Helper] Performing cookie authentication check');
+        fetch('/api/validate-token', {
+            method: 'GET',
+            credentials: 'include' // Important: include cookies
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();
+            }
+            throw new Error('Token validation failed');
+        })
+        .then(data => {
+            if (data.valid && data.user) {
+                console.log('[Auth Helper] Valid cookie authentication found');
+                
+                // Store the validated user information for future use
+                if (data.accessToken) {
+                    localStorage.setItem('authToken', data.accessToken);
+                }
+                
+                // Update UI to reflect logged-in state
+                window.SymptomSentryUtils.updateProfileUI(
+                    data.user.email,
+                    data.user.name,
+                    data.user
+                );
+                
+                // Dispatch an event to notify the app that auth state has changed
+                document.dispatchEvent(new CustomEvent('authStateChanged', {
+                    detail: { isAuthenticated: true, user: data.user }
+                }));
+            }
+        })
+        .catch(error => {
+            console.log('[Auth Helper] Cookie authentication check failed:', error.message);
+        });
+    }, 0);
+    
+    // For immediate response, return false if we have no localStorage token
+    // The async check above will update the application state later if needed
+    return false;
 }
 
 /**
@@ -321,11 +376,32 @@ window.SymptomSentryUtils.isAuthenticated = function() {
  * @returns {string|null} The auth token or null if not authenticated
  */
 window.SymptomSentryUtils.getAuthToken = function() {
-    // Only return the token if it's valid (not expired)
-    if (this.isAuthenticated()) {
-        return localStorage.getItem('authToken');
+    // Check if we have a valid localStorage token
+    const token = localStorage.getItem('authToken');
+    const tokenExpires = localStorage.getItem('tokenExpires');
+    
+    if (token) {
+        // Check if token is expired
+        if (tokenExpires) {
+            const now = new Date();
+            const expiresAt = new Date(tokenExpires);
+            
+            if (now < expiresAt) {
+                // Token exists and is valid
+                console.log('[Auth Helper] getAuthToken - Using valid token from localStorage');
+                return token;
+            }
+        } else {
+            // No expiration data, assume token is valid
+            console.log('[Auth Helper] getAuthToken - Using token from localStorage (no expiration info)');
+            return token;
+        }
     }
-    return null;
+    
+    // If we don't have a valid localStorage token, we'll rely on cookies
+    // Return a special string indicating cookie auth should be used
+    console.log('[Auth Helper] getAuthToken - No valid token in localStorage, using cookie auth');
+    return 'use-cookies';
 }
 
 /**

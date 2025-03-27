@@ -75,9 +75,9 @@ async function testRegister() {
         name: TEST_NAME
     });
     
-    if (response.status === 201 && response.data.token) {
+    if (response.status === 201 && response.data.accessToken) {
         console.log('✅ Register test passed');
-        authToken = response.data.token;
+        authToken = response.data.accessToken;
         userId = response.data.user.id;
         return true;
     } else {
@@ -94,9 +94,9 @@ async function testLogin() {
         password: TEST_PASSWORD
     });
     
-    if (response.status === 200 && response.data.token) {
+    if (response.status === 200 && response.data.accessToken) {
         console.log('✅ Login test passed');
-        authToken = response.data.token;
+        authToken = response.data.accessToken;
         return true;
     } else {
         console.error('❌ Login test failed');
@@ -171,9 +171,9 @@ async function testUpdatePassword() {
             password: newPassword
         });
         
-        if (loginResponse.status === 200 && loginResponse.data.token) {
+        if (loginResponse.status === 200 && loginResponse.data.accessToken) {
             console.log('✅ Login with new password passed');
-            authToken = loginResponse.data.token;
+            authToken = loginResponse.data.accessToken;
             return true;
         } else {
             console.error('❌ Login with new password failed');

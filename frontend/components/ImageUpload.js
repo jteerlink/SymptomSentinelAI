@@ -581,7 +581,7 @@ function setupUploadEventListeners(container) {
                 method: 'POST',
                 headers: formHeaders,
                 body: formData,
-                credentials: 'same-origin' // Include cookies if needed
+                credentials: 'include' // Include cookies for auth
             });
             
             console.log(`[Analysis] Response status: ${response.status} ${response.statusText}`);
@@ -649,10 +649,10 @@ function setupUploadEventListeners(container) {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Authorization': token ? `Bearer ${token}` : ''
+                            ...(token !== 'use-cookies' ? { 'Authorization': `Bearer ${token}` } : {})
                         },
                         body: JSON.stringify(results),
-                        credentials: 'same-origin'
+                        credentials: 'include' // Include cookies for auth
                     });
                     
                     // Try to parse the response data

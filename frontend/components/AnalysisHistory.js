@@ -208,9 +208,10 @@ function loadAnalysisHistory(container) {
     // Fetch history data from API
     fetch('/api/analysis-history', {
         method: 'GET',
+        credentials: 'include', // Include cookies for auth
         headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(token !== 'use-cookies' ? { 'Authorization': `Bearer ${token}` } : {})
         }
     })
     .then(response => {
@@ -408,9 +409,10 @@ function viewAnalysisDetails(analysisId) {
     // Fetch the analysis details
     fetch(`/api/analysis/${analysisId}`, {
         method: 'GET',
+        credentials: 'include', // Include cookies for auth
         headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(token !== 'use-cookies' ? { 'Authorization': `Bearer ${token}` } : {})
         }
     })
     .then(response => {
@@ -566,9 +568,10 @@ function deleteAnalysis(analysisId, container) {
     // Delete the analysis
     fetch(`/api/analysis/${analysisId}`, {
         method: 'DELETE',
+        credentials: 'include', // Include cookies for auth
         headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...(token !== 'use-cookies' ? { 'Authorization': `Bearer ${token}` } : {})
         }
     })
     .then(response => {

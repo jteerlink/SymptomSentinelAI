@@ -87,12 +87,12 @@ exports.register = async (req, res, next) => {
         // Set cookies for authentication
         res.cookie('authToken', accessToken, {
             ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
+            maxAge: JWT_EXPIRATION
         });
         
         res.cookie('refreshToken', refreshToken, {
             ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
+            maxAge: JWT_REFRESH_EXPIRATION
         });
         
         // Prepare response object
@@ -198,12 +198,12 @@ exports.login = async (req, res, next) => {
         // Set cookies for authentication
         res.cookie('authToken', accessToken, {
             ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
+            maxAge: JWT_EXPIRATION
         });
         
         res.cookie('refreshToken', refreshToken, {
             ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
+            maxAge: JWT_REFRESH_EXPIRATION
         });
 
         // Prepare response object
@@ -361,12 +361,12 @@ exports.updatePassword = async (req, res, next) => {
         // Set cookies for the new tokens
         res.cookie('authToken', accessToken, {
             ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
+            maxAge: JWT_EXPIRATION
         });
         
         res.cookie('refreshToken', refreshToken, {
             ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
+            maxAge: JWT_REFRESH_EXPIRATION
         });
         
         console.log('🔑 Password updated, new auth cookies set for user:', user.id);
@@ -606,12 +606,12 @@ exports.refreshToken = async (req, res, next) => {
         // Set new cookies for refreshed tokens
         res.cookie('authToken', result.accessToken, {
             ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
+            maxAge: JWT_EXPIRATION
         });
         
         res.cookie('refreshToken', result.refreshToken, {
             ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
+            maxAge: JWT_REFRESH_EXPIRATION
         });
         
         console.log('[Token Refresh] Auth cookies refreshed successfully');

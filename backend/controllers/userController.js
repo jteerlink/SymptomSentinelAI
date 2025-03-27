@@ -8,10 +8,21 @@ const { validatePassword } = require('../utils/passwordValidator');
  */
 exports.register = async (req, res, next) => {
     try {
+        console.log('📥 REGISTRATION REQUEST RECEIVED 📥');
+        console.log('==============================');
+        console.log('Request headers:', req.headers);
+        console.log('Request body:', req.body);
+        
         const { email, password, name } = req.body;
+        console.log('👤 Processing registration for:', email);
+        console.log('📋 Registration data validation:');
 
         // Basic validation
         if (!email || !password || !name) {
+            console.log('❌ Validation failed: Missing required fields');
+            console.log('- Email provided:', !!email);
+            console.log('- Password provided:', !!password);
+            console.log('- Name provided:', !!name);
             return res.status(400).json({
                 error: true,
                 message: 'Please provide email, password, and name'
@@ -19,8 +30,12 @@ exports.register = async (req, res, next) => {
         }
 
         // Validate password
+        console.log('🔐 Validating password strength...');
         const passwordValidation = validatePassword(password);
+        console.log('🔐 Password validation result:', passwordValidation.isValid ? '✅ VALID' : '❌ INVALID');
+        
         if (!passwordValidation.isValid) {
+            console.log('❌ Password validation failed:', passwordValidation.message);
             return res.status(400).json({
                 error: true,
                 message: passwordValidation.message
@@ -28,26 +43,34 @@ exports.register = async (req, res, next) => {
         }
 
         // Check if user already exists
+        console.log('🔍 Checking if email already exists:', email);
         const existingUser = await User.findByEmail(email);
         if (existingUser) {
+            console.log('❌ Email already in use:', email);
             return res.status(409).json({
                 error: true,
                 message: 'User already exists with this email'
             });
         }
+        console.log('✅ Email is available');
 
         // Create new user with hashed password
+        console.log('➕ Creating new user with email:', email);
+        console.log('🔒 Password will be hashed in the User model');
         const newUser = await User.create({
             email,
             password, // Password will be hashed in the User model
             name,
             subscription: 'free' // Default subscription level
         });
+        console.log('✅ User created with ID:', newUser.id);
 
         // Generate tokens (access and refresh)
+        console.log('🔑 Generating authentication tokens...');
         const { accessToken, refreshToken } = generateTokens(newUser);
-
-        res.status(201).json({
+        
+        // Prepare response object
+        const responseObject = {
             message: 'User registered successfully',
             user: {
                 id: newUser.id,
@@ -59,9 +82,20 @@ exports.register = async (req, res, next) => {
             accessToken,
             refreshToken,
             tokenExpiration: JWT_EXPIRATION
-        });
+        };
+        
+        console.log('✅ Registration successful for user:', email);
+        console.log('📤 Response structure:', JSON.stringify({
+            ...responseObject,
+            accessToken: '***truncated***',
+            refreshToken: '***truncated***'
+        }, null, 2));
+
+        res.status(201).json(responseObject);
     } catch (error) {
-        console.error('Error registering user:', error);
+        console.error('❌ Error registering user:', error);
+        console.error('❌ Error details:', error.message);
+        console.error('❌ Stack trace:', error.stack);
         next(error);
     }
 };

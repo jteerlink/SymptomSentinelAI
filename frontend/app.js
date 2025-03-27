@@ -395,13 +395,39 @@ window.SymptomSentryApp.handleRegistration = function() {
         const password = document.getElementById('register-password').value;
         const confirmPassword = document.getElementById('register-confirm-password').value;
         
+        console.log('[Registration] Started registration process');
+        console.log('[Registration] Form data collected:');
+        console.log('- Email:', email);
+        console.log('- Name:', name);
+        console.log('- Password length:', password.length);
+        
+        // Validate input data
+        console.log('[Registration] Validating form inputs...');
+        
         // Check if passwords match
         if (password !== confirmPassword) {
+            console.log('[Registration] ❌ Validation failed: Passwords do not match');
             window.SymptomSentryUtils.showNotification('Passwords do not match', 'danger');
             return;
         }
         
-        console.log('Register form submitted for email:', email);
+        // Check if all fields are filled
+        if (!firstName || !lastName || !email || !password) {
+            console.log('[Registration] ❌ Validation failed: Missing required fields');
+            window.SymptomSentryUtils.showNotification('Please fill in all required fields', 'danger');
+            return;
+        }
+
+        // Validate email format (simple validation)
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            console.log('[Registration] ❌ Validation failed: Invalid email format');
+            window.SymptomSentryUtils.showNotification('Please enter a valid email address', 'danger');
+            return;
+        }
+        
+        console.log('[Registration] ✅ Form validation passed');
+        console.log('[Registration] Register form submitted for email:', email);
         
         // Show loading state
         const submitButton = e.target.querySelector('button[type="submit"]');
@@ -410,6 +436,9 @@ window.SymptomSentryApp.handleRegistration = function() {
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
         
         try {
+            console.log('[Registration] 🔄 Sending registration request to server...');
+            console.log('[Registration] Payload:', { name, email, password: '********' });
+            
             // Call register API
             const response = await fetch('/api/register', {
                 method: 'POST',
@@ -419,35 +448,62 @@ window.SymptomSentryApp.handleRegistration = function() {
                 body: JSON.stringify({ name, email, password })
             });
             
+            console.log('[Registration] 📥 Server response received');
+            console.log('[Registration] Response status:', response.status, response.statusText);
+            console.log('[Registration] Response headers:', Object.fromEntries([...response.headers.entries()]));
+            
             // Get the response text first to debug any parsing issues
             const responseText = await response.text();
-            console.log('[Fetch] Raw registration response text:', responseText);
+            console.log('[Registration] Raw response text:', responseText);
             
             // Try to parse the response as JSON
             let data;
             try {
                 data = JSON.parse(responseText);
-                console.log('[Fetch] Parsed registration response data:', data);
+                console.log('[Registration] Parsed response data:', data);
             } catch (parseError) {
-                console.error('[Fetch] JSON parse error:', parseError);
-                console.error('[Fetch] Failed to parse response text:', responseText);
+                console.error('[Registration] ❌ JSON parse error:', parseError);
+                console.error('[Registration] ❌ Failed to parse response text:', responseText);
                 throw new Error('Server response format error. Please try again.');
             }
             
             if (!response.ok) {
-                console.error('[Fetch] Registration error response:', data);
+                console.error('[Registration] ❌ Server returned error response:', data);
+                console.error('[Registration] Status code:', response.status);
                 throw new Error(data.message || 'Registration failed');
             }
             
             // Enhanced logging for response structure debugging
-            console.log('[Auth] Registration response structure:', JSON.stringify(data));
-            console.log('[Auth] Registration response keys:', Object.keys(data));
+            console.log('[Registration] ✅ Registration successful!');
+            console.log('[Registration] Full response structure:', JSON.stringify(data));
+            console.log('[Registration] Response keys:', Object.keys(data));
+            
+            // Verify response contains the expected data
+            if (!data.user) {
+                console.error('[Registration] ❌ Missing user data in response');
+                throw new Error('Invalid server response: Missing user data');
+            }
+            
+            console.log('[Registration] User data received:', {
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.name,
+                subscription: data.user.subscription
+            });
             
             // Handle token key variations
             if (!data.accessToken && data.token) {
-                console.log('[Auth] Found token under "token" key instead of "accessToken" - will use this');
+                console.log('[Registration] Token naming inconsistency detected');
+                console.log('[Registration] ⚠️ Found token under "token" key instead of "accessToken" - will use this');
                 data.accessToken = data.token;
             }
+            
+            if (!data.accessToken) {
+                console.error('[Registration] ❌ Missing access token in response');
+                throw new Error('Invalid server response: Missing authentication token');
+            }
+            
+            console.log('[Registration] 🔐 Storing authentication tokens...');
             
             // Store the tokens
             localStorage.setItem('authToken', data.accessToken);
@@ -457,7 +513,9 @@ window.SymptomSentryApp.handleRegistration = function() {
             const expiresAt = new Date();
             expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
             localStorage.setItem('tokenExpires', expiresAt.toISOString());
+            console.log('[Registration] Token expiration set to:', expiresAt.toISOString());
             
+            console.log('[Registration] 👤 Updating user interface with profile information...');
             // Set the user's profile information
             window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
             
@@ -468,13 +526,35 @@ window.SymptomSentryApp.handleRegistration = function() {
             window.SymptomSentryUtils.showNotification('Registration successful! Welcome to SymptomSentryAI.', 'success');
             
         } catch (error) {
-            console.error('Registration error:', error);
+            console.error('[Registration] ❌ Registration failed with error:', error);
+            console.error('[Registration] Error message:', error.message);
+            if (error.stack) {
+                console.error('[Registration] Error stack trace:', error.stack);
+            }
             
-            // Show error message
-            window.SymptomSentryUtils.showNotification(`Registration failed: ${error.message}`, 'danger');
+            // Categorize the error for better user feedback
+            let errorMessage;
+            if (error.message.includes('already exists') || error.message.includes('already in use')) {
+                errorMessage = 'An account with this email already exists. Please use a different email or try signing in.';
+                console.log('[Registration] ⚠️ Email already exists error detected');
+            } else if (error.message.includes('password')) {
+                errorMessage = `Password issue: ${error.message}`;
+                console.log('[Registration] ⚠️ Password validation error detected');
+            } else if (error.message.includes('format')) {
+                errorMessage = `Format error: ${error.message}`;
+                console.log('[Registration] ⚠️ Format error detected');
+            } else {
+                errorMessage = error.message || 'Registration failed, please try again';
+                console.log('[Registration] ⚠️ Generic error');
+            }
+            
+            // Show error message to user
+            window.SymptomSentryUtils.showNotification(`Registration failed: ${errorMessage}`, 'danger');
+            console.log('[Registration] 📄 Error notification displayed to user');
             
         } finally {
             // Reset button state
+            console.log('[Registration] 🔄 Resetting registration form button state');
             submitButton.disabled = false;
             submitButton.innerHTML = originalButtonText;
         }

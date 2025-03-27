@@ -116,6 +116,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Setup other event listeners
     setupEventListeners();
     
+    // Make app logo link to analyze page
+    const appLogoLink = document.getElementById('app-logo-link');
+    if (appLogoLink) {
+        appLogoLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            // Update active state for nav links
+            navLinks.forEach(navLink => {
+                if (navLink.getAttribute('data-page') === 'analyze') {
+                    navLink.classList.add('active');
+                } else {
+                    navLink.classList.remove('active');
+                }
+            });
+            
+            // Show the analyze page
+            showPage('analyze');
+        });
+    }
+    
     // Check if user is already logged in
     checkAuthState();
     

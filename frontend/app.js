@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Get the logged in user's email
         const profileTitle = document.querySelector('.card-title.mt-3');
-        if (profileTitle && profileTitle.textContent !== 'Guest User') {
+        if (profileTitle) {
             const email = profileTitle.textContent;
             
             // Call updateProfileUI with the subscription info

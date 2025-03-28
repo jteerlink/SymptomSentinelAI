@@ -9,6 +9,64 @@ const fs = require('fs');
 const path = require('path');
 const PORT = process.env.PORT || 5000;
 
+// MIME types for different file extensions
+const MIME_TYPES = {
+  '.html': 'text/html',
+  '.js': 'text/javascript',
+  '.css': 'text/css',
+  '.json': 'application/json',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.eot': 'application/vnd.ms-fontobject',
+  '.otf': 'font/otf'
+};
+
+// Function to serve static files
+const serveStaticFile = (filePath, res) => {
+  // Check if file exists
+  fs.access(filePath, fs.constants.F_OK, (err) => {
+    if (err) {
+      console.log(`File not found: ${filePath}`);
+      res.statusCode = 404;
+      res.setHeader('Content-Type', 'text/html');
+      return res.end(`
+        <html>
+          <head><title>404 Not Found</title></head>
+          <body>
+            <h1>404 Not Found</h1>
+            <p>The requested file was not found: ${filePath}</p>
+            <p><a href="/">Return to Home</a></p>
+          </body>
+        </html>
+      `);
+    }
+    
+    // Get the file extension
+    const ext = path.extname(filePath);
+    
+    // Read and serve the file
+    fs.readFile(filePath, (err, content) => {
+      if (err) {
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'text/plain');
+        return res.end(`Server Error: ${err.message}`);
+      }
+      
+      // Set the content type based on file extension
+      res.statusCode = 200;
+      res.setHeader('Content-Type', MIME_TYPES[ext] || 'text/plain');
+      res.end(content);
+    });
+  });
+};
+
 // Create server
 const server = http.createServer((req, res) => {
   console.log(`Request received: ${req.method} ${req.url}`);
@@ -24,23 +82,16 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
   
+  // Parse the URL to get the pathname
+  const urlPath = req.url === '/' ? '/index.html' : req.url;
+  
   // Route handling
-  if (req.url === '/' || req.url === '/index.html') {
+  if (urlPath === '/index.html') {
     // Serve index.html
-    fs.readFile(path.join(__dirname, 'index.html'), (err, content) => {
-      if (err) {
-        res.statusCode = 500;
-        res.setHeader('Content-Type', 'text/plain');
-        return res.end(`Server Error: ${err.message}`);
-      }
-      
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'text/html');
-      res.end(content);
-    });
+    serveStaticFile(path.join(__dirname, 'index.html'), res);
   } 
   // API endpoint for health check
-  else if (req.url === '/api/health') {
+  else if (urlPath === '/api/health') {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({
@@ -54,7 +105,7 @@ const server = http.createServer((req, res) => {
     }));
   }
   // API endpoint for server info
-  else if (req.url === '/api/info') {
+  else if (urlPath === '/api/info') {
     res.statusCode = 200;
     res.setHeader('Content-Type', 'application/json');
     res.end(JSON.stringify({
@@ -68,20 +119,13 @@ const server = http.createServer((req, res) => {
       ]
     }));
   }
-  // Handle 404 for any other route
+  // Handle static files
+  else if (urlPath.startsWith('/public/')) {
+    serveStaticFile(path.join(__dirname, urlPath), res);
+  }
+  // Handle all other routes as potential static files
   else {
-    res.statusCode = 404;
-    res.setHeader('Content-Type', 'text/html');
-    res.end(`
-      <html>
-        <head><title>404 Not Found</title></head>
-        <body>
-          <h1>404 Not Found</h1>
-          <p>The requested resource was not found: ${req.url}</p>
-          <p><a href="/">Return to Home</a></p>
-        </body>
-      </html>
-    `);
+    serveStaticFile(path.join(__dirname, urlPath), res);
   }
 });
 

@@ -479,9 +479,8 @@ exports.saveAnalysis = async (req, res, next) => {
             req.user.analysis_count = updatedUser.analysis_count;
             req.user.last_reset_date = updatedUser.last_reset_date;
             
-            // Create the analysis record - no subscription check needed, anyone can save
+            // Create the analysis record
             console.log('Creating analysis record');
-            console.log(`Creating analysis: ${analysisData.type} for user ${req.user.id}`);
             const savedAnalysis = await Analysis.create({
                 id,
                 userId: req.user.id,

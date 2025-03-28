@@ -2,93 +2,60 @@
  * Create Test User Script
  * 
  * This script creates a test user for API testing purposes.
- * Usage: node create-test-user.js <email> <password> <firstName> <lastName>
- * Example: node create-test-user.js test@example.com password123 Test User
  */
 
-require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const db = require('./db/db');
+const { knex } = require('./db');
 
 async function createTestUser() {
+    const testUser = {
+        id: uuidv4(),
+        email: 'test@example.com',
+        password: await bcrypt.hash('TestPassword123!', 10),
+        name: 'Test User',
+        subscription: 'premium',
+        email_verified: true,
+        created_at: new Date()
+    };
+    
+    console.log('Creating test user:', testUser.email);
+    
     try {
-        // Get command line arguments
-        const args = process.argv.slice(2);
-        
-        if (args.length < 4) {
-            console.error('\x1b[31mError: Insufficient arguments.\x1b[0m');
-            console.log('\x1b[33mUsage: node create-test-user.js <email> <password> <firstName> <lastName>\x1b[0m');
-            console.log('Example: node create-test-user.js test@example.com password123 Test User');
-            process.exit(1);
-        }
-        
-        const email = args[0];
-        const password = args[1];
-        const firstName = args[2];
-        const lastName = args.slice(3).join(' ');
-        const name = `${firstName} ${lastName}`;
-        
-        console.log('----------------------------------------');
-        console.log('\x1b[36mCreating test user:\x1b[0m');
-        console.log('Email:', email);
-        console.log('Name:', name);
-        console.log('----------------------------------------');
-        
         // Check if user already exists
-        const existingUser = await db('users').where({ email }).first();
+        const existingUser = await knex('users')
+            .where({ email: testUser.email })
+            .first();
         
         if (existingUser) {
-            console.log('\x1b[33m⚠️ User already exists with this email. Updating instead of creating new account.\x1b[0m');
+            console.log('Test user already exists. Updating password...');
             
-            // Update existing user
-            const hashedPassword = await bcrypt.hash(password, 10);
-            await db('users')
-                .where({ email })
+            await knex('users')
+                .where({ email: testUser.email })
                 .update({
-                    name,
-                    password: hashedPassword,
-                    subscription: 'free',
-                    analysis_count: 0,
-                    last_reset_date: new Date()
+                    password: testUser.password
                 });
-                
-            console.log('\x1b[32m✅ User updated successfully\x1b[0m');
-            console.log('User ID:', existingUser.id);
+            
+            console.log('Password updated successfully!');
         } else {
-            // Create new user
-            const hashedPassword = await bcrypt.hash(password, 10);
-            const userId = uuidv4();
+            console.log('Creating new test user...');
             
-            await db('users').insert({
-                id: userId,
-                email,
-                name,
-                password: hashedPassword,
-                subscription: 'free',
-                created_at: new Date(),
-                updated_at: new Date(),
-                analysis_count: 0,
-                last_reset_date: new Date()
-            });
+            await knex('users').insert(testUser);
             
-            console.log('\x1b[32m✅ User created successfully\x1b[0m');
-            console.log('User ID:', userId);
+            console.log('Test user created successfully!');
         }
         
-        console.log('----------------------------------------');
-        console.log('\x1b[36mLOGIN CREDENTIALS:\x1b[0m');
-        console.log('Email:', email);
-        console.log('Password:', password);
-        console.log('----------------------------------------');
+        console.log('Test user details:');
+        console.log('- Email:', testUser.email);
+        console.log('- Password: TestPassword123!');
+        console.log('- Subscription:', testUser.subscription);
     } catch (error) {
-        console.error('\x1b[31m❌ Error creating test user:\x1b[0m', error);
-        process.exit(1);
+        console.error('Error creating test user:', error);
     } finally {
         // Close database connection
-        await db.destroy();
+        knex.destroy();
     }
 }
 
-// Execute the function
+// Run the script
 createTestUser();

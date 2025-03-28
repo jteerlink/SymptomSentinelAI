@@ -40,7 +40,6 @@ const authenticate = async (req, res, next) => {
     
     // Check for token in multiple sources
     let token;
-    let refreshTokenValue;
     
     // 1. Try to get token from Authorization header
     const authHeader = req.headers.authorization;
@@ -55,13 +54,6 @@ const authenticate = async (req, res, next) => {
       console.log('Found token in cookies');
     }
     
-    // Get refresh token from cookies or request body
-    if (req.cookies && req.cookies.refreshToken) {
-      refreshTokenValue = req.cookies.refreshToken;
-    } else if (req.body && req.body.refreshToken) {
-      refreshTokenValue = req.body.refreshToken;
-    }
-    
     // If no token found anywhere, return authentication error
     if (!token) {
       console.log('No authentication token found in request');
@@ -71,121 +63,48 @@ const authenticate = async (req, res, next) => {
       });
     }
     
-    try {
-      // Try to verify the token
-      const decoded = jwt.verify(token, JWT_SECRET);
-      
-      if (!decoded || !decoded.userId) {
-        throw new Error('Invalid token format');
-      }
-      
-      // Find the user
-      const user = await User.getById(decoded.userId);
-      
-      if (!user) {
-        return res.status(401).json({
-          error: true,
-          message: 'User not found. Please log in again.'
-        });
-      }
-      
-      // Attach user to request object
-      req.user = user;
-      
-      // Move to the next middleware
-      next();
-    } catch (tokenError) {
-      console.log('Token verification error:', tokenError.name);
-      
-      // Handle token expiration with automatic refresh
-      if (tokenError.name === 'TokenExpiredError' && refreshTokenValue) {
-        console.log('Access token expired, attempting refresh');
-        
-        try {
-          // Try to refresh the token
-          const refreshResult = await refreshAccessToken(refreshTokenValue);
-          
-          if (refreshResult.success) {
-            // Token refresh successful
-            console.log('Token refresh successful');
-            
-            // Set new cookies
-            res.cookie('authToken', refreshResult.accessToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              maxAge: 3600000, // 1 hour
-              path: '/'
-            });
-            
-            res.cookie('refreshToken', refreshResult.refreshToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-              path: '/'
-            });
-            
-            // Decode the new token to get user info
-            const newDecoded = jwt.verify(refreshResult.accessToken, JWT_SECRET);
-            
-            // Find the user with the new token
-            const user = await User.getById(newDecoded.userId);
-            
-            if (!user) {
-              return res.status(401).json({
-                error: true,
-                message: 'User not found after token refresh.'
-              });
-            }
-            
-            // Attach user to request object
-            req.user = user;
-            
-            // Add the refreshed token to the response headers
-            res.set('X-New-Access-Token', refreshResult.accessToken);
-            
-            // Continue to the next middleware
-            return next();
-          } else {
-            // Refresh token is invalid or expired
-            console.log('Token refresh failed:', refreshResult.message);
-            return res.status(401).json({
-              error: true,
-              message: 'Authentication failed. Please log in again.',
-              tokenError: refreshResult.message
-            });
-          }
-        } catch (refreshError) {
-          console.error('Error during token refresh:', refreshError);
-          return res.status(401).json({
-            error: true,
-            message: 'Authentication failed. Please log in again.'
-          });
-        }
-      } else {
-        // Handle other token errors
-        if (tokenError.name === 'JsonWebTokenError') {
-          return res.status(401).json({
-            error: true,
-            message: 'Invalid token. Please log in again.'
-          });
-        } else if (tokenError.name === 'TokenExpiredError') {
-          return res.status(401).json({
-            error: true,
-            message: 'Token expired. Please log in again.'
-          });
-        } else {
-          console.error('Authentication error:', tokenError);
-          return res.status(401).json({
-            error: true,
-            message: 'Authentication failed. Please log in again.'
-          });
-        }
-      }
+    // Verify the token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({
+        error: true,
+        message: 'Invalid token. Please log in again.'
+      });
     }
+    
+    // Find the user
+    const user = await User.getById(decoded.userId);
+    
+    if (!user) {
+      return res.status(401).json({
+        error: true,
+        message: 'User not found. Please log in again.'
+      });
+    }
+    
+    // Attach user to request object
+    req.user = user;
+    
+    // Move to the next middleware
+    next();
   } catch (error) {
-    console.error('Uncaught authentication error:', error);
+    console.error('Authentication error:', error);
+    
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        error: true,
+        message: 'Invalid token. Please log in again.'
+      });
+    }
+    
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        error: true,
+        message: 'Token expired. Please log in again.'
+      });
+    }
+    
     return res.status(500).json({
       error: true,
       message: 'Internal server error during authentication.'
@@ -216,7 +135,6 @@ const optionalAuthenticate = async (req, res, next) => {
     
     // Check for token in multiple sources
     let token;
-    let refreshTokenValue;
     
     // 1. Try to get token from Authorization header
     const authHeader = req.headers.authorization;
@@ -231,97 +149,34 @@ const optionalAuthenticate = async (req, res, next) => {
       console.log('Found token in cookies (optional auth)');
     }
     
-    // Get refresh token from cookies or request body
-    if (req.cookies && req.cookies.refreshToken) {
-      refreshTokenValue = req.cookies.refreshToken;
-    } else if (req.body && req.body.refreshToken) {
-      refreshTokenValue = req.body.refreshToken;
-    }
-    
     // If no token found anywhere, continue without authentication
     if (!token) {
       console.log('No authentication token found in request (optional auth)');
       return next();
     }
     
+    // Verify the token
+    const decoded = jwt.verify(token, JWT_SECRET);
+    
+    if (!decoded || !decoded.userId) {
+      return next();
+    }
+    
+    // Find the user
     try {
-      // Verify the token
-      const decoded = jwt.verify(token, JWT_SECRET);
-      
-      if (!decoded || !decoded.userId) {
-        // Invalid token format, but this is optional auth so just continue
-        return next();
-      }
-      
-      // Find the user
       const user = await User.getById(decoded.userId);
       // Attach user to request object if found
-      if (user) {
-        req.user = user;
-      }
-      
-      // Continue to next middleware
-      next();
-    } catch (tokenError) {
-      console.log('Optional auth token verification error:', tokenError.name);
-      
-      // Handle token expiration with automatic refresh (for better UX)
-      if (tokenError.name === 'TokenExpiredError' && refreshTokenValue) {
-        console.log('Access token expired, attempting refresh (optional auth)');
-        
-        try {
-          // Try to refresh the token
-          const refreshResult = await refreshAccessToken(refreshTokenValue);
-          
-          if (refreshResult.success) {
-            // Token refresh successful
-            console.log('Token refresh successful (optional auth)');
-            
-            // Set new cookies
-            res.cookie('authToken', refreshResult.accessToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              maxAge: 3600000, // 1 hour
-              path: '/'
-            });
-            
-            res.cookie('refreshToken', refreshResult.refreshToken, {
-              httpOnly: true,
-              secure: process.env.NODE_ENV === 'production',
-              sameSite: 'lax',
-              maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-              path: '/'
-            });
-            
-            // Decode the new token to get user info
-            const newDecoded = jwt.verify(refreshResult.accessToken, JWT_SECRET);
-            
-            // Find the user with the new token
-            try {
-              const user = await User.getById(newDecoded.userId);
-              if (user) {
-                req.user = user;
-              }
-            } catch (findError) {
-              console.log('User not found after token refresh (optional auth)');
-            }
-            
-            // Add the refreshed token to the response headers
-            res.set('X-New-Access-Token', refreshResult.accessToken);
-          }
-        } catch (refreshError) {
-          // Refresh failed, but this is optional auth so just continue
-          console.log('Token refresh failed in optional auth:', refreshError.message);
-        }
-      }
-      
-      // Continue to next middleware regardless of auth outcome
-      next();
+      req.user = user;
+    } catch (findError) {
+      // If user not found, just continue
+      console.log('User not found for optional authentication', findError.message);
     }
+    
+    // Move to the next middleware
+    next();
   } catch (error) {
     // In case of any error, just continue without authentication
-    console.error('Optional authentication uncaught error:', error);
+    console.error('Optional authentication error:', error);
     next();
   }
 };
@@ -426,14 +281,9 @@ const refreshAccessToken = async (refreshToken) => {
  * @param {Function} next - Express next function
  */
 const refreshToken = async (req, res) => {
-  // Check for refresh token in body or cookies
-  let refreshTokenValue = req.body.refreshToken;
+  const { refreshToken } = req.body;
   
-  if (!refreshTokenValue && req.cookies && req.cookies.refreshToken) {
-    refreshTokenValue = req.cookies.refreshToken;
-  }
-  
-  if (!refreshTokenValue) {
+  if (!refreshToken) {
     return res.status(400).json({
       error: true,
       message: 'Refresh token is required'
@@ -441,7 +291,7 @@ const refreshToken = async (req, res) => {
   }
   
   try {
-    const result = await refreshAccessToken(refreshTokenValue);
+    const result = await refreshAccessToken(refreshToken);
     
     if (!result.success) {
       return res.status(401).json({
@@ -450,29 +300,10 @@ const refreshToken = async (req, res) => {
       });
     }
     
-    // Set cookies for better cross-client compatibility
-    res.cookie('authToken', result.accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 3600000, // 1 hour
-      path: '/'
-    });
-    
-    res.cookie('refreshToken', result.refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/'
-    });
-    
-    // Also send tokens in response body for frontend storage
     return res.json({
       error: false,
       accessToken: result.accessToken,
-      refreshToken: result.refreshToken,
-      tokenExpiration: JWT_EXPIRATION
+      refreshToken: result.refreshToken
     });
   } catch (error) {
     console.error('Token refresh error:', error);

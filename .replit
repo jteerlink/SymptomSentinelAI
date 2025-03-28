@@ -13,10 +13,34 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "App"
+args = "Test"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Analysis Test"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Run ML Tests"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Debug ML Tests"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "RunAllTests"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "BackendServer"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "FrontendServer"
 
 [[workflows.workflow]]
-name = "App"
+name = "Test"
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -27,8 +51,93 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node index.js"
+args = "cd backend && npx jest --testMatch=\"**/tests/**/*.test.js\" --runInBand --verbose"
+
+[[workflows.workflow]]
+name = "Analysis Test"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && npx jest tests/imageAnalysis.test.js --verbose"
+
+[[workflows.workflow]]
+name = "Run ML Tests"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend/ml && python run_tests.py"
+
+[[workflows.workflow]]
+name = "Debug ML Tests"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend/ml && python -m pytest tests/test_medical_image_analyzer.py -v"
+
+[[workflows.workflow]]
+name = "RunAllTests"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node run-all-tests.js"
+
+[[workflows.workflow]]
+name = "BackendServer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && NODE_ENV=development node server.js"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "FrontendServer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && NODE_ENV=development node server.js"
+waitForPort = 8000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]
@@ -65,10 +174,6 @@ externalPort = 6800
 [[ports]]
 localPort = 39375
 externalPort = 3000
-
-[[ports]]
-localPort = 39629
-externalPort = 4200
 
 [[ports]]
 localPort = 42731

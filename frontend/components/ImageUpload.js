@@ -172,13 +172,13 @@ function setupUploadEventListeners(container) {
         if (loginBtn) {
             loginBtn.addEventListener('click', () => {
                 // Attempt to open login modal
-                const authModal = document.getElementById('authModal');
-                if (authModal) {
-                    const modal = new bootstrap.Modal(authModal);
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    const modal = new bootstrap.Modal(loginModal);
                     modal.show();
                     
                     // Switch to login tab if needed
-                    const loginTab = document.querySelector('#login-tab');
+                    const loginTab = document.querySelector('a[href="#login-tab"]');
                     if (loginTab) loginTab.click();
                 } else {
                     // Fallback - try to navigate to a login page
@@ -190,13 +190,13 @@ function setupUploadEventListeners(container) {
         if (registerBtn) {
             registerBtn.addEventListener('click', () => {
                 // Attempt to open registration modal
-                const authModal = document.getElementById('authModal');
-                if (authModal) {
-                    const modal = new bootstrap.Modal(authModal);
+                const loginModal = document.getElementById('loginModal');
+                if (loginModal) {
+                    const modal = new bootstrap.Modal(loginModal);
                     modal.show();
                     
                     // Switch to register tab if needed
-                    const registerTab = document.querySelector('#register-tab');
+                    const registerTab = document.querySelector('a[href="#register-tab"]');
                     if (registerTab) registerTab.click();
                 } else {
                     // Fallback - try to navigate to a register page

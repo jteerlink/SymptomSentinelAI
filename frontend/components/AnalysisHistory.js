@@ -18,54 +18,10 @@ if (!window.SymptomSentryAnalysisHistory) {
 function initAnalysisHistory(container) {
     console.log('[Analysis History] Initializing component');
     
-    // Check authentication - using cookie validation to be more reliable
+    // Check authentication
     if (!window.SymptomSentryUtils.isAuthenticated()) {
-        console.log('[Analysis History] Initial auth check failed, will try cookie validation');
-        
-        // We'll validate with the server in case localStorage is out of sync but cookies are valid
-        fetch('/api/validate-token', {
-            method: 'GET',
-            credentials: 'include' // Important: include cookies
-        })
-        .then(response => {
-            if (response.ok) {
-                return response.json();
-            }
-            throw new Error('Token validation failed');
-        })
-        .then(data => {
-            if (data.valid && data.user) {
-                console.log('[Analysis History] Valid cookie authentication found, loading history');
-                
-                // Store the validated user information for future use
-                if (data.accessToken) {
-                    localStorage.setItem('authToken', data.accessToken);
-                }
-                
-                // Now load the history since we're authenticated
-                renderAnalysisHistoryUI(container);
-                setupEventListeners(container);
-                loadAnalysisHistory(container);
-            } else {
-                console.log('[Analysis History] No valid authentication found, showing login prompt');
-                renderLoginPrompt(container);
-            }
-        })
-        .catch(error => {
-            console.error('[Analysis History] Authentication check failed:', error.message);
-            renderLoginPrompt(container);
-        });
-        
-        // Show loading state while we validate
-        container.innerHTML = `
-            <div class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2">Checking authentication status...</p>
-            </div>
-        `;
-        
+        console.log('[Analysis History] User not authenticated, showing login prompt');
+        renderLoginPrompt(container);
         return;
     }
     

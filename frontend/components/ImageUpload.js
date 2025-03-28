@@ -957,9 +957,9 @@ function setupUploadEventListeners(container) {
                 <i class="fas fa-exclamation-circle"></i> 
                 <div class="mb-2"><strong>Subscription Limit Reached</strong></div>
                 <div class="mb-2">${message || 'You have reached your monthly analysis limit.'}</div>
-                <div class="small text-muted mb-2">Upgrade to Premium for unlimited analyses and additional features.</div>
+                <div class="small text-muted mb-2">This only affects new analyses. You can save your current and all previous results regardless of your subscription level.</div>
                 <button class="btn btn-warning btn-sm upgrade-btn mt-2">
-                    <i class="fas fa-crown"></i> Upgrade to Premium
+                    <i class="fas fa-crown"></i> Upgrade for More Analyses
                 </button>
             `;
             

@@ -122,13 +122,13 @@ function renderAnalysisResults(container, results) {
             if (analysisRemaining === 0) {
                 showNotification(
                     container, 
-                    'You\'ve reached your monthly analysis limit! Upgrade to Premium for unlimited analyses.', 
+                    'You\'ve reached your monthly analysis limit for performing new analyses. You can still save your current analysis.', 
                     'warning'
                 );
             } else {
                 showNotification(
                     container,
-                    `You have ${analysisRemaining} of ${analysisLimit} analyses remaining this month. Consider upgrading to Premium for unlimited analyses.`,
+                    `You have ${analysisRemaining} of ${analysisLimit} analyses remaining this month. You can save all your results regardless of your subscription level.`,
                     'info'
                 );
             }
@@ -316,38 +316,28 @@ function renderAnalysisResults(container, results) {
                     const { subscription, analysisCount, analysisLimit, analysisRemaining } = responseData.subscription;
                     
                     // Display subscription info if user is on free plan and getting close to limit
+                    // but only show information about monthly limit for performing analyses, not saving
                     if (subscription === 'free' && analysisRemaining <= 2) {
                         const remainingMessage = analysisRemaining === 0 
                             ? 'You have reached your monthly analysis limit.'
                             : `You have ${analysisRemaining} analysis ${analysisRemaining === 1 ? 'credit' : 'credits'} remaining this month.`;
                         
                         // Remove any existing subscription alerts first
-                        const existingAlerts = container.querySelectorAll('.alert.alert-warning');
+                        const existingAlerts = container.querySelectorAll('.alert.alert-info');
                         existingAlerts.forEach(alert => alert.remove());
                             
-                        // Show subscription alert
+                        // Show subscription info alert (changed from warning to info)
                         const subscriptionAlert = document.createElement('div');
-                        subscriptionAlert.className = 'alert alert-warning mt-3';
+                        subscriptionAlert.className = 'alert alert-info mt-3';
                         subscriptionAlert.id = 'subscription-alert'; // Add an ID for easier removal
                         subscriptionAlert.innerHTML = `
-                            <strong><i class="fas fa-exclamation-circle"></i> ${remainingMessage}</strong>
-                            <p class="mb-1">Upgrade to Premium for unlimited analyses and advanced features.</p>
-                            <button class="btn btn-sm btn-warning upgrade-btn mt-2">
-                                <i class="fas fa-arrow-circle-up"></i> Upgrade to Premium
-                            </button>
+                            <strong><i class="fas fa-info-circle"></i> ${remainingMessage}</strong>
+                            <p class="mb-1">This only affects performing new analyses. You can always save your results regardless of your subscription level.</p>
                         `;
                         
                         // Insert before the buttons
                         const buttonContainer = saveResultsBtn.parentElement;
                         buttonContainer.parentElement.insertBefore(subscriptionAlert, buttonContainer);
-                        
-                        // Add click event to upgrade button
-                        const upgradeBtn = subscriptionAlert.querySelector('.upgrade-btn');
-                        if (upgradeBtn) {
-                            upgradeBtn.addEventListener('click', () => {
-                                navigateToPage('subscription');
-                            });
-                        }
                     }
                 }
             } catch (error) {
@@ -528,7 +518,7 @@ function resetAnalysis() {
     const analysisContainer = document.getElementById('analysis-results-component');
     if (analysisContainer) {
         // Remove any subscription alerts if they exist
-        const existingAlerts = document.querySelectorAll('.alert.alert-warning');
+        const existingAlerts = document.querySelectorAll('.alert.alert-warning, .alert.alert-info');
         existingAlerts.forEach(alert => alert.remove());
         
         renderInitialAnalysisUI(analysisContainer);

@@ -345,6 +345,12 @@ window.SymptomSentryUtils.isAuthenticated = function() {
                 // Store the validated user information for future use
                 if (data.accessToken) {
                     localStorage.setItem('authToken', data.accessToken);
+                    
+                    // Calculate and store new token expiration time (1 hour from now)
+                    const expiresAt = new Date();
+                    expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
+                    localStorage.setItem('tokenExpires', expiresAt.toISOString());
+                    console.log('[Auth Helper] Token expiration updated to:', expiresAt.toISOString());
                 }
                 
                 // Update UI to reflect logged-in state

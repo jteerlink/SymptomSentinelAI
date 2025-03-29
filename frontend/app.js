@@ -156,6 +156,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Check if user is already logged in
     checkAuthState();
     
+    // Setup automatic token refresh timer
+    setupTokenRefreshTimer();
+    
     // Add event listener for opening login modal
     window.addEventListener('openLoginModal', () => {
         console.log('[Auth] openLoginModal event captured');
@@ -836,6 +839,139 @@ window.SymptomSentryApp.getUserProfile = function() {
             }
         });
 };
+
+// Setup periodic token refresh to avoid expiration issues
+function setupTokenRefreshTimer() {
+    console.log('[Auth] Setting up token refresh timer');
+    
+    // Check token every minute
+    setInterval(() => {
+        const authToken = localStorage.getItem('authToken');
+        const tokenExpires = localStorage.getItem('tokenExpires');
+        const refreshToken = localStorage.getItem('refreshToken');
+        
+        if (!authToken || !tokenExpires) {
+            return; // No token to refresh
+        }
+        
+        const now = new Date();
+        const expiresAt = new Date(tokenExpires);
+        
+        // If token is already expired, attempt to refresh
+        if (now > expiresAt) {
+            console.log('[Auth] Token expired, attempting refresh');
+            refreshAuthToken(refreshToken, true);
+            return;
+        }
+        
+        // If token expires in less than 10 minutes, proactively refresh
+        const tenMinutesFromNow = new Date(now.getTime() + (10 * 60 * 1000));
+        if (expiresAt < tenMinutesFromNow) {
+            console.log('[Auth] Token expires in less than 10 minutes, refreshing proactively');
+            refreshAuthToken(refreshToken, false);
+        }
+    }, 60000); // Check every minute
+}
+
+// Helper function to refresh the authentication token
+function refreshAuthToken(refreshToken, isExpired) {
+    if (!refreshToken) {
+        console.log('[Auth] No refresh token available');
+        if (isExpired) {
+            handleFailedTokenRefresh();
+        }
+        return;
+    }
+    
+    // First try the token validation endpoint which will return a new token
+    fetch('/api/validate-token', {
+        method: 'GET',
+        credentials: 'include' // Include cookies
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json().then(data => {
+                if (data.valid && data.accessToken) {
+                    console.log('[Auth] Token refreshed via validation endpoint');
+                    updateStoredTokens(data.accessToken);
+                    return true; // Successfully refreshed
+                }
+                return false; // Validation succeeded but no new token
+            });
+        }
+        return false; // Validation failed
+    })
+    .then(isRefreshed => {
+        if (!isRefreshed) {
+            // Try explicit token refresh as fallback
+            return fetch('/api/refresh-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ refreshToken }),
+                credentials: 'include'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.accessToken) {
+                    console.log('[Auth] Token refreshed successfully via refresh endpoint');
+                    updateStoredTokens(data.accessToken, data.refreshToken);
+                    return true;
+                }
+                throw new Error('Token refresh failed');
+            });
+        }
+        return isRefreshed;
+    })
+    .catch(error => {
+        console.error('[Auth] Token refresh error:', error);
+        if (isExpired) {
+            handleFailedTokenRefresh();
+        }
+    });
+}
+
+// Update the stored tokens in localStorage
+function updateStoredTokens(accessToken, refreshToken = null) {
+    localStorage.setItem('authToken', accessToken);
+    
+    // Calculate new expiration (1 hour from now)
+    const newExpiresAt = new Date();
+    newExpiresAt.setHours(newExpiresAt.getHours() + 1);
+    localStorage.setItem('tokenExpires', newExpiresAt.toISOString());
+    
+    // Update refresh token if provided
+    if (refreshToken) {
+        localStorage.setItem('refreshToken', refreshToken);
+    }
+    
+    // Get and update user profile
+    if (window.SymptomSentryApp.getUserProfile) {
+        window.SymptomSentryApp.getUserProfile();
+    }
+}
+
+// Handle failed token refresh by clearing auth data
+function handleFailedTokenRefresh() {
+    console.log('[Auth] Token refresh failed completely, clearing auth data');
+    
+    // Clear auth data to force re-login
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpires');
+    
+    // Notify the user that they need to log in again
+    window.SymptomSentryUtils.showNotification('Your session has expired. Please log in again.', 'warning');
+    
+    // Update UI to reflect logged out state
+    window.SymptomSentryUtils.updateProfileUI(null);
+    
+    // Dispatch an event to notify the app of the auth state change
+    document.dispatchEvent(new CustomEvent('authStateChanged', {
+        detail: { isAuthenticated: false }
+    }));
+}
 
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {

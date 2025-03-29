@@ -401,6 +401,11 @@ exports.validateToken = async (req, res, next) => {
         // and attached the user to the request object
         // So if we've reached this point, the token is valid
         
+        // Generate a new accessToken to send back to the client
+        // This helps keep the frontend and backend in sync on token expiration
+        const { generateTokens } = require('../middleware/auth');
+        const { accessToken } = generateTokens(req.user);
+        
         return res.status(200).json({
             valid: true,
             user: {
@@ -408,7 +413,8 @@ exports.validateToken = async (req, res, next) => {
                 email: req.user.email,
                 name: req.user.name,
                 subscription: req.user.subscription
-            }
+            },
+            accessToken
         });
     } catch (error) {
         console.error('Error validating token:', error);

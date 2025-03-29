@@ -487,8 +487,8 @@ window.SymptomSentryApp.handleRegistration = function() {
             expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
             localStorage.setItem('tokenExpires', expiresAt.toISOString());
             
-            // Set the user's profile information
-            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
+            // Set the user's profile information - don't show notification from here
+            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user, false);
             
             // Close the modal
             authModal.hide();
@@ -646,8 +646,8 @@ window.SymptomSentryApp.handleRegistration = function() {
             console.log('[Registration] Token expiration set to:', expiresAt.toISOString());
             
             console.log('[Registration] 👤 Updating user interface with profile information...');
-            // Set the user's profile information
-            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user);
+            // Set the user's profile information - don't show notification from here
+            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user, false);
             
             // Close the modal
             authModal.hide();
@@ -842,8 +842,8 @@ window.SymptomSentryApp.getUserProfile = function() {
     window.SymptomSentryApp.apiRequest('user-profile')
         .then(data => {
             console.log('[Auth] User profile data:', data);
-            // Update profile UI with user data
-            window.SymptomSentryUtils.updateProfileUI(data.email, data.name, data);
+            // Update profile UI with user data - don't show notification
+            window.SymptomSentryUtils.updateProfileUI(data.email, data.name, data, false);
         })
         .catch(error => {
             console.error('[Auth] Error fetching user profile:', error);
@@ -984,8 +984,8 @@ function handleFailedTokenRefresh() {
     // Notify the user that they need to log in again
     window.SymptomSentryUtils.showNotification('Your session has expired. Please log in again.', 'warning');
     
-    // Update UI to reflect logged out state
-    window.SymptomSentryUtils.updateProfileUI(null);
+    // Update UI to reflect logged out state - don't show notification
+    window.SymptomSentryUtils.updateProfileUI(null, null, null, false);
     
     // Dispatch an event to notify the app of the auth state change
     document.dispatchEvent(new CustomEvent('authStateChanged', {

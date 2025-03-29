@@ -11,8 +11,9 @@ window.SymptomSentryUtils = window.SymptomSentryUtils || {};
  * @param {string} email - User's email address
  * @param {string|null} name - User's display name (optional)
  * @param {Object|null} user - Complete user object (optional)
+ * @param {boolean} showLoginNotification - Whether to show login notification (default: true)
  */
-window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = null) {
+window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = null, showLoginNotification = true) {
     // If user is not provided, create a default user object
     if (!user) {
         user = {
@@ -231,6 +232,12 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
         }
     });
     document.dispatchEvent(loginEvent);
+    
+    // If showLoginNotification is true and user is not null, show a welcome notification
+    if (showLoginNotification && email) {
+        // Don't show notification here - it will be handled by the login/register functions
+        // This prevents duplicate notifications
+    }
 }
 
 /**
@@ -353,11 +360,12 @@ window.SymptomSentryUtils.isAuthenticated = function() {
                     console.log('[Auth Helper] Token expiration updated to:', expiresAt.toISOString());
                 }
                 
-                // Update UI to reflect logged-in state
+                // Update UI to reflect logged-in state - don't show notification
                 window.SymptomSentryUtils.updateProfileUI(
                     data.user.email,
                     data.user.name,
-                    data.user
+                    data.user,
+                    false
                 );
                 
                 // Dispatch an event to notify the app that auth state has changed

@@ -993,6 +993,15 @@ function handleFailedTokenRefresh() {
     }));
 }
 
+// Make sure the init function is defined properly
+window.SymptomSentryApp.init = function() {
+    console.log('[App] Initializing SymptomSentryAI application');
+    setupNavigation();
+    setupEventListeners();
+    checkAuthState();
+    setupTokenRefreshTimer();
+};
+
 // Initialize the app
 document.addEventListener('DOMContentLoaded', function() {
     console.log('SymptomSentryAI Web App Initialized');

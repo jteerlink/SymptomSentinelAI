@@ -368,6 +368,9 @@ window.SymptomSentryApp.handleRegistration = function() {
                 const authModal = new bootstrap.Modal(authModalElement);
                 authModal.show();
                 console.log('[Auth] Modal displayed successfully');
+                
+                // Attach form event listeners after modal is shown
+                setupAuthFormListeners(authModal);
             } catch (error) {
                 console.error('[Auth] Error showing modal:', error);
             }
@@ -375,6 +378,10 @@ window.SymptomSentryApp.handleRegistration = function() {
             console.error('[Auth] Modal element not found after creation');
         }
     }, 100);
+    
+    // Helper function to set up form event listeners
+    function setupAuthFormListeners(authModal) {
+        console.log('[Auth] Setting up form event listeners');
     
     // Add event listeners for form submissions
     document.getElementById('login-form').addEventListener('submit', async (e) => {
@@ -659,7 +666,8 @@ window.SymptomSentryApp.handleRegistration = function() {
             submitButton.innerHTML = originalButtonText;
         }
     });
-};
+    } // Close setupAuthFormListeners function
+}
 
 // Check if the user has a valid authentication token
 function checkAuthState() {
@@ -828,3 +836,9 @@ window.SymptomSentryApp.getUserProfile = function() {
             }
         });
 };
+
+// Initialize the app
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('SymptomSentryAI Web App Initialized');
+    window.SymptomSentryApp.init();
+});

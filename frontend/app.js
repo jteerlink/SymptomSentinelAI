@@ -12,6 +12,13 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
+    // Clear any stored authentication data on app initialization
+    // This ensures the app always starts in a logged-out state
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('tokenExpires');
+    console.log('[Auth] Cleared stored authentication data for clean startup state');
+    
     // We'll only create the debug button if we're in debug mode
     const isDebugMode = false; // Set to true only during development/testing
     
@@ -153,10 +160,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Check if user is already logged in
-    checkAuthState();
+    // We're disabling automatic sign-in on app startup
+    // This ensures users start from a clean, logged-out state
+    console.log('[Auth] Automatic sign-in disabled - users will start in logged-out state');
     
-    // Setup automatic token refresh timer
+    // Setup automatic token refresh timer (will only refresh if user manually logs in later)
     setupTokenRefreshTimer();
     
     // Add event listener for opening login modal
@@ -401,6 +409,12 @@ window.SymptomSentryApp.handleRegistration = function() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing in...';
         
+        // Function to reset button state
+        const resetButton = () => {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        };
+        
         try {
             // Create the payload
             const payload = JSON.stringify({ email, password });
@@ -543,6 +557,12 @@ window.SymptomSentryApp.handleRegistration = function() {
         const originalButtonText = submitButton.innerHTML;
         submitButton.disabled = true;
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
+        
+        // Function to reset button state
+        const resetButton = () => {
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        };
         
         try {
             console.log('[Registration] 🔄 Sending registration request to server...');

@@ -671,6 +671,7 @@ main {
 /* Authentication Modal */
 .auth-modal {
     color: var(--text-color);
+    z-index: 11000; /* Ensure modal is on top of all other elements */
 }
 
 .auth-modal .modal-header {
@@ -682,10 +683,14 @@ main {
     border-radius: 12px;
     box-shadow: 0 8px 20px var(--shadow-color);
     border: none;
+    position: relative; /* Ensure proper stacking context */
+    z-index: 11100; /* Higher than modal backdrop */
 }
 
 .auth-modal .nav-tabs {
     border-bottom: 1px solid var(--border-color);
+    position: relative; /* Ensure proper stacking context */
+    z-index: 11200; /* Higher than modal content */
 }
 
 .auth-modal .nav-link {
@@ -693,6 +698,7 @@ main {
     border: none;
     padding: 10px 20px;
     transition: all 0.3s ease;
+    position: relative; /* Ensure proper stacking context */
 }
 
 .auth-modal .nav-link.active {
@@ -709,6 +715,9 @@ main {
     border: 1px solid var(--input-border);
     color: var(--text-color);
     transition: all 0.3s ease;
+    position: relative;
+    z-index: 11300; /* Higher than tab elements */
+    pointer-events: auto !important; /* Ensure input fields can receive clicks */
 }
 
 .auth-modal .form-control:focus {
@@ -716,15 +725,32 @@ main {
     box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
 }
 
+/* Ensure modal backdrop doesn't prevent clicks */
+.modal-backdrop {
+    z-index: 10500 !important; /* Lower than modal but higher than other content */
+}
+
+/* Improve form input clickability */
+.auth-modal input, 
+.auth-modal button,
+.auth-modal .form-check,
+.auth-modal .form-check-input {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 11400; /* High z-index for interactive elements */
+}
+
 /* Notification Styles */
 #notification-container {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: 9999; /* Below the auth modal */
+    pointer-events: none; /* Allow clicks to pass through to elements below */
 }
 
 #notification-container .alert {
+    pointer-events: auto; /* Allow clicks on the notification itself */
     margin-bottom: 10px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     border-radius: 8px;

@@ -254,12 +254,26 @@ function setupEventListeners() {
 
 // Handle account registration
 window.SymptomSentryApp.handleRegistration = function() {
+    console.log('[Auth] handleRegistration called');
+    
+    // First remove any existing modals to prevent duplication
+    const existingModal = document.getElementById('authModal');
+    if (existingModal) {
+        console.log('[Auth] Removing existing modal');
+        existingModal.remove();
+    }
+    
     // Create modal container if it doesn't exist
     let modalContainer = document.getElementById('auth-modal-container');
     if (!modalContainer) {
+        console.log('[Auth] Creating new modal container');
         modalContainer = document.createElement('div');
         modalContainer.id = 'auth-modal-container';
+        modalContainer.style.zIndex = '11000'; // High z-index
         document.body.appendChild(modalContainer);
+    } else {
+        // Clear existing modal container content
+        modalContainer.innerHTML = '';
     }
     
     // Set up the modal content
@@ -285,11 +299,11 @@ window.SymptomSentryApp.handleRegistration = function() {
                                 <form id="login-form" class="mt-3">
                                     <div class="mb-3">
                                         <label for="login-email" class="form-label">Email address</label>
-                                        <input type="email" class="form-control" id="login-email" required>
+                                        <input type="email" class="form-control" id="login-email" autocomplete="email" required>
                                     </div>
                                     <div class="mb-3">
                                         <label for="login-password" class="form-label">Password</label>
-                                        <input type="password" class="form-control" id="login-password" required>
+                                        <input type="password" class="form-control" id="login-password" autocomplete="current-password" required>
                                     </div>
                                     <div class="mb-3 form-check">
                                         <input type="checkbox" class="form-check-input" id="remember-me">
@@ -306,24 +320,24 @@ window.SymptomSentryApp.handleRegistration = function() {
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label for="register-first-name" class="form-label">First Name</label>
-                                            <input type="text" class="form-control" id="register-first-name" required>
+                                            <input type="text" class="form-control" id="register-first-name" autocomplete="given-name" required>
                                         </div>
                                         <div class="col-md-6 mb-3">
                                             <label for="register-last-name" class="form-label">Last Name</label>
-                                            <input type="text" class="form-control" id="register-last-name" required>
+                                            <input type="text" class="form-control" id="register-last-name" autocomplete="family-name" required>
                                         </div>
                                     </div>
                                     <div class="mb-3">
                                         <label for="register-email" class="form-label">Email address</label>
-                                        <input type="email" class="form-control" id="register-email" required>
+                                        <input type="email" class="form-control" id="register-email" autocomplete="email" required>
                                     </div>
                                     <div class="mb-3">
                                         <label for="register-password" class="form-label">Password</label>
-                                        <input type="password" class="form-control" id="register-password" required>
+                                        <input type="password" class="form-control" id="register-password" autocomplete="new-password" required>
                                     </div>
                                     <div class="mb-3">
                                         <label for="register-confirm-password" class="form-label">Confirm Password</label>
-                                        <input type="password" class="form-control" id="register-confirm-password" required>
+                                        <input type="password" class="form-control" id="register-confirm-password" autocomplete="new-password" required>
                                     </div>
                                     <div class="mb-3 form-check">
                                         <input type="checkbox" class="form-check-input" id="terms-checkbox" required>
@@ -341,9 +355,26 @@ window.SymptomSentryApp.handleRegistration = function() {
         </div>
     `;
     
-    // Get the Bootstrap modal instance
-    const authModal = new bootstrap.Modal(document.getElementById('authModal'));
-    authModal.show();
+    console.log('[Auth] Modal HTML created, initializing Bootstrap modal');
+    
+    // Give the DOM a moment to update before initializing the modal
+    setTimeout(() => {
+        // Get the new modal element
+        const authModalElement = document.getElementById('authModal');
+        
+        if (authModalElement) {
+            // Get the Bootstrap modal instance
+            try {
+                const authModal = new bootstrap.Modal(authModalElement);
+                authModal.show();
+                console.log('[Auth] Modal displayed successfully');
+            } catch (error) {
+                console.error('[Auth] Error showing modal:', error);
+            }
+        } else {
+            console.error('[Auth] Modal element not found after creation');
+        }
+    }, 100);
     
     // Add event listeners for form submissions
     document.getElementById('login-form').addEventListener('submit', async (e) => {

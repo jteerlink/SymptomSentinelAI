@@ -466,18 +466,17 @@ exports.saveAnalysis = async (req, res, next) => {
         const id = analysisData.id || undefined;
         
         try {
-            // Increment the user's analysis count
-            console.log('About to increment analysis count');
-            await User.incrementAnalysisCount(req.user.id);
-            console.log(`Incremented analysis count for user ${req.user.id}`);
+            // Not incrementing analysis count for saves anymore
+            // All users can save analysis results regardless of subscription status
+            console.log(`Saving analysis for user ${req.user.id} without incrementing analysis count`);
             
-            // Get updated user data
-            const updatedUser = await User.getById(req.user.id);
-            console.log(`Updated analysis count: ${updatedUser.analysis_count}`);
+            // Get current user data for response
+            const currentUser = await User.getById(req.user.id);
+            console.log(`Current analysis count: ${currentUser.analysis_count}`);
             
-            // Update the req.user object with the latest data
-            req.user.analysis_count = updatedUser.analysis_count;
-            req.user.last_reset_date = updatedUser.last_reset_date;
+            // Keep the req.user object updated with the latest data
+            req.user.analysis_count = currentUser.analysis_count;
+            req.user.last_reset_date = currentUser.last_reset_date;
             
             // Create the analysis record
             console.log('Creating analysis record');

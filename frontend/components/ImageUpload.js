@@ -15,10 +15,11 @@ window.SymptomSentryComponents.initializeImageUpload = function(container) {
 }
 
 function renderUploadUI(container) {
-    // Check if user is authenticated
-    const authToken = localStorage.getItem('authToken');
+    // Check if user is authenticated using the utils function
+    const isAuthenticated = window.SymptomSentryUtils.isAuthenticated();
+    console.log('[ImageUpload] Authentication check: isAuthenticated =', isAuthenticated);
     
-    if (!authToken) {
+    if (!isAuthenticated) {
         // User is not logged in, show login prompt
         container.innerHTML = `
             <div class="upload-container">
@@ -161,10 +162,11 @@ function renderUploadUI(container) {
 }
 
 function setupUploadEventListeners(container) {
-    // Check if user is authenticated
-    const authToken = localStorage.getItem('authToken');
+    // Check if user is authenticated using the utils function
+    const isAuthenticated = window.SymptomSentryUtils.isAuthenticated();
+    console.log('[ImageUpload] Authentication check: isAuthenticated =', isAuthenticated);
     
-    if (!authToken) {
+    if (!isAuthenticated) {
         // If not authenticated, add event listeners for login/register buttons
         const loginBtn = container.querySelector('.login-prompt-btn');
         const registerBtn = container.querySelector('.register-prompt-btn');

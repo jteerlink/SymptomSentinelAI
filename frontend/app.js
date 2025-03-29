@@ -41,8 +41,95 @@ document.addEventListener('DOMContentLoaded', () => {
     // Handle auth state changes
     document.addEventListener('authStateChanged', (event) => {
         console.log('[App] Auth state changed:', event.detail.isAuthenticated ? 'Authenticated' : 'Not authenticated');
-        updateUIForAuthState(event.detail.isAuthenticated, event.detail.user);
+        
+        // Use the proper function to update UI based on auth state
+        if (event.detail.isAuthenticated && event.detail.user) {
+            // Use updateProfileUI to update the UI for authenticated user
+            if (window.SymptomSentryUtils && window.SymptomSentryUtils.updateProfileUI) {
+                window.SymptomSentryUtils.updateProfileUI(
+                    event.detail.user.email,
+                    event.detail.user.name,
+                    event.detail.user,
+                    false // Don't show notification
+                );
+            }
+        } else {
+            // Handle not authenticated state
+            resetUIForUnauthenticatedState();
+        }
     });
+
+// Helper function to reset UI for unauthenticated state
+function resetUIForUnauthenticatedState() {
+    // Update the navigation menu Account link
+    const accountNavLink = document.getElementById('account-nav-link');
+    if (accountNavLink) {
+        accountNavLink.textContent = 'Sign In / Register';
+    }
+    
+    // Update the profile page
+    const profileTitle = document.querySelector('.card-title.mt-3');
+    const profilePlan = document.querySelector('.card-text.text-muted');
+    const signInButton = document.querySelector('.btn.btn-outline-danger.mt-3');
+    const accountInfo = document.querySelector('.card-body p');
+    
+    if (profileTitle) {
+        profileTitle.textContent = 'Guest User';
+    }
+    
+    if (profilePlan) {
+        profilePlan.innerHTML = '<strong>Not Signed In</strong>';
+        // Remove any usage info
+        const existingUsageInfo = profilePlan.querySelector('.usage-info');
+        if (existingUsageInfo) {
+            existingUsageInfo.remove();
+        }
+    }
+    
+    if (signInButton) {
+        // Reset sign in button
+        signInButton.textContent = 'Sign In / Register';
+        signInButton.classList.remove('btn-outline-danger');
+        signInButton.classList.add('btn-outline-primary');
+        
+        // Remove and recreate to reset event listeners
+        signInButton.replaceWith(signInButton.cloneNode(true));
+        
+        // Add event listener to the new button
+        const newButton = document.querySelector('.btn.btn-outline-primary.mt-3');
+        if (newButton) {
+            newButton.addEventListener('click', () => {
+                console.log('Sign In button clicked');
+                window.SymptomSentryApp.handleRegistration();
+            });
+        }
+    }
+    
+    // Update account info paragraph
+    if (accountInfo) {
+        accountInfo.textContent = 'Sign in to access your account and analysis history.';
+    }
+    
+    // Hide any profile settings
+    const profileSettings = document.querySelector('.profile-settings');
+    if (profileSettings) {
+        profileSettings.style.display = 'none';
+    }
+    
+    // Disable any login-required elements
+    document.querySelectorAll('.login-required').forEach(element => {
+        element.classList.add('disabled');
+    });
+    
+    // Update Analysis components to show login prompts
+    const analysisComponents = ['Analysis', 'ImageUpload', 'AnalysisHistory'];
+    analysisComponents.forEach(component => {
+        if (window[`SymptomSentry${component}`] && 
+            window[`SymptomSentry${component}`].updateForAuthState) {
+            window[`SymptomSentry${component}`].updateForAuthState(false);
+        }
+    });
+}
     
     // Listen for subscription updated events from Analysis.js
     document.addEventListener('subscriptionUpdated', (event) => {

@@ -28,12 +28,44 @@ function initAnalysisHistory(container) {
     // Render the initial UI
     renderAnalysisHistoryUI(container);
     
+    // Listen for auth state changes directly
+    document.addEventListener('authStateChanged', (event) => {
+        console.log('[Analysis History] Auth state changed event received:', event.detail.isAuthenticated);
+        if (event.detail.isAuthenticated) {
+            renderAnalysisHistoryUI(container);
+            setupEventListeners(container);
+            loadAnalysisHistory(container);
+        } else {
+            renderLoginPrompt(container);
+        }
+    });
+    
     // Setup event listeners
     setupEventListeners(container);
     
     // Load analysis history data
     loadAnalysisHistory(container);
 }
+
+/**
+ * Update the component when authentication state changes
+ * 
+ * @param {boolean} isAuthenticated - Whether the user is authenticated
+ */
+window.SymptomSentryComponents.AnalysisHistory = window.SymptomSentryComponents.AnalysisHistory || {};
+window.SymptomSentryComponents.AnalysisHistory.updateAuthState = function(isAuthenticated) {
+    console.log('[Analysis History] External auth state update:', isAuthenticated);
+    const container = document.getElementById('analysis-history-component');
+    if (container) {
+        if (isAuthenticated) {
+            renderAnalysisHistoryUI(container);
+            setupEventListeners(container);
+            loadAnalysisHistory(container);
+        } else {
+            renderLoginPrompt(container);
+        }
+    }
+};
 
 /**
  * Render the login prompt for unauthenticated users

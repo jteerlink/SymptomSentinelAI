@@ -325,6 +325,43 @@ function notifyStateChange() {
             console.error('[AuthState] Error in auth state listener:', error);
         }
     });
+    
+    // Update component states directly using the standardized updateAuthState method
+    // Analysis component
+    if (window.SymptomSentryComponents && 
+        window.SymptomSentryComponents.Analysis && 
+        typeof window.SymptomSentryComponents.Analysis.updateAuthState === 'function') {
+        try {
+            console.log('[AuthState] Updating Analysis component');
+            window.SymptomSentryComponents.Analysis.updateAuthState(_state.isAuthenticated);
+        } catch (error) {
+            console.error('[AuthState] Error updating Analysis component:', error);
+        }
+    }
+    
+    // ImageUpload component
+    if (window.SymptomSentryComponents && 
+        window.SymptomSentryComponents.ImageUpload && 
+        typeof window.SymptomSentryComponents.ImageUpload.updateAuthState === 'function') {
+        try {
+            console.log('[AuthState] Updating ImageUpload component');
+            window.SymptomSentryComponents.ImageUpload.updateAuthState(_state.isAuthenticated);
+        } catch (error) {
+            console.error('[AuthState] Error updating ImageUpload component:', error);
+        }
+    }
+    
+    // AnalysisHistory component
+    if (window.SymptomSentryComponents && 
+        window.SymptomSentryComponents.AnalysisHistory && 
+        typeof window.SymptomSentryComponents.AnalysisHistory.updateAuthState === 'function') {
+        try {
+            console.log('[AuthState] Updating AnalysisHistory component');
+            window.SymptomSentryComponents.AnalysisHistory.updateAuthState(_state.isAuthenticated);
+        } catch (error) {
+            console.error('[AuthState] Error updating AnalysisHistory component:', error);
+        }
+    }
 }
 
 // Public API methods

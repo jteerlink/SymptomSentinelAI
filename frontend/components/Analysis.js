@@ -15,7 +15,27 @@ window.SymptomSentryComponents.initializeAnalysis = function(container) {
         const results = event.detail;
         renderAnalysisResults(container, results);
     });
+    
+    // Listen for auth state changes directly
+    document.addEventListener('authStateChanged', (event) => {
+        console.log('[Analysis] Auth state changed event received:', event.detail.isAuthenticated);
+        renderInitialAnalysisUI(container);
+    });
 }
+
+// Export function to update component when auth state changes
+window.SymptomSentryComponents.Analysis = window.SymptomSentryComponents.Analysis || {};
+window.SymptomSentryComponents.Analysis.updateAuthState = function(isAuthenticated) {
+    console.log('[Analysis] Updating for auth state change:', isAuthenticated);
+    const container = document.getElementById('analysis-results-component');
+    if (container) {
+        renderInitialAnalysisUI(container);
+    }
+}
+
+// For backward compatibility
+window.SymptomSentryComponents.Analysis.updateAuthenticationState = 
+    window.SymptomSentryComponents.Analysis.updateAuthState;
 
 function renderInitialAnalysisUI(container) {
     // Check if user is authenticated using the helper function

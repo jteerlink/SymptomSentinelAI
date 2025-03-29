@@ -53,10 +53,19 @@ document.addEventListener('DOMContentLoaded', () => {
                     false // Don't show notification
                 );
             }
+            
+            // All component updates are handled directly in the auth-state.js notifyStateChange function
+            // for consistency across the application, using the standardized updateAuthState methods
         } else {
             // Handle not authenticated state
             resetUIForUnauthenticatedState();
+            
+            // All component updates are handled directly in the auth-state.js notifyStateChange function
+            // for consistency across the application, using the standardized updateAuthState methods
         }
+        
+        // All component updates are handled directly in the auth-state.js notifyStateChange function
+        // for consistency across the application, using the standardized updateAuthState methods
     });
 
 // Helper function to reset UI for unauthenticated state
@@ -121,14 +130,8 @@ function resetUIForUnauthenticatedState() {
         element.classList.add('disabled');
     });
     
-    // Update Analysis components to show login prompts
-    const analysisComponents = ['Analysis', 'ImageUpload', 'AnalysisHistory'];
-    analysisComponents.forEach(component => {
-        if (window[`SymptomSentry${component}`] && 
-            window[`SymptomSentry${component}`].updateForAuthState) {
-            window[`SymptomSentry${component}`].updateForAuthState(false);
-        }
-    });
+    // All component updates are handled directly in the auth-state.js notifyStateChange function
+    // for consistency across the application, using the standardized updateAuthState methods
 }
     
     // Listen for subscription updated events from Analysis.js

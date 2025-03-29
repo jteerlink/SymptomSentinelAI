@@ -12,7 +12,30 @@ window.SymptomSentryComponents.initializeImageUpload = function(container) {
     
     // Setup event listeners for the upload functionality
     setupUploadEventListeners(container);
+    
+    // Add event listener for authentication state changes
+    document.addEventListener('authStateChanged', (event) => {
+        console.log('[ImageUpload] Auth state changed event received:', event.detail.isAuthenticated);
+        // Re-render UI based on new auth state
+        renderUploadUI(container);
+        setupUploadEventListeners(container);
+    });
 }
+
+// Export function to update component when auth state changes
+window.SymptomSentryComponents.ImageUpload = window.SymptomSentryComponents.ImageUpload || {};
+window.SymptomSentryComponents.ImageUpload.updateAuthState = function(isAuthenticated) {
+    console.log('[ImageUpload] Updating for auth state change:', isAuthenticated);
+    const container = document.getElementById('image-upload-component');
+    if (container) {
+        renderUploadUI(container);
+        setupUploadEventListeners(container);
+    }
+}
+
+// For backward compatibility (old namespace)
+window.SymptomSentryImageUpload = window.SymptomSentryImageUpload || {};
+window.SymptomSentryImageUpload.updateForAuthState = window.SymptomSentryComponents.ImageUpload.updateAuthState;
 
 function renderUploadUI(container) {
     // Check if user is authenticated using the utils function

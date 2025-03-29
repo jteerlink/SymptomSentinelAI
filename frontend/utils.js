@@ -449,6 +449,18 @@ window.SymptomSentryUtils.clearAuthData = function() {
  * Log the user out completely
  */
 window.SymptomSentryUtils.logout = function() {
+    console.log('[Logout] Logging out user');
+    
+    // Use the centralized auth state manager if available
+    if (window.SymptomSentryAuth && window.SymptomSentryAuth.logout) {
+        console.log('[Logout] Using centralized auth manager for logout');
+        window.SymptomSentryAuth.logout();
+        return;
+    }
+    
+    // Fallback to legacy logout if auth state manager is not available
+    console.warn('[Logout] Auth state manager not found, using legacy logout');
+    
     // Make a server request to invalidate the session and clear cookies
     fetch('/api/logout', {
         method: 'POST',

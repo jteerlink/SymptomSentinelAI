@@ -12,13 +12,6 @@ const startAnalysisBtn = document.getElementById('start-analysis-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
-    // Clear any stored authentication data on app initialization
-    // This ensures the app always starts in a logged-out state
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('refreshToken');
-    localStorage.removeItem('tokenExpires');
-    console.log('[Auth] Cleared stored authentication data for clean startup state');
-    
     // We'll only create the debug button if we're in debug mode
     const isDebugMode = false; // Set to true only during development/testing
     
@@ -41,9 +34,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Add event listener for the logout test button
         document.getElementById('test-logout-btn').addEventListener('click', () => {
             console.log('[Debug] Testing logout function');
-            window.SymptomSentryUtils.logout();
+            window.SymptomSentryAuth.logout();
         });
     }
+    
+    // Handle auth state changes
+    document.addEventListener('authStateChanged', (event) => {
+        console.log('[App] Auth state changed:', event.detail.isAuthenticated ? 'Authenticated' : 'Not authenticated');
+        updateUIForAuthState(event.detail.isAuthenticated, event.detail.user);
+    });
     
     // Listen for subscription updated events from Analysis.js
     document.addEventListener('subscriptionUpdated', (event) => {
@@ -409,99 +408,72 @@ window.SymptomSentryApp.handleRegistration = function() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing in...';
         
-        // Function to reset button state
-        const resetButton = () => {
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
-        };
-        
         try {
-            // Create the payload
-            const payload = JSON.stringify({ email, password });
-            console.log('[Fetch] Executing fetch to: /api/login');
-            console.log('[Fetch] Request payload:', { email, password: '********' });
-            
-            // Call login API
-            const response = await fetch('/api/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: payload,
-                credentials: 'include' // Important: Include cookies in the request
-            });
-            
-            console.log('[Fetch] Response status:', response.status, response.statusText);
-            console.log('[Fetch] Response headers:', Object.fromEntries([...response.headers.entries()]));
-            
-            // Get the response text first to debug any parsing issues
-            const responseText = await response.text();
-            console.log('[Fetch] Raw response text:', responseText);
-            
-            // Try to parse the response as JSON
-            let data;
-            try {
-                data = JSON.parse(responseText);
-                console.log('[Fetch] Parsed response data:', data);
-            } catch (parseError) {
-                console.error('[Fetch] JSON parse error:', parseError);
-                console.error('[Fetch] Failed to parse response text:', responseText);
-                throw new Error('Server response format error. Please try again.');
-            }
-            
-            // Check if the response contains an error 
-            if (!response.ok) {
-                console.error('[Fetch] Error response:', data);
-                throw new Error(data.message || 'Login failed');
-            }
-            
-            // Enhanced logging for response structure debugging
-            console.log('[Auth] Full response structure:', JSON.stringify(data));
-            console.log('[Auth] Response keys:', Object.keys(data));
-            
-            // Validate the response structure
-            if (!data.accessToken) {
-                console.error('[Fetch] Missing access token in response:', data);
-                // Check if the token is under a different key name
-                if (data.token) {
-                    console.log('[Auth] Found token under "token" key instead of "accessToken" - will use this');
-                    data.accessToken = data.token;
-                } else {
-                    throw new Error('Invalid server response: Missing authentication token');
+            // Use the centralized auth state manager for login if available
+            if (window.SymptomSentryAuth && window.SymptomSentryAuth.login) {
+                console.log('[Auth] Using centralized auth manager for login');
+                await window.SymptomSentryAuth.login(email, password);
+                
+                // The auth state manager handles notifications and UI updates
+                // Just close the modal
+                authModal.hide();
+            } else {
+                // Fallback to legacy login if auth state manager is not available
+                console.warn('[Auth] Auth state manager not found, using legacy login');
+                
+                // Legacy login code
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password }),
+                    credentials: 'include' // Include cookies in the request
+                });
+                
+                const responseText = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error('Server response format error. Please try again.');
                 }
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Login failed');
+                }
+                
+                // Validate the response structure
+                if (!data.accessToken && data.token) {
+                    data.accessToken = data.token;
+                }
+                
+                if (!data.accessToken || !data.user) {
+                    throw new Error('Invalid server response: Missing authentication data');
+                }
+                
+                // Store the tokens and user information
+                localStorage.setItem('authToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken || '');
+                
+                // Calculate token expiration time (1 hour from now)
+                const expiresAt = new Date();
+                expiresAt.setHours(expiresAt.getHours() + 1);
+                localStorage.setItem('tokenExpires', expiresAt.toISOString());
+                
+                // Set the user's profile information - don't show notification from here
+                window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user, false);
+                
+                // Close the modal
+                authModal.hide();
+                
+                // Show success message
+                window.SymptomSentryUtils.showNotification('Login successful! Welcome back.', 'success');
             }
-            
-            if (!data.user) {
-                console.error('[Fetch] Missing user data in response:', data);
-                throw new Error('Invalid server response: Missing user data');
-            }
-            
-            console.log('[Auth] Login successful, storing tokens and user data');
-            
-            // Store the tokens and user information
-            localStorage.setItem('authToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken);
-            
-            // Calculate token expiration time (1 hour from now)
-            const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
-            localStorage.setItem('tokenExpires', expiresAt.toISOString());
-            
-            // Set the user's profile information - don't show notification from here
-            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user, false);
-            
-            // Close the modal
-            authModal.hide();
-            
-            // Show success message
-            window.SymptomSentryUtils.showNotification('Login successful! Welcome back.', 'success');
-            
         } catch (error) {
             console.error('[Auth] Login error:', error);
-            
-            // Show error message
             window.SymptomSentryUtils.showNotification(`Login failed: ${error.message}`, 'danger');
-            
         } finally {
             // Reset button state
             submitButton.disabled = false;
@@ -558,133 +530,114 @@ window.SymptomSentryApp.handleRegistration = function() {
         submitButton.disabled = true;
         submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Registering...';
         
-        // Function to reset button state
-        const resetButton = () => {
-            submitButton.disabled = false;
-            submitButton.innerHTML = originalButtonText;
-        };
-        
         try {
-            console.log('[Registration] 🔄 Sending registration request to server...');
-            console.log('[Registration] Payload:', { name, email, password: '********' });
-            
-            // Call register API
-            const response = await fetch('/api/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ name, email, password }),
-                credentials: 'include' // Include cookies in the request
-            });
-            
-            console.log('[Registration] 📥 Server response received');
-            console.log('[Registration] Response status:', response.status, response.statusText);
-            console.log('[Registration] Response headers:', Object.fromEntries([...response.headers.entries()]));
-            
-            // Get the response text first to debug any parsing issues
-            const responseText = await response.text();
-            console.log('[Registration] Raw response text:', responseText);
-            
-            // Try to parse the response as JSON
-            let data;
-            try {
-                data = JSON.parse(responseText);
-                console.log('[Registration] Parsed response data:', data);
-            } catch (parseError) {
-                console.error('[Registration] ❌ JSON parse error:', parseError);
-                console.error('[Registration] ❌ Failed to parse response text:', responseText);
-                throw new Error('Server response format error. Please try again.');
+            // Use the centralized auth state manager for registration if available
+            if (window.SymptomSentryAuth && window.SymptomSentryAuth.register) {
+                console.log('[Registration] Using centralized auth manager for registration');
+                
+                try {
+                    await window.SymptomSentryAuth.register(name, email, password);
+                    
+                    // The auth state manager handles notifications and UI updates
+                    // Just close the modal
+                    authModal.hide();
+                } catch (error) {
+                    console.error('[Registration] Registration failed with error:', error);
+                    
+                    // Categorize the error for better user feedback
+                    let errorMessage;
+                    if (error.message.includes('already exists') || error.message.includes('already in use')) {
+                        errorMessage = 'An account with this email already exists. Please use a different email or try signing in.';
+                    } else if (error.message.includes('password')) {
+                        errorMessage = `Password issue: ${error.message}`;
+                    } else if (error.message.includes('format')) {
+                        errorMessage = `Format error: ${error.message}`;
+                    } else {
+                        errorMessage = error.message || 'Registration failed, please try again';
+                    }
+                    
+                    // Show error message to user
+                    window.SymptomSentryUtils.showNotification(`Registration failed: ${errorMessage}`, 'danger');
+                }
+            } else {
+                // Fallback to legacy registration if auth state manager is not available
+                console.warn('[Registration] Auth state manager not found, using legacy registration');
+                
+                // Call register API
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ name, email, password }),
+                    credentials: 'include' // Include cookies in the request
+                });
+                
+                // Get the response text and parse as JSON
+                const responseText = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error('Server response format error. Please try again.');
+                }
+                
+                if (!response.ok) {
+                    throw new Error(data.message || 'Registration failed');
+                }
+                
+                // Verify response contains the expected data
+                if (!data.user) {
+                    throw new Error('Invalid server response: Missing user data');
+                }
+                
+                // Handle token key variations
+                if (!data.accessToken && data.token) {
+                    data.accessToken = data.token;
+                }
+                
+                if (!data.accessToken) {
+                    throw new Error('Invalid server response: Missing authentication token');
+                }
+                
+                // Store the tokens
+                localStorage.setItem('authToken', data.accessToken);
+                localStorage.setItem('refreshToken', data.refreshToken || '');
+                
+                // Calculate token expiration time (1 hour from now)
+                const expiresAt = new Date();
+                expiresAt.setHours(expiresAt.getHours() + 1);
+                localStorage.setItem('tokenExpires', expiresAt.toISOString());
+                
+                // Set the user's profile information - don't show notification from here
+                window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user, false);
+                
+                // Close the modal
+                authModal.hide();
+                
+                // Show success message
+                window.SymptomSentryUtils.showNotification('Registration successful! Welcome to SymptomSentryAI.', 'success');
             }
-            
-            if (!response.ok) {
-                console.error('[Registration] ❌ Server returned error response:', data);
-                console.error('[Registration] Status code:', response.status);
-                throw new Error(data.message || 'Registration failed');
-            }
-            
-            // Enhanced logging for response structure debugging
-            console.log('[Registration] ✅ Registration successful!');
-            console.log('[Registration] Full response structure:', JSON.stringify(data));
-            console.log('[Registration] Response keys:', Object.keys(data));
-            
-            // Verify response contains the expected data
-            if (!data.user) {
-                console.error('[Registration] ❌ Missing user data in response');
-                throw new Error('Invalid server response: Missing user data');
-            }
-            
-            console.log('[Registration] User data received:', {
-                id: data.user.id,
-                email: data.user.email,
-                name: data.user.name,
-                subscription: data.user.subscription
-            });
-            
-            // Handle token key variations
-            if (!data.accessToken && data.token) {
-                console.log('[Registration] Token naming inconsistency detected');
-                console.log('[Registration] ⚠️ Found token under "token" key instead of "accessToken" - will use this');
-                data.accessToken = data.token;
-            }
-            
-            if (!data.accessToken) {
-                console.error('[Registration] ❌ Missing access token in response');
-                throw new Error('Invalid server response: Missing authentication token');
-            }
-            
-            console.log('[Registration] 🔐 Storing authentication tokens...');
-            
-            // Store the tokens
-            localStorage.setItem('authToken', data.accessToken);
-            localStorage.setItem('refreshToken', data.refreshToken || ''); // Handle case where refreshToken might be missing
-            
-            // Calculate token expiration time (1 hour from now)
-            const expiresAt = new Date();
-            expiresAt.setHours(expiresAt.getHours() + 1); // 1 hour from now
-            localStorage.setItem('tokenExpires', expiresAt.toISOString());
-            console.log('[Registration] Token expiration set to:', expiresAt.toISOString());
-            
-            console.log('[Registration] 👤 Updating user interface with profile information...');
-            // Set the user's profile information - don't show notification from here
-            window.SymptomSentryUtils.updateProfileUI(data.user.email, data.user.name, data.user, false);
-            
-            // Close the modal
-            authModal.hide();
-            
-            // Show success message
-            window.SymptomSentryUtils.showNotification('Registration successful! Welcome to SymptomSentryAI.', 'success');
-            
         } catch (error) {
-            console.error('[Registration] ❌ Registration failed with error:', error);
-            console.error('[Registration] Error message:', error.message);
-            if (error.stack) {
-                console.error('[Registration] Error stack trace:', error.stack);
-            }
+            console.error('[Registration] Registration failed with error:', error);
             
             // Categorize the error for better user feedback
             let errorMessage;
             if (error.message.includes('already exists') || error.message.includes('already in use')) {
                 errorMessage = 'An account with this email already exists. Please use a different email or try signing in.';
-                console.log('[Registration] ⚠️ Email already exists error detected');
             } else if (error.message.includes('password')) {
                 errorMessage = `Password issue: ${error.message}`;
-                console.log('[Registration] ⚠️ Password validation error detected');
             } else if (error.message.includes('format')) {
                 errorMessage = `Format error: ${error.message}`;
-                console.log('[Registration] ⚠️ Format error detected');
             } else {
                 errorMessage = error.message || 'Registration failed, please try again';
-                console.log('[Registration] ⚠️ Generic error');
             }
             
             // Show error message to user
             window.SymptomSentryUtils.showNotification(`Registration failed: ${errorMessage}`, 'danger');
-            console.log('[Registration] 📄 Error notification displayed to user');
-            
         } finally {
             // Reset button state
-            console.log('[Registration] 🔄 Resetting registration form button state');
             submitButton.disabled = false;
             submitButton.innerHTML = originalButtonText;
         }
@@ -996,10 +949,19 @@ function handleFailedTokenRefresh() {
 // Make sure the init function is defined properly
 window.SymptomSentryApp.init = function() {
     console.log('[App] Initializing SymptomSentryAI application');
+    
+    // Initialize the auth state manager first
+    if (window.SymptomSentryAuth && window.SymptomSentryAuth.init) {
+        console.log('[App] Initializing auth state manager');
+        window.SymptomSentryAuth.init();
+    } else {
+        console.warn('[App] Auth state manager not found, falling back to legacy auth');
+        checkAuthState();
+        setupTokenRefreshTimer();
+    }
+    
     setupNavigation();
     setupEventListeners();
-    checkAuthState();
-    setupTokenRefreshTimer();
 };
 
 // Initialize the app

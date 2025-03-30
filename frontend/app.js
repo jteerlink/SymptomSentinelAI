@@ -277,9 +277,46 @@ function setupNavigation() {
             });
             link.classList.add('active');
             
+            // Update URL without full page reload - clear any query parameters
+            if (targetPage !== 'detail') {
+                const url = new URL(window.location);
+                url.search = '';
+                url.hash = targetPage;
+                window.history.pushState({pageId: targetPage}, '', url);
+            }
+            
             // Show the target page, hide others
             showPage(targetPage);
         });
+    });
+    
+    // Listen for custom navigation events
+    document.addEventListener('navigate', (event) => {
+        const pageId = event.detail.pageId;
+        const params = event.detail.params || {};
+        
+        if (pageId === 'detail') {
+            // Handle detail page navigation
+            navigateToAnalysisDetail(params.analysisId);
+        } else {
+            const navLink = document.querySelector(`[data-page="${pageId}"]`);
+            
+            if (navLink) {
+                navLink.click();
+            }
+        }
+    });
+    
+    // Listen for browser back/forward navigation
+    window.addEventListener('popstate', (event) => {
+        if (event.state && event.state.pageId) {
+            const pageId = event.state.pageId;
+            const navLink = document.querySelector(`[data-page="${pageId}"]`);
+            
+            if (navLink) {
+                navLink.click();
+            }
+        }
     });
     
     // Start Analysis button on home page
@@ -319,6 +356,87 @@ function showPage(pageId) {
             debugLogoutContainer.style.display = 'block';
         } else {
             debugLogoutContainer.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Navigate to the analysis detail page
+ * 
+ * @param {string} analysisId - The ID of the analysis to display
+ */
+function navigateToAnalysisDetail(analysisId) {
+    console.log(`[App] Navigating to analysis detail page for ID: ${analysisId}`);
+    
+    if (!analysisId) {
+        console.error('[App] Cannot navigate to detail page: No analysis ID provided');
+        window.SymptomSentryUtils.showNotification('Error: No analysis ID provided', 'danger');
+        return;
+    }
+    
+    // Check if we have a detail page in the DOM
+    let detailPage = document.getElementById('detail-page');
+    
+    // If the detail page doesn't exist, create it
+    if (!detailPage) {
+        console.log('[App] Creating detail page container');
+        detailPage = document.createElement('div');
+        detailPage.id = 'detail-page';
+        detailPage.className = 'page'; // Make it a page container
+        
+        // Append to the main container
+        const mainContainer = document.querySelector('.main-container');
+        if (mainContainer) {
+            mainContainer.appendChild(detailPage);
+        } else {
+            document.body.appendChild(detailPage);
+        }
+    }
+    
+    // Set the URL with the analysis ID
+    const url = new URL(window.location);
+    url.search = `?id=${analysisId}`;
+    url.hash = 'detail';
+    window.history.pushState({pageId: 'detail', analysisId}, '', url);
+    
+    // Show the detail page
+    showPage('detail');
+    
+    // Clear the active state on nav links since detail page isn't in the nav
+    navLinks.forEach(navLink => {
+        navLink.classList.remove('active');
+    });
+    
+    // Initialize the detail component if available
+    if (window.SymptomSentryAnalysisDetail && window.SymptomSentryAnalysisDetail.init) {
+        window.SymptomSentryAnalysisDetail.init(detailPage);
+    } else {
+        console.error('[App] Analysis Detail component not loaded');
+        detailPage.innerHTML = `
+            <div class="container mt-4">
+                <div class="alert alert-danger">
+                    <h4 class="alert-heading">Component Error</h4>
+                    <p>The Analysis Detail component could not be loaded. Please try again later or contact support.</p>
+                    <hr>
+                    <p class="mb-0">
+                        <a href="#" class="btn btn-outline-secondary back-to-history">
+                            <i class="fas fa-arrow-left me-2"></i>Back to History
+                        </a>
+                    </p>
+                </div>
+            </div>
+        `;
+        
+        // Add event listener for the back button
+        const backBtn = detailPage.querySelector('.back-to-history');
+        if (backBtn) {
+            backBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const historyNavLink = document.querySelector('[data-page="history"]');
+                if (historyNavLink) {
+                    historyNavLink.click();
+                }
+            });
         }
     }
 }

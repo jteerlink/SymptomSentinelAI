@@ -137,28 +137,6 @@ function renderAnalysisHistoryUI(container) {
                 </div>
             </div>
         </div>
-        
-        <!-- Analysis Detail Modal -->
-        <div class="modal fade" id="analysisDetailModal" tabindex="-1" aria-labelledby="analysisDetailModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="analysisDetailModalLabel">Analysis Details</h5>
-                        <button type="button" class="btn-close close-modal-btn" data-bs-dismiss="modal" aria-label="Close" style="cursor: pointer; z-index: 20000;">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body" id="analysis-detail-container">
-                        <!-- Analysis details will be loaded here -->
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary close-modal-btn" data-bs-dismiss="modal" style="cursor: pointer; z-index: 20000;">Close</button>
-                        <button type="button" class="btn btn-danger delete-analysis-btn">Delete</button>
-                        <button type="button" class="btn btn-primary share-analysis-btn">Share</button>
-                    </div>
-                </div>
-            </div>
-        </div>
     `;
 }
 
@@ -190,43 +168,6 @@ function setupEventListeners(container) {
             sortAnalysisHistory(sortType, container);
         });
     });
-    
-    // Delete analysis button in modal
-    const deleteAnalysisBtn = document.querySelector('.delete-analysis-btn');
-    if (deleteAnalysisBtn) {
-        deleteAnalysisBtn.addEventListener('click', () => {
-            const analysisId = deleteAnalysisBtn.getAttribute('data-analysis-id');
-            if (analysisId) {
-                deleteAnalysis(analysisId, container);
-            }
-        });
-    }
-    
-    // Share analysis button in modal
-    const shareAnalysisBtn = document.querySelector('.share-analysis-btn');
-    if (shareAnalysisBtn) {
-        shareAnalysisBtn.addEventListener('click', () => {
-            const analysisId = shareAnalysisBtn.getAttribute('data-analysis-id');
-            if (analysisId) {
-                shareAnalysis(analysisId);
-            }
-        });
-    }
-    
-    // Add explicit close button handlers for all close-modal-btn elements
-    const closeModalBtns = document.querySelectorAll('.close-modal-btn');
-    if (closeModalBtns && closeModalBtns.length > 0) {
-        closeModalBtns.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault(); // Prevent any default action
-                e.stopPropagation(); // Stop event propagation
-                console.log('[Analysis History] Close button clicked');
-                
-                // Try to close the modal in multiple ways to ensure it works
-                closeAnalysisDetailModal();
-            });
-        });
-    }
 }
 
 /**
@@ -422,9 +363,15 @@ function sortAnalysisHistory(sortType, container) {
  * @param {string} analysisId - The ID of the analysis to view
  */
 function viewAnalysisDetails(analysisId) {
-    console.log(`[Analysis History] Viewing details for analysis: ${analysisId}`);
+    console.log(`[Analysis History] Navigating to analysis detail page for ID: ${analysisId}`);
     
-    // Get auth token
+    if (!analysisId) {
+        console.error('[Analysis History] No analysis ID provided');
+        window.SymptomSentryUtils.showNotification('Error: No analysis ID provided', 'danger');
+        return;
+    }
+    
+    // Get auth token to verify authenticated
     const token = window.SymptomSentryUtils.getAuthToken();
     if (!token) {
         console.error('[Analysis History] No auth token found');
@@ -432,146 +379,18 @@ function viewAnalysisDetails(analysisId) {
         return;
     }
     
-    // Make sure any existing modal is fully closed before opening a new one
-    // This prevents z-index issues with multiple backdrops
-    const existingModal = document.querySelector('.modal-backdrop');
-    if (existingModal) {
-        existingModal.remove();
-        document.body.classList.remove('modal-open');
-        document.body.style.overflow = '';
-        document.body.style.paddingRight = '';
-    }
-    
-    // Show loading state in modal
-    const modalBody = document.getElementById('analysis-detail-container');
-    if (modalBody) {
-        modalBody.innerHTML = `
-            <div class="text-center py-4">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2">Loading analysis details...</p>
-            </div>
-        `;
-    }
-    
-    // Set the analysis ID for the delete and share buttons
-    const deleteButton = document.querySelector('.delete-analysis-btn');
-    const shareButton = document.querySelector('.share-analysis-btn');
-    if (deleteButton) deleteButton.setAttribute('data-analysis-id', analysisId);
-    if (shareButton) shareButton.setAttribute('data-analysis-id', analysisId);
-    
-    // Show the modal
-    const modalElement = document.getElementById('analysisDetailModal');
-    
-    // Ensure the modal has proper z-index
-    modalElement.style.zIndex = "1050";
-    
-    // Initialize the modal
-    const modal = new bootstrap.Modal(modalElement, {
-        backdrop: true,
-        keyboard: true,
-        focus: true
-    });
-    
-    // Store the modal instance globally so it can be accessed by close buttons
-    window.SymptomSentryAnalysisHistory.currentModal = modal;
-    
-    // Add additional close button event listener
-    const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"]');
-    closeButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            if (modal) modal.hide();
-        });
-    });
-    
-    // Create a scoped, named function for keyboard event handling so we can properly remove it
-    function escKeyHandler(e) {
-        if (e.key === 'Escape') {
-            console.log('[Analysis History] Escape key pressed, closing modal');
-            if (modal) modal.hide();
-        }
-    }
-    
-    // Add keyboard event listener for Escape key
-    document.addEventListener('keydown', escKeyHandler);
-    
-    // Add event listener for modal hidden event to clean up
-    modalElement.addEventListener('hidden.bs.modal', function () {
-        console.log('[Analysis History] Modal hidden event triggered, cleaning up event listeners');
-        document.removeEventListener('keydown', escKeyHandler);
-    });
-    
-    modal.show();
-    
-    // Fetch the analysis details
-    fetch(`/api/analysis/${analysisId}`, {
-        method: 'GET',
-        credentials: 'include', // Include cookies for auth
-        headers: {
-            'Content-Type': 'application/json',
-            ...(token !== 'use-cookies' ? { 'Authorization': `Bearer ${token}` } : {})
-        }
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status}`);
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('[Analysis History] Analysis details loaded:', data);
-        
-        // Extract the analysis object from the response
-        // Our new endpoint returns { analysis: {...} }
-        const analysis = data.analysis || data;
-        
-        if (modalBody) {
-            // Format date and time
-            const date = new Date(analysis.created_at || analysis.timestamp || analysis.createdAt);
-            const formattedDate = date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            
-            // Render the analysis details using the same format as the Analysis component
-            modalBody.innerHTML = `
-                <div class="mb-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <div>
-                            <h6>Analysis Date:</h6>
-                            <p>${formattedDate}</p>
-                        </div>
-                        <div>
-                            <h6>Analysis Type:</h6>
-                            <p class="text-capitalize">
-                                <span class="badge ${analysis.type === 'throat' ? 'bg-danger' : 'bg-info'}">${analysis.type}</span>
-                            </p>
-                        </div>
-                    </div>
-                    <hr>
-                    <h5 class="mb-3">Detected Conditions</h5>
-                    <div class="row">
-                        ${renderConditionCards(analysis.conditions)}
-                    </div>
-                </div>
-            `;
-        }
-    })
-    .catch(error => {
-        console.error('[Analysis History] Error loading analysis details:', error);
-        if (modalBody) {
-            modalBody.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    Failed to load analysis details. Please try again later.
-                </div>
-            `;
+    // Use the custom navigation event to navigate to the detail page
+    // This is handled by the main app.js navigation system
+    const navigateEvent = new CustomEvent('navigate', {
+        detail: {
+            pageId: 'detail',
+            params: {
+                analysisId: analysisId
+            }
         }
     });
+    
+    document.dispatchEvent(navigateEvent);
 }
 
 /**
@@ -681,11 +500,17 @@ function deleteAnalysis(analysisId, container) {
     .then(data => {
         console.log('[Analysis History] Analysis deleted:', data);
         
-        // Close the modal
-        const modal = bootstrap.Modal.getInstance(document.getElementById('analysisDetailModal'));
-        if (modal) modal.hide();
+        // Check if we should navigate back to history
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('id') === analysisId) {
+            // We're on the detail page for this analysis, navigate back to history
+            const historyNavLink = document.querySelector('[data-page="history"]');
+            if (historyNavLink) {
+                historyNavLink.click();
+            }
+        }
         
-        // Remove the analysis from the list
+        // Remove the analysis from the list if we're on the history page
         const analysisItem = container.querySelector(`.analysis-item[data-analysis-id="${analysisId}"]`);
         if (analysisItem) {
             analysisItem.remove();
@@ -770,63 +595,6 @@ function showError(container, message) {
     }
 }
 
-/**
- * Helper function to close the analysis detail modal
- * This is a global function that can be called from anywhere
- * to safely close the analysis detail modal.
- */
-function closeAnalysisDetailModal() {
-    console.log('[Analysis History] Closing analysis detail modal');
-    
-    // First try to get the modal instance directly from Bootstrap
-    const modalElement = document.getElementById('analysisDetailModal');
-    if (modalElement) {
-        // Try getting the instance with Bootstrap's API
-        let modal = bootstrap.Modal.getInstance(modalElement);
-        
-        // If we couldn't get the instance, try using our stored reference
-        if (!modal && window.SymptomSentryAnalysisHistory.currentModal) {
-            modal = window.SymptomSentryAnalysisHistory.currentModal;
-        }
-        
-        // If we have a modal instance, hide it
-        if (modal) {
-            try {
-                modal.hide();
-                console.log('[Analysis History] Modal hidden successfully');
-                return true;
-            } catch (error) {
-                console.error('[Analysis History] Error hiding modal:', error);
-            }
-        }
-        
-        // Fallback: Try force-removing modal classes directly
-        try {
-            console.log('[Analysis History] Using fallback method to close modal');
-            modalElement.classList.remove('show');
-            modalElement.setAttribute('aria-hidden', 'true');
-            modalElement.style.display = 'none';
-            
-            // Also remove the modal backdrop if it exists
-            const backdrop = document.querySelector('.modal-backdrop');
-            if (backdrop) {
-                backdrop.remove();
-            }
-            
-            // Remove modal-open class from body
-            document.body.classList.remove('modal-open');
-            document.body.style.overflow = '';
-            document.body.style.paddingRight = '';
-            
-            return true;
-        } catch (error) {
-            console.error('[Analysis History] Fallback modal close failed:', error);
-        }
-    }
-    
-    return false; // Failed to close modal
-}
-
 // Export functions to the global namespace
 window.SymptomSentryAnalysisHistory = {
     init: initAnalysisHistory,
@@ -834,6 +602,5 @@ window.SymptomSentryAnalysisHistory = {
     sortHistory: sortAnalysisHistory,
     viewDetails: viewAnalysisDetails,
     deleteAnalysis: deleteAnalysis,
-    shareAnalysis: shareAnalysis,
-    closeModal: closeAnalysisDetailModal // Add direct modal close function
+    shareAnalysis: shareAnalysis
 };

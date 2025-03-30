@@ -210,6 +210,15 @@ function setupEventListeners(container) {
             }
         });
     }
+    
+    // Add explicit close button handler for modal
+    const closeModalBtn = document.querySelector('.modal-footer .btn-secondary');
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('analysisDetailModal'));
+            if (modal) modal.hide();
+        });
+    }
 }
 
 /**
@@ -435,7 +444,33 @@ function viewAnalysisDetails(analysisId) {
     if (shareButton) shareButton.setAttribute('data-analysis-id', analysisId);
     
     // Show the modal
-    const modal = new bootstrap.Modal(document.getElementById('analysisDetailModal'));
+    const modalElement = document.getElementById('analysisDetailModal');
+    const modal = new bootstrap.Modal(modalElement);
+    
+    // Store the modal instance globally so it can be accessed by close buttons
+    window.SymptomSentryAnalysisHistory.currentModal = modal;
+    
+    // Add additional close button event listener
+    const closeButtons = modalElement.querySelectorAll('[data-bs-dismiss="modal"]');
+    closeButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            if (modal) modal.hide();
+        });
+    });
+    
+    // Add keyboard event listener for Escape key
+    document.addEventListener('keydown', function escKeyHandler(e) {
+        if (e.key === 'Escape') {
+            if (modal) modal.hide();
+            document.removeEventListener('keydown', escKeyHandler);
+        }
+    });
+    
+    // Add event listener for modal hidden event to clean up
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        document.removeEventListener('keydown', escKeyHandler);
+    });
+    
     modal.show();
     
     // Fetch the analysis details
@@ -704,6 +739,20 @@ function showError(container, message) {
     }
 }
 
+/**
+ * Helper function to close the analysis detail modal
+ */
+function closeAnalysisDetailModal() {
+    console.log('[Analysis History] Closing analysis detail modal');
+    const modalElement = document.getElementById('analysisDetailModal');
+    const modal = bootstrap.Modal.getInstance(modalElement);
+    if (modal) {
+        modal.hide();
+    } else if (window.SymptomSentryAnalysisHistory.currentModal) {
+        window.SymptomSentryAnalysisHistory.currentModal.hide();
+    }
+}
+
 // Export functions to the global namespace
 window.SymptomSentryAnalysisHistory = {
     init: initAnalysisHistory,
@@ -711,5 +760,6 @@ window.SymptomSentryAnalysisHistory = {
     sortHistory: sortAnalysisHistory,
     viewDetails: viewAnalysisDetails,
     deleteAnalysis: deleteAnalysis,
-    shareAnalysis: shareAnalysis
+    shareAnalysis: shareAnalysis,
+    closeModal: closeAnalysisDetailModal // Add direct modal close function
 };

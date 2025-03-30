@@ -374,46 +374,30 @@ function navigateToAnalysisDetail(analysisId) {
         return;
     }
     
-    // Check if we have a detail page in the DOM
-    let detailPage = document.getElementById('detail-page');
-    
-    // If the detail page doesn't exist, create it
-    if (!detailPage) {
-        console.log('[App] Creating detail page container');
-        detailPage = document.createElement('div');
-        detailPage.id = 'detail-page';
-        detailPage.className = 'page'; // Make it a page container
-        
-        // Append to the main container
-        const mainContainer = document.querySelector('.main-container');
-        if (mainContainer) {
-            mainContainer.appendChild(detailPage);
-        } else {
-            document.body.appendChild(detailPage);
-        }
-    }
-    
     // Set the URL with the analysis ID
     const url = new URL(window.location);
     url.search = `?id=${analysisId}`;
-    url.hash = 'detail';
-    window.history.pushState({pageId: 'detail', analysisId}, '', url);
+    url.hash = 'analysis-detail';
+    window.history.pushState({pageId: 'analysis-detail', analysisId}, '', url);
     
     // Show the detail page
-    showPage('detail');
+    showPage('analysis-detail');
     
     // Clear the active state on nav links since detail page isn't in the nav
     navLinks.forEach(navLink => {
         navLink.classList.remove('active');
     });
     
-    // Initialize the detail component if available
-    if (window.SymptomSentryAnalysisDetail && window.SymptomSentryAnalysisDetail.init) {
-        window.SymptomSentryAnalysisDetail.init(detailPage);
-    } else {
-        console.error('[App] Analysis Detail component not loaded');
-        detailPage.innerHTML = `
-            <div class="container mt-4">
+    // Get the detail component container
+    const detailComponentContainer = document.getElementById('analysis-detail-component');
+    
+    if (detailComponentContainer) {
+        // Initialize the detail component
+        if (typeof initAnalysisDetail === 'function') {
+            initAnalysisDetail(detailComponentContainer);
+        } else {
+            console.error('[App] Analysis Detail component function not found');
+            detailComponentContainer.innerHTML = `
                 <div class="alert alert-danger">
                     <h4 class="alert-heading">Component Error</h4>
                     <p>The Analysis Detail component could not be loaded. Please try again later or contact support.</p>
@@ -424,20 +408,11 @@ function navigateToAnalysisDetail(analysisId) {
                         </a>
                     </p>
                 </div>
-            </div>
-        `;
-        
-        // Add event listener for the back button
-        const backBtn = detailPage.querySelector('.back-to-history');
-        if (backBtn) {
-            backBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const historyNavLink = document.querySelector('[data-page="history"]');
-                if (historyNavLink) {
-                    historyNavLink.click();
-                }
-            });
+            `;
         }
+    } else {
+        console.error('[App] Analysis detail component container not found in the DOM');
+        window.SymptomSentryUtils.showNotification('Error: Could not load analysis details view', 'danger');
     }
 }
 

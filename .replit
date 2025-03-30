@@ -33,10 +33,6 @@ args = "RunAllTests"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "BackendServer"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "FrontendServer"
 
 [[workflows.workflow.tasks]]
@@ -112,21 +108,6 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node run-all-tests.js"
-
-[[workflows.workflow]]
-name = "BackendServer"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd backend && NODE_ENV=development node server.js"
-waitForPort = 5000
 
 [[workflows.workflow]]
 name = "FrontendServer"

@@ -1,8 +1,7 @@
 // Import required modules
 const tf = require('@tensorflow/tfjs-node');
 const { v4: uuidv4 } = require('uuid');
-const { User } = require('../db/models/index');
-const Analysis = require('../models/Analysis');
+const { User, Analysis } = require('../db/models/index');
 const ApiError = require('../utils/apiError');
 
 // For the loadModel and other ML-related functions
@@ -850,8 +849,19 @@ exports.deleteAnalysis = async (req, res, next) => {
         
         console.log(`Deleting analysis ${analysisId} for user ${req.user.id}`);
         
-        // Delete the analysis (with user ID check for security)
-        const result = await Analysis.deleteById(analysisId, req.user.id);
+        // Verify the analysis belongs to this user before deleting
+        const analysis = await Analysis.findById(analysisId);
+        
+        if (!analysis) {
+            throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
+        }
+        
+        if (analysis.user_id !== req.user.id) {
+            throw ApiError.forbidden('You do not have permission to delete this analysis', 'PERMISSION_DENIED');
+        }
+        
+        // Delete the analysis
+        const result = await Analysis.delete(analysisId);
         
         console.log(`Delete operation result:`, result);
         

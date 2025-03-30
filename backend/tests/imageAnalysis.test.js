@@ -8,50 +8,39 @@ const bodyParser = require('body-parser');
 const fs = require('fs');
 const path = require('path');
 
-// Mock for Analysis model
-jest.mock('../models/Analysis', () => ({
-  create: jest.fn().mockResolvedValue({
-    id: '123e4567-e89b-12d3-a456-426614174111',
-    type: 'throat',
-    conditions: [
-      {
-        id: 'strep_throat',
-        name: 'Strep Throat',
-        confidence: 0.78,
-      }
-    ],
-    created_at: new Date().toISOString()
-  }),
-  deleteById: jest.fn().mockResolvedValue({ success: true }),
-  deleteByUserId: jest.fn().mockResolvedValue({ success: true, count: 5 })
-}));
-
-// Mock ML utilities
-jest.mock('../utils/modelLoader', () => ({
-  loadModel: jest.fn().mockResolvedValue({}),
-  preprocessImage: jest.fn().mockResolvedValue({}),
-  runInference: jest.fn().mockResolvedValue([
-    {
-      id: 'strep_throat',
-      name: 'Strep Throat',
-      confidence: 0.78,
-      description: 'A bacterial infection that causes inflammation and pain in the throat.',
-      symptoms: ['Throat pain', 'Red and swollen tonsils'],
-      isPotentiallySerious: true
-    },
-    {
-      id: 'pharyngitis',
-      name: 'Pharyngitis',
-      confidence: 0.35,
-      description: 'Inflammation of the pharynx, resulting in a sore throat.',
-      symptoms: ['Sore throat', 'Dry throat'],
-      isPotentiallySerious: false
-    }
-  ])
-}));
-
-// Mock for User model
+// Mock the db/models/index.js to provide Analysis model
 jest.mock('../db/models/index', () => {
+  // Create a mock Analysis model
+  const Analysis = {
+    create: jest.fn().mockResolvedValue({
+      id: '123e4567-e89b-12d3-a456-426614174111',
+      type: 'throat',
+      conditions: [
+        {
+          id: 'strep_throat',
+          name: 'Strep Throat',
+          confidence: 0.78,
+        }
+      ],
+      created_at: new Date().toISOString()
+    }),
+    findById: jest.fn().mockResolvedValue({
+      id: '123e4567-e89b-12d3-a456-426614174111',
+      type: 'throat',
+      user_id: 'test-user-id',
+      conditions: JSON.stringify([
+        {
+          id: 'strep_throat',
+          name: 'Strep Throat',
+          confidence: 0.78,
+        }
+      ]),
+      created_at: new Date().toISOString()
+    }),
+    delete: jest.fn().mockResolvedValue(true),
+    deleteByUserId: jest.fn().mockResolvedValue({ success: true, count: 5 })
+  };
+  
   // Mock subscription limits
   const SUBSCRIPTION_LIMITS = {
     free: {
@@ -79,6 +68,7 @@ jest.mock('../db/models/index', () => {
   
   // Return mock class and methods
   return {
+    Analysis,
     User: {
       SUBSCRIPTION_LIMITS,
       getById: jest.fn().mockResolvedValue(mockUser),
@@ -90,6 +80,32 @@ jest.mock('../db/models/index', () => {
     }
   };
 });
+
+// Mock ML utilities
+jest.mock('../utils/modelLoader', () => ({
+  loadModel: jest.fn().mockResolvedValue({}),
+  preprocessImage: jest.fn().mockResolvedValue({}),
+  runInference: jest.fn().mockResolvedValue([
+    {
+      id: 'strep_throat',
+      name: 'Strep Throat',
+      confidence: 0.78,
+      description: 'A bacterial infection that causes inflammation and pain in the throat.',
+      symptoms: ['Throat pain', 'Red and swollen tonsils'],
+      isPotentiallySerious: true
+    },
+    {
+      id: 'pharyngitis',
+      name: 'Pharyngitis',
+      confidence: 0.35,
+      description: 'Inflammation of the pharynx, resulting in a sore throat.',
+      symptoms: ['Sore throat', 'Dry throat'],
+      isPotentiallySerious: false
+    }
+  ])
+}));
+
+// User model is already mocked in the first db/models/index.js mock above
 
 // Mock the auth middleware
 jest.mock('../middleware/auth', () => {

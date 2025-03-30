@@ -114,11 +114,18 @@ class Analysis {
    * @returns {Promise<boolean>} True if analysis was deleted, false otherwise
    */
   static async delete(id) {
-    const deleted = await db('analyses')
-      .where({ id })
-      .delete();
-    
-    return deleted > 0;
+    console.log(`[Analysis.delete] Deleting analysis with ID: ${id}`);
+    try {
+      const deleted = await db('analyses')
+        .where({ id })
+        .delete();
+      
+      console.log(`[Analysis.delete] Delete result: ${deleted}`);
+      return deleted > 0;
+    } catch (error) {
+      console.error(`[Analysis.delete] Error deleting analysis:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -160,6 +167,27 @@ class Analysis {
       acc[curr.type] = parseInt(curr.count);
       return acc;
     }, {});
+  }
+
+  /**
+   * Delete all analyses for a user
+   * 
+   * @param {string} userId User ID
+   * @returns {Promise<Object>} Object with success flag and count of deleted records
+   */
+  static async deleteByUserId(userId) {
+    console.log(`[Analysis.deleteByUserId] Deleting all analyses for user: ${userId}`);
+    try {
+      const count = await db('analyses')
+        .where({ user_id: userId })
+        .delete();
+      
+      console.log(`[Analysis.deleteByUserId] Deleted ${count} analyses`);
+      return { success: true, count };
+    } catch (error) {
+      console.error(`[Analysis.deleteByUserId] Error deleting analyses:`, error);
+      throw error;
+    }
   }
 }
 

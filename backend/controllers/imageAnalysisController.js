@@ -754,7 +754,9 @@ exports.getAnalysisById = async (req, res, next) => {
         console.log(`Fetching analysis ${analysisId} for user ${req.user.id}`);
         
         // Fetch analysis from database
-        const analysis = await Analysis.findById(analysisId, req.user.id);
+        const analysis = await Analysis.findById(analysisId);
+        
+        console.log(`Analysis lookup result:`, analysis ? `Found ID: ${analysis.id}` : 'Not found');
         
         if (!analysis) {
             throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
@@ -762,6 +764,7 @@ exports.getAnalysisById = async (req, res, next) => {
         
         // Check if this analysis belongs to the authenticated user
         if (analysis.user_id !== req.user.id) {
+            console.log(`Analysis user mismatch: belongs to ${analysis.user_id}, but requested by ${req.user.id}`);
             throw ApiError.forbidden('You do not have permission to view this analysis', 'FORBIDDEN');
         }
         
@@ -852,11 +855,14 @@ exports.deleteAnalysis = async (req, res, next) => {
         // Verify the analysis belongs to this user before deleting
         const analysis = await Analysis.findById(analysisId);
         
+        console.log(`Analysis lookup for deletion:`, analysis ? `Found ID: ${analysis.id}` : 'Not found');
+        
         if (!analysis) {
             throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
         }
         
         if (analysis.user_id !== req.user.id) {
+            console.log(`Analysis permission mismatch for deletion: belongs to ${analysis.user_id}, but requested by ${req.user.id}`);
             throw ApiError.forbidden('You do not have permission to delete this analysis', 'PERMISSION_DENIED');
         }
         

@@ -17,18 +17,37 @@ class Analysis {
   static async create(analysisData) {
     const { id, userId, type, conditions, imageUrl } = analysisData;
     
+    console.log(`[Analysis.create] Creating analysis for user: ${userId}, type: ${type}`);
+    
+    // Prepare conditions for storage
+    let conditionsStr;
+    if (conditions) {
+      // Only stringify if it's not already a string
+      conditionsStr = typeof conditions === 'string' ? conditions : JSON.stringify(conditions);
+    }
+    
     // Insert analysis into database
     const [analysis] = await db('analyses').insert({
       id: id || uuidv4(), // Use provided ID or generate a new one
       user_id: userId,
       type,
-      conditions: JSON.stringify(conditions),
+      conditions: conditionsStr,
       image_url: imageUrl
     }).returning(['id', 'user_id', 'type', 'conditions', 'image_url', 'created_at']);
     
-    // Parse conditions back to JSON
+    console.log(`[Analysis.create] Created analysis with ID: ${analysis.id}`);
+    
+    // Parse conditions back to JSON if it's a string
     if (analysis && analysis.conditions) {
-      analysis.conditions = JSON.parse(analysis.conditions);
+      try {
+        // Only parse if it's a string
+        if (typeof analysis.conditions === 'string') {
+          analysis.conditions = JSON.parse(analysis.conditions);
+        }
+      } catch (error) {
+        console.error(`[Analysis.create] Error parsing conditions for analysis ${analysis.id}: ${error.message}`);
+        // Keep the original data to prevent data loss
+      }
     }
     
     return analysis;
@@ -45,9 +64,18 @@ class Analysis {
       .where({ id })
       .first();
     
-    // Parse conditions back to JSON
+    // Parse conditions back to JSON if it's a string
     if (analysis && analysis.conditions) {
-      analysis.conditions = JSON.parse(analysis.conditions);
+      try {
+        // Check if conditions is a string that needs parsing
+        if (typeof analysis.conditions === 'string') {
+          analysis.conditions = JSON.parse(analysis.conditions);
+        }
+        // Otherwise, it might already be an object (from a previous operation or test)
+      } catch (error) {
+        console.error(`[Analysis.findById] Error parsing conditions: ${error.message}`);
+        // Keep the original data to prevent data loss
+      }
     }
     
     return analysis || null;
@@ -69,10 +97,21 @@ class Analysis {
       .limit(limit)
       .offset(offset);
     
+    console.log(`[Analysis.findByUserId] Found ${analyses.length} analyses for user ${userId}`);
+    
     // Parse conditions back to JSON for each analysis
     return analyses.map(analysis => {
       if (analysis.conditions) {
-        analysis.conditions = JSON.parse(analysis.conditions);
+        try {
+          // Check if conditions is a string that needs parsing
+          if (typeof analysis.conditions === 'string') {
+            analysis.conditions = JSON.parse(analysis.conditions);
+          }
+          // Otherwise, it might already be an object (from a previous operation or test)
+        } catch (error) {
+          console.error(`[Analysis.findByUserId] Error parsing conditions for analysis ${analysis.id}: ${error.message}`);
+          // Keep the original data to prevent data loss
+        }
       }
       return analysis;
     });
@@ -86,8 +125,8 @@ class Analysis {
    * @returns {Promise<Object>} Updated analysis object
    */
   static async update(id, updateData) {
-    // If conditions is being updated, stringify it
-    if (updateData.conditions) {
+    // If conditions is being updated, stringify it if it's not already a string
+    if (updateData.conditions && typeof updateData.conditions !== 'string') {
       updateData.conditions = JSON.stringify(updateData.conditions);
     }
     
@@ -99,9 +138,20 @@ class Analysis {
       .update(updateData)
       .returning(['id', 'user_id', 'type', 'conditions', 'image_url', 'created_at', 'updated_at']);
     
-    // Parse conditions back to JSON
+    console.log(`[Analysis.update] Updated analysis: ${id}`);
+    
+    // Parse conditions back to JSON if it's a string
     if (analysis && analysis.conditions) {
-      analysis.conditions = JSON.parse(analysis.conditions);
+      try {
+        // Check if conditions is a string that needs parsing
+        if (typeof analysis.conditions === 'string') {
+          analysis.conditions = JSON.parse(analysis.conditions);
+        }
+        // Otherwise, it might already be an object (from a previous operation or test)
+      } catch (error) {
+        console.error(`[Analysis.update] Error parsing conditions for analysis ${analysis.id}: ${error.message}`);
+        // Keep the original data to prevent data loss
+      }
     }
     
     return analysis;
@@ -142,10 +192,21 @@ class Analysis {
       .limit(limit)
       .offset(offset);
     
+    console.log(`[Analysis.getAll] Found ${analyses.length} total analyses`);
+    
     // Parse conditions back to JSON for each analysis
     return analyses.map(analysis => {
       if (analysis.conditions) {
-        analysis.conditions = JSON.parse(analysis.conditions);
+        try {
+          // Check if conditions is a string that needs parsing
+          if (typeof analysis.conditions === 'string') {
+            analysis.conditions = JSON.parse(analysis.conditions);
+          }
+          // Otherwise, it might already be an object (from a previous operation or test)
+        } catch (error) {
+          console.error(`[Analysis.getAll] Error parsing conditions for analysis ${analysis.id}: ${error.message}`);
+          // Keep the original data to prevent data loss
+        }
       }
       return analysis;
     });

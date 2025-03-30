@@ -437,6 +437,74 @@ function setupUploadEventListeners(container) {
         
         console.log('[AnalyzeButton] User authenticated, proceeding with analysis');
         
+        // Check if user has reached their analysis limit by checking latest subscription data
+        try {
+            const response = await fetch('/api/analysis-history', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${window.SymptomSentryUtils.getAuthToken()}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                console.log('[AnalyzeButton] Subscription data:', data.subscription);
+                
+                // For free users, check if they've exceeded their limit
+                if (data.subscription.subscription === 'free') {
+                    const analysisCount = data.subscription.analysisCount;
+                    const analysisLimit = data.subscription.analysisLimit;
+                    
+                    if (analysisCount >= analysisLimit) {
+                        console.log('[AnalyzeButton] User has exceeded analysis limit:', analysisCount, '>=', analysisLimit);
+                        
+                        // Show error and prompt for upgrade
+                        showAnalysisError('You have reached your monthly analysis limit. Please upgrade to Premium for unlimited analyses.');
+                        
+                        // Show subscription upgrade prompt
+                        const subscriptionPrompt = document.createElement('div');
+                        subscriptionPrompt.className = 'mt-3 subscription-upgrade-prompt';
+                        subscriptionPrompt.innerHTML = `
+                            <div class="alert alert-warning">
+                                <h5><i class="fas fa-exclamation-circle"></i> Monthly Limit Reached</h5>
+                                <p>You've used all ${analysisLimit} of your free analyses this month. 
+                                   Your limit will reset on ${new Date(data.subscription.lastResetDate).toLocaleDateString()}.</p>
+                                <button class="btn btn-primary btn-sm upgrade-subscription-btn">
+                                    <i class="fas fa-arrow-circle-up"></i> Upgrade to Premium
+                                </button>
+                            </div>
+                        `;
+                        
+                        // Add to the end of the upload container
+                        const uploadContainer = container.querySelector('.upload-container');
+                        
+                        // Remove any existing subscription prompt
+                        const existingPrompt = uploadContainer.querySelector('.subscription-upgrade-prompt');
+                        if (existingPrompt) {
+                            existingPrompt.remove();
+                        }
+                        
+                        uploadContainer.appendChild(subscriptionPrompt);
+                        
+                        // Add event listener to the upgrade button
+                        const upgradeBtn = subscriptionPrompt.querySelector('.upgrade-subscription-btn');
+                        if (upgradeBtn) {
+                            upgradeBtn.addEventListener('click', () => {
+                                // Navigate to subscription page
+                                navigateToPage('subscription');
+                            });
+                        }
+                        
+                        return;
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('[AnalyzeButton] Error checking subscription:', error);
+            // Continue with analysis attempt even if subscription check fails
+        }
+        
         // Validate the analysis type is selected
         if (!selectedAnalysisType) {
             showAnalysisError('Please select a scan type (throat or ear) first');

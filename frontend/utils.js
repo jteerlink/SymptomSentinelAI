@@ -60,15 +60,31 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
             const analysisCount = Number.isFinite(user.analysisCount) ? user.analysisCount : 0;
             const analysisLimit = Number.isFinite(user.analysisLimit) ? user.analysisLimit : 2;
             
-            // Calculate remaining analyses with safeguard against NaN
-            const analysisRemaining = Math.max(0, analysisLimit - analysisCount);
+            // Calculate remaining analyses (can be negative if exceeded)
+            const analysisRemaining = analysisLimit - analysisCount;
             
-            // Calculate the percentage with safeguards
-            const percentageUsed = analysisLimit > 0 ? (analysisCount / analysisLimit) * 100 : 0;
+            // Calculate the percentage with safeguards (max 100%)
+            const percentageUsed = Math.min(100, analysisLimit > 0 ? (analysisCount / analysisLimit) * 100 : 0);
+            
+            // Determine the progress bar color based on usage
+            const progressBarClass = analysisRemaining < 0 ? 'bg-danger' : 
+                                    (analysisRemaining === 0 ? 'bg-warning' : 'bg-primary');
+            
+            let remainingText;
+            if (analysisRemaining < 0) {
+                // User has exceeded their limit
+                remainingText = `You've exceeded your monthly limit by ${Math.abs(analysisRemaining)} analyses`;
+            } else if (analysisRemaining === 0) {
+                // User has exactly used their limit
+                remainingText = 'You have no analyses remaining this month';
+            } else {
+                // User still has analyses remaining
+                remainingText = `${analysisRemaining} of ${analysisLimit} analyses remaining this month`;
+            }
             
             usageInfo.innerHTML = `
                 <div class="progress" style="height: 10px;">
-                    <div class="progress-bar bg-primary" role="progressbar" 
+                    <div class="progress-bar ${progressBarClass}" role="progressbar" 
                         style="width: ${percentageUsed}%;" 
                         aria-valuenow="${analysisCount}" 
                         aria-valuemin="0" 
@@ -76,7 +92,7 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
                     </div>
                 </div>
                 <small class="text-muted mt-1 d-block">
-                    ${analysisRemaining} of ${analysisLimit} analyses remaining this month
+                    ${remainingText}
                 </small>
             `;
             

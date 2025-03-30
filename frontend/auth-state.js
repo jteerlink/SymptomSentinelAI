@@ -180,6 +180,15 @@ function validateTokenWithServer() {
     .catch(error => {
         console.error('[AuthState] Token validation error:', error);
         clearAuthState();
+        
+        // Show a notification to the user if we were previously authenticated
+        // This helps provide clear feedback about session expiration
+        if (_state.isAuthenticated && window.SymptomSentryUtils && window.SymptomSentryUtils.showNotification) {
+            window.SymptomSentryUtils.showNotification(
+                'Your session has expired. Please log in again.',
+                'warning'
+            );
+        }
     });
 }
 

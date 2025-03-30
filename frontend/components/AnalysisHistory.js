@@ -214,9 +214,16 @@ function setupEventListeners(container) {
     // Add explicit close button handler for modal
     const closeModalBtn = document.querySelector('.modal-footer .btn-secondary');
     if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', () => {
-            const modal = bootstrap.Modal.getInstance(document.getElementById('analysisDetailModal'));
-            if (modal) modal.hide();
+        closeModalBtn.addEventListener('click', (e) => {
+            e.preventDefault(); // Prevent any default action
+            console.log('[Analysis History] Close button clicked');
+            const modalElement = document.getElementById('analysisDetailModal');
+            const modal = bootstrap.Modal.getInstance(modalElement);
+            if (modal) {
+                modal.hide();
+            } else if (window.SymptomSentryAnalysisHistory.currentModal) {
+                window.SymptomSentryAnalysisHistory.currentModal.hide();
+            }
         });
     }
 }
@@ -458,16 +465,20 @@ function viewAnalysisDetails(analysisId) {
         });
     });
     
-    // Add keyboard event listener for Escape key
-    document.addEventListener('keydown', function escKeyHandler(e) {
+    // Create a scoped, named function for keyboard event handling so we can properly remove it
+    function escKeyHandler(e) {
         if (e.key === 'Escape') {
+            console.log('[Analysis History] Escape key pressed, closing modal');
             if (modal) modal.hide();
-            document.removeEventListener('keydown', escKeyHandler);
         }
-    });
+    }
+    
+    // Add keyboard event listener for Escape key
+    document.addEventListener('keydown', escKeyHandler);
     
     // Add event listener for modal hidden event to clean up
     modalElement.addEventListener('hidden.bs.modal', function () {
+        console.log('[Analysis History] Modal hidden event triggered, cleaning up event listeners');
         document.removeEventListener('keydown', escKeyHandler);
     });
     
@@ -741,16 +752,59 @@ function showError(container, message) {
 
 /**
  * Helper function to close the analysis detail modal
+ * This is a global function that can be called from anywhere
+ * to safely close the analysis detail modal.
  */
 function closeAnalysisDetailModal() {
     console.log('[Analysis History] Closing analysis detail modal');
+    
+    // First try to get the modal instance directly from Bootstrap
     const modalElement = document.getElementById('analysisDetailModal');
-    const modal = bootstrap.Modal.getInstance(modalElement);
-    if (modal) {
-        modal.hide();
-    } else if (window.SymptomSentryAnalysisHistory.currentModal) {
-        window.SymptomSentryAnalysisHistory.currentModal.hide();
+    if (modalElement) {
+        // Try getting the instance with Bootstrap's API
+        let modal = bootstrap.Modal.getInstance(modalElement);
+        
+        // If we couldn't get the instance, try using our stored reference
+        if (!modal && window.SymptomSentryAnalysisHistory.currentModal) {
+            modal = window.SymptomSentryAnalysisHistory.currentModal;
+        }
+        
+        // If we have a modal instance, hide it
+        if (modal) {
+            try {
+                modal.hide();
+                console.log('[Analysis History] Modal hidden successfully');
+                return true;
+            } catch (error) {
+                console.error('[Analysis History] Error hiding modal:', error);
+            }
+        }
+        
+        // Fallback: Try force-removing modal classes directly
+        try {
+            console.log('[Analysis History] Using fallback method to close modal');
+            modalElement.classList.remove('show');
+            modalElement.setAttribute('aria-hidden', 'true');
+            modalElement.style.display = 'none';
+            
+            // Also remove the modal backdrop if it exists
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+            
+            // Remove modal-open class from body
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            
+            return true;
+        } catch (error) {
+            console.error('[Analysis History] Fallback modal close failed:', error);
+        }
     }
+    
+    return false; // Failed to close modal
 }
 
 // Export functions to the global namespace

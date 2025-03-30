@@ -144,13 +144,15 @@ function renderAnalysisHistoryUI(container) {
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="analysisDetailModalLabel">Analysis Details</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <button type="button" class="btn-close close-modal-btn" data-bs-dismiss="modal" aria-label="Close" style="cursor: pointer; z-index: 20000;">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
                     </div>
                     <div class="modal-body" id="analysis-detail-container">
                         <!-- Analysis details will be loaded here -->
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="button" class="btn btn-secondary close-modal-btn" data-bs-dismiss="modal" style="cursor: pointer; z-index: 20000;">Close</button>
                         <button type="button" class="btn btn-danger delete-analysis-btn">Delete</button>
                         <button type="button" class="btn btn-primary share-analysis-btn">Share</button>
                     </div>
@@ -211,19 +213,18 @@ function setupEventListeners(container) {
         });
     }
     
-    // Add explicit close button handler for modal
-    const closeModalBtn = document.querySelector('.modal-footer .btn-secondary');
-    if (closeModalBtn) {
-        closeModalBtn.addEventListener('click', (e) => {
-            e.preventDefault(); // Prevent any default action
-            console.log('[Analysis History] Close button clicked');
-            const modalElement = document.getElementById('analysisDetailModal');
-            const modal = bootstrap.Modal.getInstance(modalElement);
-            if (modal) {
-                modal.hide();
-            } else if (window.SymptomSentryAnalysisHistory.currentModal) {
-                window.SymptomSentryAnalysisHistory.currentModal.hide();
-            }
+    // Add explicit close button handlers for all close-modal-btn elements
+    const closeModalBtns = document.querySelectorAll('.close-modal-btn');
+    if (closeModalBtns && closeModalBtns.length > 0) {
+        closeModalBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault(); // Prevent any default action
+                e.stopPropagation(); // Stop event propagation
+                console.log('[Analysis History] Close button clicked');
+                
+                // Try to close the modal in multiple ways to ensure it works
+                closeAnalysisDetailModal();
+            });
         });
     }
 }
@@ -431,6 +432,16 @@ function viewAnalysisDetails(analysisId) {
         return;
     }
     
+    // Make sure any existing modal is fully closed before opening a new one
+    // This prevents z-index issues with multiple backdrops
+    const existingModal = document.querySelector('.modal-backdrop');
+    if (existingModal) {
+        existingModal.remove();
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }
+    
     // Show loading state in modal
     const modalBody = document.getElementById('analysis-detail-container');
     if (modalBody) {
@@ -452,7 +463,16 @@ function viewAnalysisDetails(analysisId) {
     
     // Show the modal
     const modalElement = document.getElementById('analysisDetailModal');
-    const modal = new bootstrap.Modal(modalElement);
+    
+    // Ensure the modal has proper z-index
+    modalElement.style.zIndex = "1050";
+    
+    // Initialize the modal
+    const modal = new bootstrap.Modal(modalElement, {
+        backdrop: true,
+        keyboard: true,
+        focus: true
+    });
     
     // Store the modal instance globally so it can be accessed by close buttons
     window.SymptomSentryAnalysisHistory.currentModal = modal;

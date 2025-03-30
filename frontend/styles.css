@@ -674,6 +674,34 @@ main {
     z-index: 11000; /* Ensure modal is on top of all other elements */
 }
 
+/* Analysis Detail Modal Styling */
+#analysisDetailModal {
+    z-index: 12000 !important; /* Ensure this modal is above all other elements */
+}
+
+#analysisDetailModal .modal-content {
+    border-radius: 12px;
+    box-shadow: 0 8px 20px var(--shadow-color);
+    border: none;
+    position: relative; /* Ensure proper stacking context */
+    z-index: 12100; /* Higher than modal backdrop */
+}
+
+#analysisDetailModal .modal-header,
+#analysisDetailModal .modal-footer {
+    position: relative;
+    z-index: 12200; /* Higher than modal content */
+}
+
+#analysisDetailModal .btn-close,
+#analysisDetailModal .close,
+#analysisDetailModal .btn-secondary {
+    position: relative;
+    z-index: 12300; /* Higher than modal headers */
+    cursor: pointer !important;
+    pointer-events: auto !important;
+}
+
 .auth-modal .modal-header {
     border-bottom: 2px solid var(--primary-color);
     background-color: rgba(var(--bg-color-rgb), 0.9);

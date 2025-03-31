@@ -48,8 +48,9 @@ class MLAnalysisService: ObservableObject {
     /// - Parameters:
     ///   - image: The image to analyze
     ///   - type: The type of analysis to perform
+    ///   - includeAttentionMap: Whether to request attention map visualization (default: true)
     /// - Returns: A publisher that emits the analysis result or an error
-    func analyzeImage(_ image: UIImage, type: AnalysisType) -> AnyPublisher<AnalysisResponse, Error> {
+    func analyzeImage(_ image: UIImage, type: AnalysisType, includeAttentionMap: Bool = true) -> AnyPublisher<AnalysisResponse, Error> {
         guard let imageData = image.jpegData(compressionQuality: 0.8) else {
             return Fail(error: NSError(domain: "MLAnalysisService", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image to data"]))
                 .eraseToAnyPublisher()
@@ -59,9 +60,14 @@ class MLAnalysisService: ObservableObject {
         analysisError = nil
         
         // Prepare the form data for the request
-        let parameters = [
+        var parameters: [String: String] = [
             "type": type.rawValue
         ]
+        
+        // Add the returnAttention parameter if requested
+        if includeAttentionMap {
+            parameters["returnAttention"] = "true"
+        }
         
         return networkService.uploadImage(imageData, to: "/api/analyze", parameters: parameters)
             .decode(type: AnalysisAPIResponse.self, decoder: JSONDecoder())

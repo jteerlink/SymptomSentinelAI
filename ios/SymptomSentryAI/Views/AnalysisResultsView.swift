@@ -382,9 +382,20 @@ struct ConditionRowView: View {
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(condition.name)
-                    .font(.headline)
-                    .foregroundColor(.primary)
+                HStack(alignment: .center, spacing: 5) {
+                    Text(condition.name)
+                        .font(.headline)
+                        .foregroundColor(.primary)
+                    
+                    // Show indicator if attention map is available
+                    if condition.hasAttentionMap {
+                        Image(systemName: "viewfinder")
+                            .foregroundColor(.purple)
+                            .font(.caption)
+                            .symbolEffect(.pulse, options: .repeating)
+                            .help("AI focus visualization available")
+                    }
+                }
                 
                 Text(condition.description)
                     .font(.subheadline)
@@ -501,6 +512,17 @@ struct ConditionDetailView: View {
                 Divider()
                     .opacity(animateContent ? 1 : 0)
                     .animation(.easeOut(duration: 0.4).delay(0.6), value: animateContent)
+                
+                // Attention Map (if available)
+                if condition.hasAttentionMap, let mapURL = condition.attentionMapURL {
+                    AttentionMapView(
+                        url: mapURL,
+                        title: "AI Diagnostic Focus",
+                        description: "This visualization shows areas the AI focused on during analysis"
+                    )
+                    .opacity(animateContent ? 1 : 0)
+                    .animation(.easeOut(duration: 0.4).delay(0.65), value: animateContent)
+                }
                 
                 // Symptoms
                 VStack(alignment: .leading, spacing: 12) {

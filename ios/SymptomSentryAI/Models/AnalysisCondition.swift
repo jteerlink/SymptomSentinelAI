@@ -20,6 +20,9 @@ struct AnalysisCondition: Identifiable, Codable, Hashable {
     /// Flag indicating if the condition requires urgent medical attention
     let isPotentiallySerious: Bool
     
+    /// URL for the attention map image (if available)
+    let attentionMapURL: String?
+    
     /// Formatted confidence percentage for display
     var confidencePercentage: String {
         let formatter = NumberFormatter()
@@ -42,6 +45,11 @@ struct AnalysisCondition: Identifiable, Codable, Hashable {
     /// Determines if the condition warrants highlighting
     var isHighConfidence: Bool {
         return confidence >= 0.6
+    }
+    
+    /// Determines if the condition has an attention map available
+    var hasAttentionMap: Bool {
+        return attentionMapURL != nil && !attentionMapURL!.isEmpty
     }
 }
 
@@ -86,7 +94,8 @@ extension AnalysisCondition {
                 "Tiny red spots on the roof of the mouth",
                 "Fever"
             ],
-            isPotentiallySerious: true
+            isPotentiallySerious: true,
+            attentionMapURL: "https://api.symptomsentry.com/attention_maps/123e4567-e89b-12d3-a456-426614174000.png"
         ),
         AnalysisCondition(
             id: "tonsillitis",
@@ -100,7 +109,8 @@ extension AnalysisCondition {
                 "Painful swallowing",
                 "Fever"
             ],
-            isPotentiallySerious: false
+            isPotentiallySerious: false,
+            attentionMapURL: nil
         ),
         AnalysisCondition(
             id: "pharyngitis",
@@ -113,7 +123,8 @@ extension AnalysisCondition {
                 "Fever",
                 "Enlarged lymph nodes"
             ],
-            isPotentiallySerious: false
+            isPotentiallySerious: false,
+            attentionMapURL: nil
         )
     ]
 }

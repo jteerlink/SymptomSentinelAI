@@ -43,4 +43,10 @@ struct AnalysisConditionData: Codable {
     
     /// Recommendation for the condition
     let recommendation: String
+    
+    /// URL for attention map visualization (if available)
+    let attentionMap: String?
+    
+    /// List of symptoms for this condition
+    let symptoms: [String]?
 }

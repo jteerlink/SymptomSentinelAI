@@ -25,7 +25,8 @@ struct AnalysisAPIResponse: Codable {
                 description: conditionData.description,
                 confidence: conditionData.confidence,
                 symptoms: conditionData.symptoms ?? [],
-                isPotentiallySerious: conditionData.severity == "high"
+                isPotentiallySerious: conditionData.severity == "high",
+                attentionMapURL: conditionData.attentionMap
             )
         }
         

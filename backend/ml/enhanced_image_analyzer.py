@@ -243,11 +243,18 @@ def generate_attention_map(model, img_tensor):
         conv_output = conv_output[0]
         
         # Weight activation channels by the gradient importance
-        for i in range(pooled_grads.shape[0]):
-            conv_output[:, :, i] *= pooled_grads[i]
-            
+        # Create a copy of the conv_output to avoid in-place modification
+        weighted_conv_output = tf.identity(conv_output)
+        
+        # Apply channel-wise weighting using proper TensorFlow operations
+        # Reshape pooled_grads to allow broadcasting across spatial dimensions
+        pooled_grads_reshaped = tf.reshape(pooled_grads, (1, 1, -1))
+        
+        # Multiply using TensorFlow operations (no in-place modification)
+        weighted_conv_output = tf.multiply(weighted_conv_output, pooled_grads_reshaped)
+        
         # Average over all channels to get heatmap
-        heatmap = tf.reduce_mean(conv_output, axis=-1)
+        heatmap = tf.reduce_mean(weighted_conv_output, axis=-1)
         
         # Normalize the heatmap
         heatmap = np.maximum(heatmap, 0) / np.max(heatmap)
@@ -324,6 +331,25 @@ def save_attention_map(attention_map, output_path):
         Path to the saved file
     """
     try:
+        # Check if attention_map is valid
+        if attention_map is None or not isinstance(attention_map, (np.ndarray, tf.Tensor)):
+            print(f"Invalid attention map type: {type(attention_map)}")
+            # Create a default blank attention map
+            attention_map = np.zeros((224, 224))
+        
+        # Convert TensorFlow tensor to numpy if needed
+        if isinstance(attention_map, tf.Tensor):
+            attention_map = attention_map.numpy()
+        
+        # Ensure attention_map is 2D
+        if len(attention_map.shape) != 2:
+            if len(attention_map.shape) > 2:
+                # Take the first channel or reduce dimensions
+                attention_map = attention_map[:, :, 0] if attention_map.shape[2] > 0 else np.mean(attention_map, axis=-1)
+            else:
+                # Reshape 1D to 2D (unlikely, but handle it)
+                attention_map = attention_map.reshape((1, -1))
+        
         # Ensure output directory exists
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         
@@ -341,7 +367,20 @@ def save_attention_map(attention_map, output_path):
     
     except Exception as e:
         print(f"Error saving attention map: {e}")
-        return None
+        # In case of error, create a blank attention map
+        try:
+            blank_map = np.zeros((224, 224))
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            plt.figure(figsize=(10, 8))
+            plt.imshow(blank_map, cmap='jet')
+            plt.title('Attention Map (Fallback)')
+            plt.axis('off')
+            plt.tight_layout()
+            plt.savefig(output_path)
+            plt.close()
+            return output_path
+        except:
+            return None
 
 
 def register_custom_model(category, model, version, architecture, is_default=False):

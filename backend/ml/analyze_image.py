@@ -25,29 +25,79 @@ args = parser.parse_args()
 
 def save_attention_map(attention_map, output_path):
     """Save attention map as an image."""
-    if attention_map is None:
-        return None
-    
-    # Normalize to [0, 1]
-    if np.min(attention_map) < 0 or np.max(attention_map) > 1:
-        attention_map = (attention_map - np.min(attention_map)) / (np.max(attention_map) - np.min(attention_map))
-    
-    # Convert to heatmap (RED is high attention)
-    heatmap = np.uint8(attention_map * 255)
-    
-    # Create colored heatmap
-    colored_heatmap = np.zeros((attention_map.shape[0], attention_map.shape[1], 3), dtype=np.uint8)
-    colored_heatmap[..., 0] = heatmap  # Red channel
-    
-    # Save the image
-    img = Image.fromarray(colored_heatmap)
-    img.save(output_path)
-    
-    return output_path
+    try:
+        if attention_map is None:
+            print("Warning: Attention map is None, creating blank map", file=sys.stderr)
+            # Create a blank attention map
+            attention_map = np.zeros((224, 224))
+        
+        # Ensure attention_map is numpy array
+        attention_map = np.array(attention_map)
+        
+        # Handle potential NaN or inf values
+        attention_map = np.nan_to_num(attention_map)
+        
+        # Check if the attention map is valid (not all zeros)
+        if np.allclose(attention_map, 0) or np.allclose(attention_map, attention_map[0,0]):
+            print("Warning: Attention map is uniform, might be invalid", file=sys.stderr)
+        
+        # Ensure attention_map is 2D
+        if len(attention_map.shape) != 2:
+            print(f"Warning: Reshaping attention map from {attention_map.shape}", file=sys.stderr)
+            if len(attention_map.shape) > 2:
+                # Take first channel or average
+                attention_map = attention_map[:, :, 0] if attention_map.shape[2] > 0 else np.mean(attention_map, axis=-1)
+            else:
+                # Reshape to 2D square if possible
+                size = int(np.sqrt(attention_map.size))
+                attention_map = attention_map.reshape((size, size))
+        
+        # Normalize to [0, 1]
+        if np.max(attention_map) > np.min(attention_map):  # Avoid division by zero
+            attention_map = (attention_map - np.min(attention_map)) / (np.max(attention_map) - np.min(attention_map))
+        
+        # Use a better colormap - Jet-like effect (blue to red gradient)
+        heatmap = np.uint8(attention_map * 255)
+        colored_heatmap = np.zeros((attention_map.shape[0], attention_map.shape[1], 3), dtype=np.uint8)
+        
+        # Create a colormap similar to 'jet': blue (low) -> green -> red (high)
+        colored_heatmap[..., 0] = np.minimum(255, 2 * heatmap)  # Red channel
+        colored_heatmap[..., 1] = np.minimum(255, 2 * np.abs(heatmap - 127.5))  # Green channel
+        colored_heatmap[..., 2] = np.minimum(255, 2 * (255 - heatmap))  # Blue channel
+        
+        # Make sure the output directory exists
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        
+        # Save the image
+        img = Image.fromarray(colored_heatmap)
+        img.save(output_path)
+        
+        print(f"Saved attention map to {output_path}", file=sys.stderr)
+        return output_path
+        
+    except Exception as e:
+        print(f"Error saving attention map: {e}", file=sys.stderr)
+        try:
+            # Create a fallback colored image (red rectangle)
+            colored_heatmap = np.zeros((224, 224, 3), dtype=np.uint8)
+            colored_heatmap[50:150, 50:150, 0] = 255  # Red rectangle in center
+            
+            # Make sure the output directory exists
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            
+            # Save fallback image
+            img = Image.fromarray(colored_heatmap)
+            img.save(output_path)
+            
+            print(f"Saved fallback attention map to {output_path}", file=sys.stderr)
+            return output_path
+        except:
+            return None
 
 try:
     # Import the enhanced image analyzer
-    from enhanced_image_analyzer import analyze_image, save_attention_map
+    from enhanced_image_analyzer import analyze_image as enhanced_analyze_image
+    from enhanced_image_analyzer import save_attention_map as enhanced_save_attention_map
     from medical_image_analyzer import THROAT_CONDITIONS, EAR_CONDITIONS
     
     # Read the image file
@@ -58,7 +108,7 @@ try:
     if args.return_attention:
         try:
             # Analyze with attention
-            results, attention_map = analyze_image(
+            results, attention_map = enhanced_analyze_image(
                 image_data, 
                 args.type, 
                 version=args.version,
@@ -79,7 +129,7 @@ try:
             # Log the error but continue with the results without attention map
             print(f"Error generating attention map: {str(e)}", file=sys.stderr)
             # Get results without attention
-            results = analyze_image(
+            results = enhanced_analyze_image(
                 image_data, 
                 args.type, 
                 version=args.version,
@@ -87,7 +137,7 @@ try:
             )
     else:
         # Analyze without attention
-        results = analyze_image(
+        results = enhanced_analyze_image(
             image_data, 
             args.type, 
             version=args.version

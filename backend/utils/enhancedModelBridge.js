@@ -480,44 +480,43 @@ async function analyzeImage(imageData, type, options = {}) {
             cleanupTempFile(tempFilePath);
         }
         
-        // If Python bridge fails, fall back to mocked data
-        console.log(`⚠️ Falling back to mocked data due to analysis error`);
+        // If Python bridge fails, fall back to a safer approach - get conditions from modelLoader
+        console.log(`⚠️ Falling back to error-reporting due to analysis failure`);
         
-        if (type === 'throat') {
-            return [
-                {
-                    id: 'strep_throat',
-                    name: 'Strep Throat',
-                    confidence: 0.78,
-                    description: 'A bacterial infection that causes inflammation and pain in the throat.',
-                    fallback: true
-                },
-                {
-                    id: 'tonsillitis',
-                    name: 'Tonsillitis',
-                    confidence: 0.65,
-                    description: 'Inflammation of the tonsils, typically caused by viral or bacterial infection.',
-                    fallback: true
-                }
-            ];
-        } else {
-            return [
-                {
-                    id: 'otitis_media',
-                    name: 'Otitis Media',
-                    confidence: 0.82,
-                    description: 'Middle ear infection that causes inflammation and fluid buildup.',
-                    fallback: true
-                },
-                {
-                    id: 'earwax_buildup',
-                    name: 'Earwax Buildup',
-                    confidence: 0.54,
-                    description: 'Excessive accumulation of cerumen (earwax) in the ear canal.',
-                    fallback: true
-                }
-            ];
+        // Get the appropriate conditions for this type
+        let conditions;
+        try {
+            conditions = getConditions(type);
+        } catch (conditionsError) {
+            // If even getting conditions fails, return a minimal error result
+            return [{
+                id: 'analysis_error',
+                name: 'Analysis Error',
+                confidence: 0,
+                description: 'The analysis system encountered an error. Please try again or contact support.',
+                error: error.message,
+                isPotentiallySerious: false,
+                isError: true
+            }];
         }
+        
+        // Return a result that clearly indicates an error occurred
+        return [{
+            id: 'analysis_error',
+            name: 'Analysis Error',
+            confidence: 0,
+            description: 'The analysis system encountered an error. Please try again or contact support.',
+            error: error.message,
+            isPotentiallySerious: false,
+            isError: true,
+            // Include diagnostic information for troubleshooting
+            diagnostic: {
+                errorType: error.name,
+                errorMessage: error.message,
+                analysisType: type,
+                options: options
+            }
+        }];
     }
 }
 

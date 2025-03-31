@@ -4,10 +4,11 @@ const { v4: uuidv4 } = require('uuid');
 const { User, Analysis } = require('../db/models/index');
 const ApiError = require('../utils/apiError');
 
-// For the loadModel and other ML-related functions
+// For enhanced ML-related functions with attention map support
+const { analyzeImage } = require('../utils/enhancedModelBridge');
 const { loadModel, preprocessImage, runInference } = require('../utils/modelLoader');
 
-// Models and inference are handled by modelLoader utility
+// Both modelLoader and enhancedModelBridge are available for different use cases
 
 /**
  * Analyze an image for potential throat or ear conditions
@@ -208,15 +209,16 @@ exports.analyzeImage = async (req, res, next) => {
                 console.log('👤 No authenticated user, proceeding with analysis as guest');
             }
             
-            // Process the image for model input
-            console.log('🔄 Preprocessing image data...');
-            const processedImage = await preprocessImage(imageData);
-            console.log('✅ Image preprocessing complete');
-
-            // Run inference with the model
-            console.log('🔍 Running inference...');
-            const predictions = await runInference(model, processedImage, type);
-            console.log('✅ Inference complete');
+            // Process the image and run analysis with the enhanced model bridge
+            console.log('🔄 Using enhancedModelBridge for analysis with attention map support...');
+            
+            // Use the enhanced model bridge with attention map support
+            const predictions = await analyzeImage(imageData, type, {
+                returnAttention: true, // Enable attention map visualization
+                version: 'v1'  // Use a specific model version
+            });
+            
+            console.log('✅ Enhanced analysis complete');
             console.log('📊 Predictions generated:', JSON.stringify(predictions));
 
             // Generate response

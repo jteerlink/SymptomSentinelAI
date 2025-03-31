@@ -1,5 +1,9 @@
 // This component handles displaying the analysis results
 
+// Import the AttentionMapVisualization component
+// Use the global function from AttentionMapVisualization.js
+const { initAttentionMapVisualization } = window.SymptomSentryComponents || {};
+
 // Initialize the components namespace if it doesn't exist
 window.SymptomSentryComponents = window.SymptomSentryComponents || {};
 
@@ -274,6 +278,39 @@ function renderAnalysisResults(container, results) {
         });
     }
     
+    // Add event listeners for the attention map buttons
+    const attentionMapBtns = container.querySelectorAll('.view-attention-map-btn');
+    if (attentionMapBtns.length > 0) {
+        attentionMapBtns.forEach((btn, index) => {
+            btn.addEventListener('click', () => {
+                const attentionMapUrl = decodeURIComponent(btn.getAttribute('data-attention-map'));
+                const conditionName = decodeURIComponent(btn.getAttribute('data-condition-name'));
+                const containerId = `attention-map-${index}`;
+                const container = document.getElementById(containerId);
+                
+                if (container) {
+                    // Toggle visibility
+                    if (container.style.display === 'none') {
+                        container.style.display = 'block';
+                        
+                        // Initialize the attention map visualization
+                        initAttentionMapVisualization(container, attentionMapUrl, {
+                            title: `${conditionName} - AI Focus Areas`,
+                            showTitle: true
+                        });
+                        
+                        // Change button text
+                        btn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide AI Focus';
+                    } else {
+                        container.style.display = 'none';
+                        container.innerHTML = ''; // Clear the visualization
+                        btn.innerHTML = '<i class="fas fa-eye"></i> View AI Focus';
+                    }
+                }
+            });
+        });
+    }
+    
     const showEducationBtn = container.querySelector('.show-education-btn');
     if (showEducationBtn) {
         showEducationBtn.addEventListener('click', () => {
@@ -439,6 +476,9 @@ function renderConditionCard(condition, index = 0) {
         }
     }
     
+    // Check if attention map is available
+    const hasAttentionMap = condition.attention_map ? true : false;
+    
     return `
         <div class="condition-card staggered-item" style="transition-delay: ${index * 150}ms;">
             <div class="d-flex justify-content-between align-items-center">
@@ -452,12 +492,25 @@ function renderConditionCard(condition, index = 0) {
             <div class="confidence-bar">
                 <div class="confidence-value" style="width: 0%; background-color: ${confidenceColor}"></div>
             </div>
-            <div class="mt-3">
+            <div class="mt-3 d-flex justify-content-between">
                 <button class="btn btn-sm btn-outline-secondary condition-info-btn" 
                         data-condition="${encodeURIComponent(JSON.stringify(condition))}">
                     <i class="fas fa-info-circle"></i> More Info
                 </button>
+                
+                ${hasAttentionMap ? `
+                <button class="btn btn-sm btn-outline-primary view-attention-map-btn" 
+                        data-attention-map="${encodeURIComponent(condition.attention_map)}"
+                        data-condition-name="${encodeURIComponent(condition.name)}">
+                    <i class="fas fa-eye"></i> View AI Focus
+                </button>
+                ` : ''}
             </div>
+            ${hasAttentionMap ? `
+            <div class="attention-map-container mt-3" style="display: none;" id="attention-map-${index}">
+                <!-- Attention map will be rendered here -->
+            </div>
+            ` : ''}
         </div>
     `;
 }

@@ -581,6 +581,21 @@ window.SymptomSentryApp.handleRegistration = function() {
             // Get the Bootstrap modal instance
             try {
                 const authModal = new bootstrap.Modal(authModalElement);
+                
+                // Add event listener to clean up when modal is hidden
+                authModalElement.addEventListener('hidden.bs.modal', () => {
+                    console.log('[Auth] Modal hidden, cleaning up...');
+                    // Remove the modal backdrop if it exists
+                    const modalBackdrop = document.querySelector('.modal-backdrop');
+                    if (modalBackdrop) {
+                        modalBackdrop.remove();
+                    }
+                    // Also remove modal-open class from body
+                    document.body.classList.remove('modal-open');
+                    document.body.style.overflow = '';
+                    document.body.style.paddingRight = '';
+                });
+                
                 authModal.show();
                 console.log('[Auth] Modal displayed successfully');
                 

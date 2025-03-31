@@ -22,6 +22,11 @@ const _state = {
 function initAuthState() {
     console.log('[AuthState] Initializing authentication state');
     
+    // Ensure no user is automatically signed in on app startup
+    console.log('[AuthState] No auto-login: users will start in logged-out state');
+    clearAuthState();
+    
+    /* Auto-login functionality has been disabled per user request
     // Try to load tokens from localStorage
     const token = localStorage.getItem('authToken');
     const refreshToken = localStorage.getItem('refreshToken');
@@ -68,6 +73,7 @@ function initAuthState() {
         // No token in localStorage, try cookie authentication
         validateTokenWithServer();
     }
+    */
 }
 
 // Update the auth state and notify listeners

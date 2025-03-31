@@ -435,11 +435,22 @@ function setupEventListeners() {
         // Add any responsive layout adjustments here if needed
     });
     
-    // Sign In / Register button handler
+    // Sign In / Register button handler in account page
     const signInRegisterBtn = document.querySelector('.btn.btn-outline-primary.mt-3');
     if (signInRegisterBtn) {
-        signInRegisterBtn.addEventListener('click', () => {
-            console.log('Sign In / Register button clicked');
+        signInRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Sign In / Register button clicked from account page');
+            window.SymptomSentryApp.handleRegistration();
+        });
+    }
+    
+    // Sign In / Register nav link handler in navbar
+    const signInRegisterNavLink = document.getElementById('sign-in-register-nav-link');
+    if (signInRegisterNavLink) {
+        signInRegisterNavLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Sign In / Register nav link clicked from navbar');
             window.SymptomSentryApp.handleRegistration();
         });
     }
@@ -449,7 +460,18 @@ function setupEventListeners() {
 window.SymptomSentryApp.handleRegistration = function() {
     console.log('[Auth] handleRegistration called');
     
-    // First remove any existing modals to prevent duplication
+    // First check for existing modal backdrop and remove it
+    const existingModalBackdrop = document.querySelector('.modal-backdrop');
+    if (existingModalBackdrop) {
+        console.log('[Auth] Removing existing modal backdrop');
+        existingModalBackdrop.remove();
+        // Also remove 'modal-open' class from body
+        document.body.classList.remove('modal-open');
+        document.body.style.overflow = '';
+        document.body.style.paddingRight = '';
+    }
+    
+    // Now remove any existing modals to prevent duplication
     const existingModal = document.getElementById('authModal');
     if (existingModal) {
         console.log('[Auth] Removing existing modal');

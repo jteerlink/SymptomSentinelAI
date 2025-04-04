@@ -1,95 +1,131 @@
 /**
- * API Error Utility
+ * API Error utility class for standardized error handling
  * 
- * This utility provides a consistent way to create and throw API errors
- * with standardized formats throughout the application.
+ * This class is used to create standardized error objects
+ * that can be caught and processed by the API error middleware.
  */
 
 class ApiError extends Error {
     /**
      * Create a new API error
      * 
-     * @param {string} message - Human-readable error message
-     * @param {string} code - Error code for client-side error handling
+     * @param {string} message - Error message
      * @param {number} status - HTTP status code
-     * @param {Object} details - Additional error details (only sent in development)
+     * @param {string} code - Error code for client-side identification
      */
-    constructor(message, code = 'SERVER_ERROR', status = 500, details = {}) {
+    constructor(message, status = 500, code = null) {
         super(message);
         this.name = 'ApiError';
-        this.code = code;
         this.status = status;
-        this.details = details;
+        this.code = code || this.getCodeFromStatus(status);
         this.isApiError = true;
     }
 
     /**
-     * Convert the error to a JSON response object
+     * Get a default error code based on HTTP status
      * 
-     * @param {boolean} includeDetails - Whether to include detailed error information
-     * @returns {Object} Error response object
+     * @param {number} status - HTTP status code
+     * @returns {string} Error code
      */
-    toResponse(includeDetails = process.env.NODE_ENV === 'development') {
-        const response = {
-            error: true,
-            success: false,
-            message: this.message,
-            code: this.code
-        };
-
-        if (includeDetails) {
-            response.details = this.details;
+    getCodeFromStatus(status) {
+        switch (status) {
+            case 400: return 'BAD_REQUEST';
+            case 401: return 'UNAUTHORIZED';
+            case 403: return 'FORBIDDEN';
+            case 404: return 'NOT_FOUND';
+            case 409: return 'CONFLICT';
+            case 422: return 'VALIDATION_ERROR';
+            case 429: return 'TOO_MANY_REQUESTS';
+            default: return 'SERVER_ERROR';
         }
-
-        return response;
     }
 
     /**
-     * Static helper methods for common error types
+     * Create a 400 Bad Request error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 400 error instance
      */
-
-    static badRequest(message, code = 'BAD_REQUEST', details = {}) {
-        return new ApiError(message, code, 400, details);
+    static badRequest(message, code = null) {
+        return new ApiError(message, 400, code);
     }
 
-    static unauthorized(message = 'Authentication required', code = 'UNAUTHORIZED', details = {}) {
-        return new ApiError(message, code, 401, details);
+    /**
+     * Create a 401 Unauthorized error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 401 error instance
+     */
+    static unauthorized(message = 'Authentication required', code = null) {
+        return new ApiError(message, 401, code);
     }
 
-    static forbidden(message = 'Permission denied', code = 'FORBIDDEN', details = {}) {
-        return new ApiError(message, code, 403, details);
+    /**
+     * Create a 403 Forbidden error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 403 error instance
+     */
+    static forbidden(message = 'Permission denied', code = null) {
+        return new ApiError(message, 403, code);
     }
 
-    static notFound(message = 'Resource not found', code = 'NOT_FOUND', details = {}) {
-        return new ApiError(message, code, 404, details);
+    /**
+     * Create a 404 Not Found error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 404 error instance
+     */
+    static notFound(message = 'Resource not found', code = null) {
+        return new ApiError(message, 404, code);
     }
 
-    static validationError(message = 'Validation failed', errors = {}, code = 'VALIDATION_ERROR') {
-        return new ApiError(message, code, 400, { validationErrors: errors });
+    /**
+     * Create a 409 Conflict error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 409 error instance
+     */
+    static conflict(message, code = null) {
+        return new ApiError(message, 409, code);
     }
 
-    static conflict(message = 'Resource conflict', code = 'CONFLICT', details = {}) {
-        return new ApiError(message, code, 409, details);
+    /**
+     * Create a 422 Validation Error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 422 error instance
+     */
+    static validationError(message, code = null) {
+        return new ApiError(message, 422, code || 'VALIDATION_ERROR');
     }
 
-    static tooManyRequests(message = 'Rate limit exceeded', code = 'RATE_LIMIT', details = {}) {
-        return new ApiError(message, code, 429, details);
+    /**
+     * Create a 429 Too Many Requests error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 429 error instance
+     */
+    static tooManyRequests(message = 'Too many requests', code = null) {
+        return new ApiError(message, 429, code);
     }
 
-    static analysisLimitExceeded(message = 'Monthly analysis limit reached', details = {}) {
-        return new ApiError(message, 'ANALYSIS_LIMIT_EXCEEDED', 429, details);
-    }
-
-    static internalError(message = 'Internal server error', code = 'SERVER_ERROR', details = {}) {
-        return new ApiError(message, code, 500, details);
-    }
-
-    static invalidImage(message = 'Invalid image format or content', details = {}) {
-        return new ApiError(message, 'INVALID_IMAGE_FORMAT', 400, details);
-    }
-
-    static invalidModel(message = 'Invalid or unsupported analysis model', details = {}) {
-        return new ApiError(message, 'INVALID_MODEL_TYPE', 400, details);
+    /**
+     * Create a 500 Server Error
+     * 
+     * @param {string} message - Error message
+     * @param {string} code - Optional custom error code
+     * @returns {ApiError} 500 error instance
+     */
+    static serverError(message = 'Internal server error', code = null) {
+        return new ApiError(message, 500, code);
     }
 }
 

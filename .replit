@@ -134,7 +134,7 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd frontend && NODE_ENV=development node --experimental-modules server.js"
-waitForPort = 5000
+waitForPort = 8000
 
 [[workflows.workflow]]
 name = "App"

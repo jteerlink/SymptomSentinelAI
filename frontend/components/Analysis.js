@@ -23,7 +23,7 @@ const initAttentionMapVisualization = function(container, attentionMapUrl, optio
     }
 };
 
-// Add the analysis component to the components namespace
+// Add the initialization function to the components namespace
 window.SymptomSentryComponents.initializeAnalysis = function(container) {
     if (!container) return;
     

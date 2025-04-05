@@ -15,7 +15,7 @@ window.SymptomSentryComponents = window.SymptomSentryComponents || {};
  * @param {string} attentionMapUrl - URL to the attention map image
  * @param {Object} options - Additional options for the visualization
  */
-const initAttentionMapVisualization = function(container, attentionMapUrl, options = {}) {
+function initializeAttentionMap(container, attentionMapUrl, options = {}) {
     console.log('[Attention Map] Initializing with URL:', attentionMapUrl);
     
     if (!container) {
@@ -236,9 +236,9 @@ function addStyles() {
 
 // Export the component to the global namespace
 window.SymptomSentryComponents = window.SymptomSentryComponents || {};
-window.SymptomSentryComponents.initAttentionMapVisualization = initAttentionMapVisualization;
+window.SymptomSentryComponents.initAttentionMapVisualization = initializeAttentionMap;
 
 // For backward compatibility
 window.SymptomSentryAttentionMap = {
-    init: initAttentionMapVisualization
+    init: initializeAttentionMap
 };

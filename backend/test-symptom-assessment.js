@@ -47,6 +47,33 @@ async function testSymptomAssessment() {
         token = loginData.accessToken;
         console.log('✅ Login successful with token:', token.substring(0, 15) + '...');
         
+        // Extract and log user info from token
+        try {
+            const tokenParts = token.split('.');
+            const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+            
+            // Check if we have a userId but not an id
+            if (payload.userId && !payload.id) {
+                console.log('Warning: Token has userId but not id. This can cause permissions issues.');
+                // We could fix this here for testing purposes, but it's better to fix the token generation
+            }
+            
+            console.log('User info from token:', {
+                id: payload.id,
+                userId: payload.userId, // Log both to diagnose issues
+                email: payload.email,
+                subscription: payload.subscription
+            });
+            
+            // Check if both id and userId exist and are different
+            if (payload.id && payload.userId && payload.id !== payload.userId) {
+                console.log('Warning: id and userId in token are different!');
+                console.log(`id: ${payload.id}, userId: ${payload.userId}`);
+            }
+        } catch (error) {
+            console.log('Could not decode token:', error.message);
+        }
+        
         // Step 2: Test getting all available symptoms
         console.log('\nStep 2: Fetching available symptoms...');
         
@@ -128,12 +155,32 @@ async function testSymptomAssessment() {
             throw new Error(`Failed to save assessment: ${saveData.message}`);
         }
         
+        // Verify if the saved analysis ID is returned correctly
+        const savedAnalysisId = saveData.analysisId || analysisId;
+        
         console.log('✅ Assessment saved successfully');
+        console.log('Analysis ID after saving:', savedAnalysisId);
+        
+        // Add a small delay to ensure the database transaction is fully committed
+        console.log('Waiting for database to commit transaction...');
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Step 6: Test retrieving the saved assessment
         console.log('\nStep 6: Retrieving saved assessment...');
         
-        const retrieveResponse = await fetch(`${apiUrl}/analysis/${analysisId}`, {
+        // Log the token payload for debugging
+        try {
+            const tokenParts = token.split('.');
+            const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+            console.log('Token payload for retrieval:', {
+                id: payload.id,
+                userId: payload.userId
+            });
+        } catch (error) {
+            console.log('Could not decode token for retrieval:', error.message);
+        }
+        
+        const retrieveResponse = await fetch(`${apiUrl}/analysis/${savedAnalysisId}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -146,10 +193,18 @@ async function testSymptomAssessment() {
         }
         
         console.log('✅ Successfully retrieved saved assessment');
-        console.log('Analysis ID:', retrieveData.analysis.analysis_id);
+        console.log('Analysis ID:', retrieveData.analysis.id);
         console.log('Type:', retrieveData.analysis.type);
         console.log('Created at:', retrieveData.analysis.created_at);
-        console.log('Assessment type:', retrieveData.analysis.analysis_type);
+        
+        // Check if conditions contains analysis data
+        if (retrieveData.analysis.conditions && 
+            typeof retrieveData.analysis.conditions === 'object' && 
+            retrieveData.analysis.conditions.analysisType) {
+            console.log('Assessment type:', retrieveData.analysis.conditions.analysisType);
+        } else {
+            console.log('Assessment data:', retrieveData.analysis.conditions);
+        }
         
         console.log('\n🎉 All tests completed successfully!');
     } catch (error) {

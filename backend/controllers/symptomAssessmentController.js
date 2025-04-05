@@ -7,7 +7,7 @@
 
 const ApiError = require('../utils/apiError');
 const getConditionsData = require('../utils/conditionsData');
-const Analysis = require('../models/Analysis');
+const Analysis = require('../db/models/Analysis'); // Use the real database implementation
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -169,7 +169,14 @@ exports.analyzeSymptoms = async (req, res, next) => {
  */
 exports.saveSymptomAssessment = async (req, res, next) => {
     try {
-        const userId = req.user.id;
+        // Get the user ID from the request object, handling different field names
+        const userId = req.user.id || req.user.userId;
+        
+        if (!userId) {
+            console.error('No user ID found in token payload:', req.user);
+            return next(ApiError.badRequest('Invalid user identification in token.'));
+        }
+        
         const analysisData = req.body;
         
         // Validate required fields
@@ -177,25 +184,42 @@ exports.saveSymptomAssessment = async (req, res, next) => {
             return next(ApiError.badRequest('Invalid analysis data. Missing required fields.'));
         }
         
-        // Create analysis record in the database
-        const analysisRecord = await Analysis.create({
-            user_id: userId,
-            analysis_id: analysisData.analysisId || uuidv4(),
-            type: analysisData.type,
-            analysis_type: 'symptom-assessment',
-            data: {
-                userSymptoms: analysisData.userSymptoms,
-                conditions: analysisData.conditions,
-                timestamp: analysisData.timestamp || new Date().toISOString()
-            },
-            created_at: new Date()
-        });
+        // Use the correct field names for the database model
+        // Store all assessment data in the "conditions" field
+        const assessmentData = {
+            userSymptoms: analysisData.userSymptoms,
+            conditions: analysisData.conditions,
+            timestamp: analysisData.timestamp || new Date().toISOString(),
+            analysisType: 'symptom-assessment'
+        };
         
-        return res.status(201).json({
-            success: true,
-            message: 'Symptom assessment saved successfully',
-            analysisId: analysisRecord.analysis_id
-        });
+        console.log(`Saving symptom assessment for user ${userId} with ID ${analysisData.analysisId}`);
+        console.log(`User object from token:`, req.user);
+
+        try {
+            // Create analysis record in the database using the proper field names
+            // Note: The Model expects camelCase field names
+            console.log(`Saving symptom assessment with user ID: ${userId}`);
+            
+            const analysisRecord = await Analysis.create({
+                id: analysisData.analysisId || uuidv4(), // Use the ID generated during analysis
+                userId: userId, // Pass the user ID to the database model
+                type: analysisData.type,
+                conditions: assessmentData, // Store the complete assessment data here
+                imageUrl: null // No image for symptom assessment
+            });
+            
+            console.log(`Created analysis record with ID: ${analysisRecord.id}, user_id: ${analysisRecord.user_id}`);
+            
+            return res.status(201).json({
+                success: true,
+                message: 'Symptom assessment saved successfully',
+                analysisId: analysisRecord.id // Return the correct ID field
+            });
+        } catch (dbError) {
+            console.error('Database error saving symptom assessment:', dbError);
+            return next(ApiError.serverError(`Database error: ${dbError.message}`));
+        }
     } catch (error) {
         console.error('Error saving symptom assessment:', error);
         return next(ApiError.serverError('Failed to save symptom assessment'));

@@ -755,18 +755,60 @@ exports.getAnalysisById = async (req, res, next) => {
         
         console.log(`Fetching analysis ${analysisId} for user ${req.user.id}`);
         
-        // Fetch analysis from database
-        const analysis = await Analysis.findById(analysisId);
+        // Get the user ID - try both fields for backward compatibility
+        const userId = req.user.id || req.user.userId;
         
-        console.log(`Analysis lookup result:`, analysis ? `Found ID: ${analysis.id}` : 'Not found');
+        if (!userId) {
+            console.error('No user ID found in token payload:', req.user);
+            throw ApiError.badRequest('Invalid user identification in token.', 'INVALID_TOKEN');
+        }
         
-        if (!analysis) {
-            throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
+        // Add more detailed logging
+        console.log(`User from token:`, req.user);
+        console.log(`Using userId: ${userId} (type: ${typeof userId})`);
+        
+        try {
+            // Fetch analysis from database
+            console.log(`DEBUG: Attempting to find analysis with ID: ${analysisId}`);
+            const analysis = await Analysis.findById(analysisId);
+            
+            console.log(`Analysis lookup result:`, analysis ? 
+                `Found ID: ${analysis.id}, User ID: ${analysis.user_id}` : 
+                'Not found');
+            
+            if (!analysis) {
+                // Log more detailed debug information
+                console.log(`Analysis not found: ID=${analysisId}, requested by user=${userId}`);
+                
+                // Check if this is a test environment
+                const isTest = process.env.NODE_ENV === 'test';
+                if (isTest) {
+                    console.log('Running in test environment. Analysis may not be committed to the database yet.');
+                }
+                
+                throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
+            }
+        } catch (dbError) {
+            console.error(`Database error when finding analysis: ${dbError.message}`);
+            console.error(dbError.stack);
+            throw ApiError.notFound('Analysis not found or database error', 'ANALYSIS_NOT_FOUND');
         }
         
         // Check if this analysis belongs to the authenticated user
-        if (analysis.user_id !== req.user.id) {
-            console.log(`Analysis user mismatch: belongs to ${analysis.user_id}, but requested by ${req.user.id}`);
+        // Convert both IDs to strings for consistent comparison
+        const analysisUserId = String(analysis.user_id);
+        const requestUserId = String(userId);
+        
+        console.log(`Comparing analysis user_id: '${analysisUserId}' with request userId: '${requestUserId}'`);
+        
+        if (analysisUserId !== requestUserId) {
+            console.log(`Analysis user mismatch: belongs to ${analysis.user_id}, but requested by ${userId}`);
+            
+            // For debugging: print user ID types to check for type mismatch
+            console.log(`Analysis user_id type: ${typeof analysis.user_id}`);
+            console.log(`Request userId type: ${typeof userId}`);
+            console.log(`Values: '${analysis.user_id}' vs '${userId}'`);
+            
             throw ApiError.forbidden('You do not have permission to view this analysis', 'FORBIDDEN');
         }
         
@@ -863,8 +905,22 @@ exports.deleteAnalysis = async (req, res, next) => {
             throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
         }
         
-        if (analysis.user_id !== req.user.id) {
-            console.log(`Analysis permission mismatch for deletion: belongs to ${analysis.user_id}, but requested by ${req.user.id}`);
+        // Get the user ID - try both fields for backward compatibility
+        const userId = req.user.id || req.user.userId;
+        
+        if (!userId) {
+            console.error('No user ID found in token payload:', req.user);
+            throw ApiError.badRequest('Invalid user identification in token.', 'INVALID_TOKEN');
+        }
+        
+        // Convert both IDs to strings for consistent comparison
+        const analysisUserId = String(analysis.user_id);
+        const requestUserId = String(userId);
+        
+        console.log(`Comparing analysis user_id: '${analysisUserId}' with request userId: '${requestUserId}' for deletion`);
+        
+        if (analysisUserId !== requestUserId) {
+            console.log(`Analysis permission mismatch for deletion: belongs to ${analysis.user_id}, but requested by ${userId}`);
             throw ApiError.forbidden('You do not have permission to delete this analysis', 'PERMISSION_DENIED');
         }
         
@@ -956,10 +1012,18 @@ exports.clearAnalyses = async (req, res, next) => {
             throw ApiError.unauthorized('Authentication required to clear analyses', 'AUTH_REQUIRED');
         }
         
-        console.log(`Clearing all analyses for user ${req.user.id}`);
+        // Get the user ID - try both fields for backward compatibility
+        const userId = req.user.id || req.user.userId;
+        
+        if (!userId) {
+            console.error('No user ID found in token payload:', req.user);
+            throw ApiError.badRequest('Invalid user identification in token.', 'INVALID_TOKEN');
+        }
+        
+        console.log(`Clearing all analyses for user ${userId}`);
         
         // Delete all analyses for this user
-        const result = await Analysis.deleteByUserId(req.user.id);
+        const result = await Analysis.deleteByUserId(userId);
         
         console.log(`Clear operation result:`, result);
         

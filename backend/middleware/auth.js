@@ -66,7 +66,7 @@ const authenticate = async (req, res, next) => {
     // Verify the token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    if (!decoded || (!decoded.userId && !decoded.id)) {
+    if (!decoded || !decoded.userId) {
       return res.status(401).json({
         error: true,
         message: 'Invalid token. Please log in again.'
@@ -74,8 +74,7 @@ const authenticate = async (req, res, next) => {
     }
     
     // Find the user
-    const userId = decoded.id || decoded.userId;
-    const user = await User.getById(userId);
+    const user = await User.getById(decoded.userId);
     
     if (!user) {
       return res.status(401).json({
@@ -159,14 +158,13 @@ const optionalAuthenticate = async (req, res, next) => {
     // Verify the token
     const decoded = jwt.verify(token, JWT_SECRET);
     
-    if (!decoded || (!decoded.userId && !decoded.id)) {
+    if (!decoded || !decoded.userId) {
       return next();
     }
     
     // Find the user
     try {
-      const userId = decoded.id || decoded.userId;
-      const user = await User.getById(userId);
+      const user = await User.getById(decoded.userId);
       // Attach user to request object if found
       req.user = user;
     } catch (findError) {
@@ -190,22 +188,13 @@ const optionalAuthenticate = async (req, res, next) => {
  * @returns {Object} - Object with access token and refresh token
  */
 const generateTokens = (user) => {
-  // Create payload with user information - ALWAYS include both id and userId fields
-  // to ensure backward compatibility while fixing the issue
+  // Create payload with user information
   const payload = {
-    id: user.id, // This is the field expected by most controllers
-    userId: user.id, // Keep userId for backward compatibility
+    userId: user.id,
     email: user.email,
     name: user.name,
-    subscription: user.subscription || 'free'
+    subscription: user.subscription || 'free' // Use consistent field name in tokens to match database
   };
-  
-  // Log the payload for debugging
-  console.log('Token payload:', {
-    ...payload,
-    id_type: typeof payload.id,
-    userId_type: typeof payload.userId
-  });
   
   // Generate access token with short expiration
   const accessToken = jwt.sign(payload, JWT_SECRET, {
@@ -234,7 +223,7 @@ const refreshAccessToken = async (refreshToken) => {
     // Verify the refresh token
     const decoded = jwt.verify(refreshToken, JWT_SECRET);
     
-    if (!decoded || (!decoded.userId && !decoded.id)) {
+    if (!decoded || !decoded.userId) {
       return {
         success: false,
         message: 'Invalid refresh token'
@@ -244,9 +233,7 @@ const refreshAccessToken = async (refreshToken) => {
     // Find the user
     let user;
     try {
-      // Try to get user by either id or userId
-      const userId = decoded.id || decoded.userId;
-      user = await User.getById(userId);
+      user = await User.getById(decoded.userId);
       
       if (!user) {
         return {

@@ -5,7 +5,6 @@ const router = express.Router();
 const imageAnalysisController = require('../controllers/imageAnalysisController');
 const imageUploadController = require('../controllers/imageUploadController');
 const userController = require('../controllers/userController');
-const symptomAssessmentController = require('../controllers/symptomAssessmentController');
 const { authenticate, optionalAuthenticate } = require('../middleware/auth');
 
 // Configure multer for memory storage
@@ -129,12 +128,6 @@ router.put('/update-profile', authenticate, userController.updateProfile);
 router.put('/update-password', authenticate, userController.updatePassword);
 router.get('/validate-token', authenticate, userController.validateToken);
 router.post('/update-subscription', authenticate, userController.updateSubscription);
-
-// Symptom Assessment Routes
-router.get('/conditions/:type', symptomAssessmentController.getConditionsForType);
-router.get('/symptoms', symptomAssessmentController.getAllSymptoms);
-router.post('/analyze-symptoms', authenticate, symptomAssessmentController.analyzeSymptoms);
-router.post('/save-symptom-assessment', authenticate, symptomAssessmentController.saveSymptomAssessment);
 
 // Password Reset and Token Routes
 router.post('/request-password-reset', userController.requestPasswordReset);

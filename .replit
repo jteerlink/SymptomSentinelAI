@@ -43,14 +43,6 @@ args = "App"
 task = "workflow.run"
 args = "BridgeTest"
 
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "SymptomTest"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Server"
-
 [[workflows.workflow]]
 name = "Test"
 author = "agent"
@@ -134,7 +126,7 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd frontend && NODE_ENV=development node --experimental-modules server.js"
-waitForPort = 8000
+waitForPort = 5000
 
 [[workflows.workflow]]
 name = "App"
@@ -164,35 +156,6 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd backend && node test-enhanced-bridge.js"
-
-[[workflows.workflow]]
-name = "SymptomTest"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd backend && node test-symptom-assessment.js"
-
-[[workflows.workflow]]
-name = "Server"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd backend && node server.js"
-waitForPort = 5000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]
@@ -237,6 +200,10 @@ externalPort = 8000
 [[ports]]
 localPort = 37843
 externalPort = 6800
+
+[[ports]]
+localPort = 37965
+externalPort = 3003
 
 [[ports]]
 localPort = 39375

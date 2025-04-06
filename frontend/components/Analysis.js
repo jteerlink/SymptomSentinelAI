@@ -1,29 +1,13 @@
 // This component handles displaying the analysis results
 
+// Import the AttentionMapVisualization component
+// Use the global function from AttentionMapVisualization.js
+const { initAttentionMapVisualization } = window.SymptomSentryComponents || {};
+
 // Initialize the components namespace if it doesn't exist
 window.SymptomSentryComponents = window.SymptomSentryComponents || {};
 
-// Get reference to the attention map visualization function
-const initAttentionMapVisualization = function(container, attentionMapUrl, options) {
-    if (window.SymptomSentryComponents && window.SymptomSentryComponents.initAttentionMapVisualization) {
-        return window.SymptomSentryComponents.initAttentionMapVisualization(container, attentionMapUrl, options);
-    } else if (window.SymptomSentryAttentionMap && window.SymptomSentryAttentionMap.init) {
-        return window.SymptomSentryAttentionMap.init(container, attentionMapUrl, options);
-    } else {
-        console.error('[Analysis] Attention map visualization not available');
-        // Fallback - show basic error in the container
-        if (container) {
-            container.innerHTML = `
-                <div class="alert alert-warning">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Attention map visualization is not available.
-                </div>
-            `;
-        }
-    }
-};
-
-// Add the initialization function to the components namespace
+// Add the analysis component to the components namespace
 window.SymptomSentryComponents.initializeAnalysis = function(container) {
     if (!container) return;
     

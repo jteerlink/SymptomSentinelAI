@@ -1,40 +1,68 @@
 /**
  * Main Entry Point for SymptomSentryAI Application
  * 
- * This file provides information about starting the application.
- * The servers are now managed by Replit workflows:
- * - Backend server: Use the 'Server' workflow
- * - Frontend server: Use the 'FrontendServer' workflow
+ * This file starts both the backend API server and the frontend server.
  */
 
-console.log('SymptomSentryAI Application Configuration');
-console.log('----------------------------------------');
-console.log('To run the application:');
-console.log('1. Start the backend server using the "Server" workflow');
-console.log('   - Command: cd backend && node server.js');
-console.log('   - Port: 5000');
-console.log('');
-console.log('2. Start the frontend server using the "FrontendServer" workflow');
-console.log('   - Command: cd frontend && NODE_ENV=development node --experimental-modules server.js');
-console.log('   - Port: 8000');
-console.log('');
-console.log('3. Access the application at: http://localhost:8000');
-console.log('');
-console.log('Note: The servers have been separated to prevent port conflicts and resource issues.');
-console.log('      This allows for better isolation of errors and more reliable operation.');
+const { spawn } = require('child_process');
+const path = require('path');
 
-// Display server status
-const { execSync } = require('child_process');
-try {
-  const backendStatus = execSync('lsof -i:5000 -t').toString().trim();
-  console.log('Backend server (port 5000): ' + (backendStatus ? 'RUNNING' : 'NOT RUNNING'));
-} catch (e) {
-  console.log('Backend server (port 5000): NOT RUNNING');
-}
+console.log('Starting SymptomSentryAI application...');
 
-try {
-  const frontendStatus = execSync('lsof -i:8000 -t').toString().trim();
-  console.log('Frontend server (port 8000): ' + (frontendStatus ? 'RUNNING' : 'NOT RUNNING'));
-} catch (e) {
-  console.log('Frontend server (port 8000): NOT RUNNING');
-}
+// Start the backend server
+console.log('Starting backend server...');
+const backendProcess = spawn('node', ['server.js'], {
+  cwd: path.join(process.cwd(), 'backend'),
+  env: { ...process.env, NODE_ENV: 'development' },
+  stdio: 'inherit'
+});
+
+backendProcess.on('error', (err) => {
+  console.error('Backend server error:', err);
+});
+
+// Listen for the exit event
+backendProcess.on('exit', (code, signal) => {
+  if (code !== 0) {
+    console.error(`Backend server exited with code ${code} and signal ${signal}`);
+  } else {
+    console.log('Backend server stopped');
+  }
+});
+
+// Start the frontend server after a short delay to ensure backend is up
+setTimeout(() => {
+  console.log('Starting frontend server...');
+  // Use --experimental-modules flag for ES modules support
+  const frontendProcess = spawn('node', ['--experimental-modules', 'server.js'], {
+    cwd: path.join(process.cwd(), 'frontend'),
+    env: { ...process.env, NODE_ENV: 'development' },
+    stdio: 'inherit'
+  });
+
+  frontendProcess.on('error', (err) => {
+    console.error('Frontend server error:', err);
+  });
+
+  // Listen for the exit event
+  frontendProcess.on('exit', (code, signal) => {
+    if (code !== 0) {
+      console.error(`Frontend server exited with code ${code} and signal ${signal}`);
+    } else {
+      console.log('Frontend server stopped');
+    }
+  });
+}, 5000);
+
+// Handle process termination
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, shutting down servers gracefully...');
+  backendProcess.kill('SIGINT');
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down servers gracefully...');
+  backendProcess.kill('SIGTERM');
+  process.exit(0);
+});

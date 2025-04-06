@@ -214,7 +214,6 @@ function resetUIForUnauthenticatedState() {
     
     // Initialize components
     window.SymptomSentryComponents.initializeImageUpload(document.getElementById('image-upload-component'));
-    window.SymptomSentryComponents.initializeSymptomEntry(document.getElementById("symptom-entry-component"));
     window.SymptomSentryComponents.initializeAnalysis(document.getElementById('analysis-results-component'));
     window.SymptomSentryComponents.initializeEducation(document.getElementById('education-component'));
     window.SymptomSentryComponents.initializeSubscription(document.getElementById('subscription-component'));

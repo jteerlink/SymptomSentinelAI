@@ -43,6 +43,10 @@ args = "App"
 task = "workflow.run"
 args = "BridgeTest"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "BackendServer"
+
 [[workflows.workflow]]
 name = "Test"
 author = "agent"
@@ -126,7 +130,7 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd frontend && NODE_ENV=development node --experimental-modules server.js"
-waitForPort = 5000
+waitForPort = 8000
 
 [[workflows.workflow]]
 name = "App"
@@ -156,6 +160,21 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd backend && node test-enhanced-bridge.js"
+
+[[workflows.workflow]]
+name = "BackendServer"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd backend && node server.js"
+waitForPort = 5000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]

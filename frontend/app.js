@@ -219,9 +219,7 @@ function resetUIForUnauthenticatedState() {
     window.SymptomSentryComponents.initializeSubscription(document.getElementById('subscription-component'));
     
     // Initialize Analysis History component
-    if (window.SymptomSentryAnalysisHistory && window.SymptomSentryAnalysisHistory.init) {
-        window.SymptomSentryAnalysisHistory.init(document.getElementById('analysis-history-component'));
-    }
+    window.SymptomSentryComponents.initializeAnalysisHistory(document.getElementById('analysis-history-component'));
     
     // Set up navigation
     setupNavigation();

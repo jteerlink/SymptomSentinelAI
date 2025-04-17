@@ -1,9 +1,5 @@
 // This component handles displaying the analysis results
 
-// Import the AttentionMapVisualization component
-// Use the global function from AttentionMapVisualization.js
-const { initAttentionMapVisualization } = window.SymptomSentryComponents || {};
-
 // Initialize the components namespace if it doesn't exist
 window.SymptomSentryComponents = window.SymptomSentryComponents || {};
 
@@ -294,7 +290,7 @@ function renderAnalysisResults(container, results) {
                         container.style.display = 'block';
                         
                         // Initialize the attention map visualization
-                        initAttentionMapVisualization(container, attentionMapUrl, {
+                        window.SymptomSentryComponents.initializeAttentionMapVisualization(container, attentionMapUrl, {
                             title: `${conditionName} - AI Focus Areas`,
                             showTitle: true
                         });

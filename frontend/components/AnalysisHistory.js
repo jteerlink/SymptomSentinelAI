@@ -5,17 +5,15 @@
  * delete individual analyses, and share results.
  */
 
-// Initialize the component in the global namespace
-if (!window.SymptomSentryAnalysisHistory) {
-    window.SymptomSentryAnalysisHistory = {};
-}
+// Initialize the components namespace if it doesn't exist
+window.SymptomSentryComponents = window.SymptomSentryComponents || {};
 
 /**
  * Initialize and render the Analysis History component
  * 
  * @param {HTMLElement} container - The container element to render the component in
  */
-function initAnalysisHistory(container) {
+window.SymptomSentryComponents.initializeAnalysisHistory = function(container) {
     console.log('[Analysis History] Initializing component');
     
     // Check authentication
@@ -595,9 +593,9 @@ function showError(container, message) {
     }
 }
 
-// Export functions to the global namespace
+// Export functions to the global namespace for backward compatibility
 window.SymptomSentryAnalysisHistory = {
-    init: initAnalysisHistory,
+    init: window.SymptomSentryComponents.initializeAnalysisHistory,
     loadAnalysisHistory: loadAnalysisHistory,
     sortHistory: sortAnalysisHistory,
     viewDetails: viewAnalysisDetails,

@@ -5,6 +5,9 @@
  * showing where the AI model is focusing attention during analysis.
  */
 
+// Initialize the components namespace if it doesn't exist
+window.SymptomSentryComponents = window.SymptomSentryComponents || {};
+
 /**
  * Initialize the attention map visualization component
  * 
@@ -12,7 +15,7 @@
  * @param {string} attentionMapUrl - URL to the attention map image
  * @param {Object} options - Additional options for the visualization
  */
-function initAttentionMapVisualization(container, attentionMapUrl, options = {}) {
+window.SymptomSentryComponents.initializeAttentionMapVisualization = function(container, attentionMapUrl, options = {}) {
     console.log('[Attention Map] Initializing with URL:', attentionMapUrl);
     
     if (!container) {
@@ -76,7 +79,7 @@ function initAttentionMapVisualization(container, attentionMapUrl, options = {})
     
     // Load the image
     loadAttentionMap(container, attentionMapUrl, settings);
-}
+};
 
 /**
  * Load the attention map image
@@ -231,11 +234,7 @@ function addStyles() {
     document.head.appendChild(styleEl);
 }
 
-// Export the component to the global namespace
-window.SymptomSentryComponents = window.SymptomSentryComponents || {};
-window.SymptomSentryComponents.initAttentionMapVisualization = initAttentionMapVisualization;
-
 // For backward compatibility
 window.SymptomSentryAttentionMap = {
-    init: initAttentionMapVisualization
+    init: window.SymptomSentryComponents.initializeAttentionMapVisualization
 };

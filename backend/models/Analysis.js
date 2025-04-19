@@ -52,10 +52,12 @@ class Analysis {
     }
     
     // Static method to find a specific analysis by ID
-    static async findById(id, userId) {
+    static async findById(id, userId = null) {
         // In a real implementation, this would query the database for an analysis with the given ID
         // that belongs to the specified user (security check)
-        console.log(`Finding analysis ${id} for user ${userId}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`Finding analysis ${id}${userId ? ` for user ${userId}` : ''}`);
+        }
         
         // For demonstration purposes, return a mock analysis
         // In production, this would return null if not found

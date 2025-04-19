@@ -133,8 +133,12 @@ jest.mock('../models/Analysis', () => {
     findByUserId: jest.fn((userId) => {
       return Object.values(analyses).filter(a => a.user_id === userId);
     }),
-    findById: jest.fn((id) => {
-      return analyses[id] || null;
+    findById: jest.fn((id, userId = null) => {
+      const analysis = analyses[id] || null;
+      if (userId && analysis && analysis.user_id !== userId) {
+        return null;
+      }
+      return analysis;
     }),
     create: jest.fn((data) => {
       const id = data.id || `analysis-${counter++}`;
@@ -224,15 +228,23 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Add direct analyze endpoint for compatibility with server.js
+// For comprehensive test, we need to handle JSON requests with base64-encoded images
 const { authenticate } = require('../middleware/auth');
-app.post('/analyze', authenticate, upload.single('image'), imageAnalysisController.analyzeImage);
+app.post('/analyze', authenticate, express.json({limit: '10mb'}), imageAnalysisController.analyzeImage);
 
 // Mount API routes
 app.use('/api', apiRoutes);
 
-// Add error handling middleware
+// Add error handling middleware with detailed logs for troubleshooting
 app.use((err, req, res, next) => {
-  console.error('Test app error:', err);
+  console.error('=== COMPREHENSIVE TEST ERROR ===');
+  console.error(`Error message: ${err.message}`);
+  console.error(`Error stack: ${err.stack}`);
+  console.error(`Request path: ${req.path}`);
+  console.error(`Request method: ${req.method}`);
+  console.error(`Request headers: ${JSON.stringify(req.headers)}`);
+  console.error(`Request body keys: ${req.body ? Object.keys(req.body) : 'undefined'}`);
+  console.error('=== END ERROR ===');
   
   if (err.isApiError) {
     return res.status(err.status).json(err.toResponse());
@@ -243,7 +255,8 @@ app.use((err, req, res, next) => {
   res.status(status).json({
     error: true,
     message: err.message || 'Internal server error',
-    code: err.code || 'SERVER_ERROR'
+    code: err.code || 'SERVER_ERROR',
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
   });
 });
 

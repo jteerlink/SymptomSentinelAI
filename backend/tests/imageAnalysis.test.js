@@ -146,6 +146,24 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use('/api', apiRoutes);
 
 describe('Image Analysis API', () => {
+    // Set up database mocking before tests
+    beforeAll(() => {
+        process.env.NODE_ENV = 'test';
+    });
+    
+    // Clean up resources after all tests
+    afterAll(async () => {
+        // Close any open database connections
+        if (require('../db/db').knex) {
+            await require('../db/db').knex.destroy();
+        }
+        
+        // Add a small delay to let any async operations complete
+        await new Promise(resolve => setTimeout(resolve, 500));
+    });
+    // Increase timeout for the long-running test
+    jest.setTimeout(30000); 
+    
     // Test valid analysis request
     test('should analyze an image successfully', async () => {
         const response = await request(app)

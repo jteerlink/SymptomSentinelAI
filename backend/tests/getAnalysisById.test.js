@@ -5,87 +5,56 @@
  * correctly handles various scenarios when retrieving an analysis by its ID.
  */
 
+// Set test environment
+process.env.NODE_ENV = 'test';
+
+// Set up mocks before importing modules
+const mockAnalysisFindById = jest.fn();
+const mockUnauthorized = jest.fn();
+const mockBadRequest = jest.fn();
+const mockNotFound = jest.fn();
+const mockForbidden = jest.fn();
+const mockInternalError = jest.fn();
+
+// Create mocks for modules
+jest.mock('../models/Analysis', () => ({
+  findById: mockAnalysisFindById
+}));
+
+// Set mock implementation for each test in beforeEach
+
+jest.mock('../utils/apiError', () => ({
+  unauthorized: mockUnauthorized,
+  badRequest: mockBadRequest,
+  notFound: mockNotFound,
+  forbidden: mockForbidden,
+  internalError: mockInternalError
+}));
+
 // Import controller function to test
 const imageAnalysisController = require('../controllers/imageAnalysisController');
 
-// Mock dependencies and modules
-jest.mock('../models/Analysis');
-jest.mock('../utils/apiError');
-
-// Import mocked dependencies
-const Analysis = require('../models/Analysis');
-const ApiError = require('../utils/apiError');
-
-// Mock error functions
-ApiError.unauthorized = jest.fn().mockImplementation((message, code) => {
+// Create error factory function to simplify error creation
+const createApiError = (status) => (message, code) => {
   const error = new Error(message);
   error.code = code;
-  error.status = 401;
+  error.status = status;
   error.isApiError = true;
   error.toResponse = jest.fn().mockReturnValue({
     error: true,
     code,
     message,
-    status: 401
+    status
   });
   return error;
-});
+};
 
-ApiError.badRequest = jest.fn().mockImplementation((message, code) => {
-  const error = new Error(message);
-  error.code = code;
-  error.status = 400;
-  error.isApiError = true;
-  error.toResponse = jest.fn().mockReturnValue({
-    error: true,
-    code,
-    message,
-    status: 400
-  });
-  return error;
-});
-
-ApiError.notFound = jest.fn().mockImplementation((message, code) => {
-  const error = new Error(message);
-  error.code = code;
-  error.status = 404;
-  error.isApiError = true;
-  error.toResponse = jest.fn().mockReturnValue({
-    error: true,
-    code,
-    message,
-    status: 404
-  });
-  return error;
-});
-
-ApiError.forbidden = jest.fn().mockImplementation((message, code) => {
-  const error = new Error(message);
-  error.code = code;
-  error.status = 403;
-  error.isApiError = true;
-  error.toResponse = jest.fn().mockReturnValue({
-    error: true,
-    code,
-    message,
-    status: 403
-  });
-  return error;
-});
-
-ApiError.internalError = jest.fn().mockImplementation((message, code) => {
-  const error = new Error(message);
-  error.code = code;
-  error.status = 500;
-  error.isApiError = true;
-  error.toResponse = jest.fn().mockReturnValue({
-    error: true,
-    code,
-    message,
-    status: 500
-  });
-  return error;
-});
+// Set up the mock implementations
+mockUnauthorized.mockImplementation(createApiError(401));
+mockBadRequest.mockImplementation(createApiError(400));
+mockNotFound.mockImplementation(createApiError(404));
+mockForbidden.mockImplementation(createApiError(403));
+mockInternalError.mockImplementation(createApiError(500));
 
 // Helper functions to create mock request and response objects
 const mockRequest = (params = {}, user = null) => ({
@@ -101,13 +70,31 @@ const mockResponse = () => {
 };
 
 describe('getAnalysisById Controller', () => {
+  // Set test timeout
+  jest.setTimeout(10000);
+
   // Clear all mocks before each test
   beforeEach(() => {
     jest.clearAllMocks();
     
+    // Important: Reset mockAnalysisFindById for each test
+    jest.resetAllMocks();
+    
+    // Set default mock implementation that captures both parameters
+    mockAnalysisFindById.mockImplementation((id, userId = null) => {
+      console.log(`Mock findById called with: id=${id}, userId=${userId}`);
+      return Promise.resolve(null);
+    });
+    
     // Suppress console logs during tests
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
+  });
+  
+  // Clean up after all tests
+  afterAll(async () => {
+    // Add a small delay to let any pending operations finish
+    await new Promise(resolve => setTimeout(resolve, 500));
   });
   
   test('should return 401 if user is not authenticated', async () => {
@@ -119,7 +106,7 @@ describe('getAnalysisById Controller', () => {
     await imageAnalysisController.getAnalysisById(req, res);
     
     // Assert
-    expect(ApiError.unauthorized).toHaveBeenCalledWith(
+    expect(mockUnauthorized).toHaveBeenCalledWith(
       'Authentication required to view analysis',
       'AUTH_REQUIRED'
     );
@@ -140,7 +127,7 @@ describe('getAnalysisById Controller', () => {
     await imageAnalysisController.getAnalysisById(req, res);
     
     // Assert
-    expect(ApiError.badRequest).toHaveBeenCalledWith(
+    expect(mockBadRequest).toHaveBeenCalledWith(
       'Analysis ID is required',
       'MISSING_ID'
     );
@@ -158,14 +145,14 @@ describe('getAnalysisById Controller', () => {
     const res = mockResponse();
     
     // Mock Analysis.findById to return null (not found)
-    Analysis.findById.mockResolvedValue(null);
+    mockAnalysisFindById.mockResolvedValue(null);
     
     // Call the controller function
     await imageAnalysisController.getAnalysisById(req, res);
     
     // Assert
-    expect(Analysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
-    expect(ApiError.notFound).toHaveBeenCalledWith(
+    expect(mockAnalysisFindById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    expect(mockNotFound).toHaveBeenCalledWith(
       'Analysis not found',
       'ANALYSIS_NOT_FOUND'
     );
@@ -183,7 +170,7 @@ describe('getAnalysisById Controller', () => {
     const res = mockResponse();
     
     // Mock Analysis.findById to return an analysis belonging to another user
-    Analysis.findById.mockResolvedValue({
+    mockAnalysisFindById.mockResolvedValue({
       id: 'analysis-123',
       user_id: 'another-user',
       type: 'throat',
@@ -194,8 +181,8 @@ describe('getAnalysisById Controller', () => {
     await imageAnalysisController.getAnalysisById(req, res);
     
     // Assert
-    expect(Analysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
-    expect(ApiError.forbidden).toHaveBeenCalledWith(
+    expect(mockAnalysisFindById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    expect(mockForbidden).toHaveBeenCalledWith(
       'You do not have permission to view this analysis',
       'FORBIDDEN'
     );
@@ -225,13 +212,13 @@ describe('getAnalysisById Controller', () => {
         }
       ]
     };
-    Analysis.findById.mockResolvedValue(mockAnalysis);
+    mockAnalysisFindById.mockResolvedValue(mockAnalysis);
     
     // Call the controller function
     await imageAnalysisController.getAnalysisById(req, res);
     
     // Assert
-    expect(Analysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    expect(mockAnalysisFindById).toHaveBeenCalledWith('analysis-123', 'user-123');
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       analysis: mockAnalysis
@@ -245,13 +232,13 @@ describe('getAnalysisById Controller', () => {
     
     // Mock Analysis.findById to throw an error
     const dbError = new Error('Database error');
-    Analysis.findById.mockRejectedValue(dbError);
+    mockAnalysisFindById.mockRejectedValue(dbError);
     
     // Call the controller function
     await imageAnalysisController.getAnalysisById(req, res);
     
     // Assert
-    expect(Analysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    expect(mockAnalysisFindById).toHaveBeenCalledWith('analysis-123', 'user-123');
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: true,

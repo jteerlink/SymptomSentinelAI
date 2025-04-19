@@ -8,6 +8,19 @@ const ApiError = require('../utils/apiError');
 const { analyzeImage } = require('../utils/enhancedModelBridge');
 const { loadModel, preprocessImage, runInference } = require('../utils/modelLoader');
 
+// Helper functions for conditional logging based on environment
+function log(message) {
+    if (process.env.NODE_ENV !== 'test') {
+        console.log(message);
+    }
+}
+
+function error(message) {
+    if (process.env.NODE_ENV !== 'test') {
+        console.error(message);
+    }
+}
+
 // Both modelLoader and enhancedModelBridge are available for different use cases
 
 /**
@@ -24,9 +37,12 @@ const { loadModel, preprocessImage, runInference } = require('../utils/modelLoad
  */
 exports.analyzeImage = async (req, res, next) => {
     try {
-        console.log('📥 INCOMING ANALYZE REQUEST 📥');
-        console.log('==============================');
-        console.log('Request headers:', req.headers);
+        // Only log in non-test environments
+        if (process.env.NODE_ENV !== 'test') {
+            console.log('📥 INCOMING ANALYZE REQUEST 📥');
+            console.log('==============================');
+            console.log('Request headers:', req.headers);
+        }
         
         // Extract user from request (set by auth middleware)
         const userId = req.user.id;
@@ -38,14 +54,14 @@ exports.analyzeImage = async (req, res, next) => {
             throw ApiError.unauthorized('User account not found');
         }
         
-        console.log(`👤 User authenticated: ${user.email} (${user.subscription} subscription)`);
+        log(`👤 User authenticated: ${user.email} (${user.subscription} subscription)`);
         const limit = User.SUBSCRIPTION_LIMITS[user.subscription].analysesPerMonth;
-        console.log(`📊 Analysis count: ${user.analysis_count || 0}/${limit}`);
+        log(`📊 Analysis count: ${user.analysis_count || 0}/${limit}`);
         
         // Check if user has exceeded their analysis limit
         if (User.hasExceededAnalysisLimit(user)) {
             const limit = User.SUBSCRIPTION_LIMITS[user.subscription].analysesPerMonth;
-            console.error(`❌ User has exceeded analysis limit: ${user.analysis_count}/${limit}`);
+            error(`❌ User has exceeded analysis limit: ${user.analysis_count}/${limit}`);
             throw ApiError.analysisLimitExceeded('You have reached your monthly analysis limit', {
                 current: user.analysis_count,
                 limit: limit,
@@ -55,43 +71,43 @@ exports.analyzeImage = async (req, res, next) => {
         
         // Check if request body exists
         if (!req.body) {
-            console.error('❌ Request body is undefined or null');
+            error('❌ Request body is undefined or null');
             throw ApiError.badRequest('Missing request body', 'MISSING_REQUEST_BODY');
         }
         
-        console.log('Request body keys:', Object.keys(req.body));
-        console.log('Request body type:', typeof req.body);
+        log('Request body keys: ' + Object.keys(req.body));
+        log('Request body type: ' + typeof req.body);
         
         // Check if this is a multipart/form-data request with files
         let image;
         let type;
         
         if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
-            console.log('Received multipart/form-data request');
+            log('Received multipart/form-data request');
             
             // Check if multer parsed a file
             const filePresent = req.file || (req.files && req.files.image);
-            console.log('File present:', !!filePresent);
+            log('File present: ' + !!filePresent);
             
             if (filePresent) {
                 // Get the file from multer
                 const file = req.file || req.files.image;
-                console.log('File details:', {
+                log('File details: ' + JSON.stringify({
                     fieldname: file.fieldname,
                     originalname: file.originalname,
                     mimetype: file.mimetype,
                     size: file.size,
                     buffer: `Buffer of ${file.buffer ? file.buffer.length : 0} bytes`
-                });
+                }));
                 
                 // Extract image data from the file
                 image = file.buffer;
                 // Get type from body
                 type = req.body.type;
                 
-                console.log('Reconstructed request body with image data from file upload');
-                console.log(`Type: ${type}`);
-                console.log(`Image data length: ${image ? image.length : 0}`);
+                log('Reconstructed request body with image data from file upload');
+                log(`Type: ${type}`);
+                log(`Image data length: ${image ? image.length : 0}`);
             } else {
                 // Try to extract type and image from the regular body if the file wasn't parsed
                 ({ image, type } = req.body);
@@ -106,28 +122,28 @@ exports.analyzeImage = async (req, res, next) => {
         if (debugReqCopy.body && debugReqCopy.body.image) {
             debugReqCopy.body.image = `[Image data, length: ${debugReqCopy.body.image.length}]`;
         }
-        console.log('Request structure:', JSON.stringify(debugReqCopy.body, null, 2).substring(0, 500) + '...');
+        log('Request structure: ' + JSON.stringify(debugReqCopy.body, null, 2).substring(0, 500) + '...');
         
         // Check if the request contains image data
         if (!image) {
-            console.error('❌ No image provided in request body');
+            error('❌ No image provided in request body');
             throw ApiError.badRequest('No image provided', 'MISSING_IMAGE');
         }
         
         // Additional logging for successful image extraction
-        console.log(`✅ Image data received: ${typeof image}`);
-        console.log(`📊 Image data length: ${image.length} characters`);
-        console.log(`🔍 Analysis type: ${type}`);
+        log(`✅ Image data received: ${typeof image}`);
+        log(`📊 Image data length: ${image.length} characters`);
+        log(`🔍 Analysis type: ${type}`);
 
         // Validate analysis type
         if (!type || (type !== 'throat' && type !== 'ear')) {
-            console.error('❌ Invalid analysis type provided:', type);
+            error(`❌ Invalid analysis type provided: ${type}`);
             throw ApiError.invalidModel(`Invalid analysis type: ${type}. Must be "throat" or "ear"`, {
                 providedType: type
             });
         }
 
-        console.log(`🔄 Processing ${type} image analysis...`);
+        log(`🔄 Processing ${type} image analysis...`);
         
         // Process the image data with improved handling for all possible formats
         let imageData = image;
@@ -135,21 +151,21 @@ exports.analyzeImage = async (req, res, next) => {
         
         // Case 1: Handle test image mode
         if (image === 'test_image') {
-            console.log('Using test image data for analysis');
+            log('Using test image data for analysis');
             imageData = 'test_image';
             dataSource = 'test_image';
         }
         // Case 2: Handle base64 data URLs (from canvas.toDataURL())
         else if (typeof image === 'string' && image.startsWith('data:image')) {
             try {
-                console.log('Detected data URL format image');
+                log('Detected data URL format image');
                 // Extract the data portion from "data:image/jpeg;base64,/9j/4AAQ..."
                 imageData = image.split(',')[1];
-                console.log('✅ Processed base64 image data from data URL');
-                console.log(`📊 Extracted base64 length: ${imageData.length}`);
+                log('✅ Processed base64 image data from data URL');
+                log(`📊 Extracted base64 length: ${imageData.length}`);
                 dataSource = 'data_url';
             } catch (err) {
-                console.error('❌ Failed to process base64 image data:', err);
+                error(`❌ Failed to process base64 image data: ${err}`);
                 throw ApiError.invalidImage('Failed to process base64 image data', {
                     errorMessage: err.message,
                     dataType: typeof image
@@ -162,40 +178,40 @@ exports.analyzeImage = async (req, res, next) => {
             image.startsWith('iVBOR') || // PNG
             image.match(/^[A-Za-z0-9+/=]+$/) // Generic base64 check
         )) {
-            console.log('✅ Detected raw base64 image data');
-            console.log(`📊 Raw base64 length: ${image.length}`);
+            log('✅ Detected raw base64 image data');
+            log(`📊 Raw base64 length: ${image.length}`);
             imageData = image;
             dataSource = 'raw_base64';
         }
         // Case 4: Handle other formats
         else if (image) {
-            console.log(`⚠️ Image data provided in unidentified format: ${typeof image}`);
-            console.log('Attempting to process as-is');
+            log(`⚠️ Image data provided in unidentified format: ${typeof image}`);
+            log('Attempting to process as-is');
             dataSource = 'unknown_format';
         }
 
-        console.log(`📄 Image data source: ${dataSource}`);
+        log(`📄 Image data source: ${dataSource}`);
         
         try {
             // Load the appropriate model
-            console.log('🧠 Loading ML model...');
+            log('🧠 Loading ML model...');
             const model = await loadModel(type);
             if (!model) {
-                console.error('❌ Failed to load analysis model');
+                error('❌ Failed to load analysis model');
                 throw ApiError.internalError('Failed to load analysis model', {
                     modelType: type,
                     errorStage: 'model_loading'
                 });
             }
-            console.log('✅ Model loaded successfully');
+            log('✅ Model loaded successfully');
 
             // Check if user has exceeded their analysis limit
             if (req.user) {
-                console.log('👤 Authenticated user detected, checking analysis limits');
+                log('👤 Authenticated user detected, checking analysis limits');
                 
                 // Check if user has exceeded their monthly analysis limit
                 if (User.hasExceededAnalysisLimit(req.user)) {
-                    console.log('❌ User has exceeded their monthly analysis limit');
+                    error('❌ User has exceeded their monthly analysis limit');
                     throw ApiError.analysisLimitExceeded('You have reached your monthly analysis limit', {
                         subscription: req.user.subscription,
                         analysisCount: req.user.analysis_count || 0,
@@ -204,14 +220,14 @@ exports.analyzeImage = async (req, res, next) => {
                     });
                 }
                 
-                console.log('✅ User has not exceeded their analysis limit, proceeding');
+                log('✅ User has not exceeded their analysis limit, proceeding');
             } else {
-                console.log('👤 No authenticated user, proceeding with analysis as guest');
+                log('👤 No authenticated user, proceeding with analysis as guest');
             }
             
             // Process the image and run analysis with the enhanced model bridge
             if (process.env.NODE_ENV !== 'test') {
-                console.log('🔄 Using enhancedModelBridge for analysis with attention map support...');
+                log('🔄 Using enhancedModelBridge for analysis with attention map support...');
             }
             
             // Use the enhanced model bridge with attention map support
@@ -221,8 +237,8 @@ exports.analyzeImage = async (req, res, next) => {
             });
             
             if (process.env.NODE_ENV !== 'test') {
-                console.log('✅ Enhanced analysis complete');
-                console.log('📊 Predictions generated:', JSON.stringify(predictions));
+                log('✅ Enhanced analysis complete');
+                log('📊 Predictions generated: ' + JSON.stringify(predictions));
             }
 
             // Generate response
@@ -243,7 +259,7 @@ exports.analyzeImage = async (req, res, next) => {
             };
 
             if (process.env.NODE_ENV !== 'test') {
-                console.log('📤 Sending successful response');
+                log('📤 Sending successful response');
             }
             return res.status(200).json(response);
         } catch (error) {
@@ -339,12 +355,12 @@ exports.analyzeImage = async (req, res, next) => {
             }
             
             // Log specific error details for monitoring and analytics
-            console.error(`[Image Analysis Error]`);
-            console.error(`Code: ${errorCode}`);
-            console.error(`Category: ${errorCategory}`);
-            console.error(`Status: ${errorStatus}`);
-            console.error(`Message: ${errorMessage}`);
-            console.error(`Recovery Action: ${errorRecoveryAction}`);
+            error(`[Image Analysis Error]`);
+            error(`Code: ${errorCode}`);
+            error(`Category: ${errorCategory}`);
+            error(`Status: ${errorStatus}`);
+            error(`Message: ${errorMessage}`);
+            error(`Recovery Action: ${errorRecoveryAction}`);
             
             // Send a comprehensive error response with recovery guidance
             return res.status(errorStatus).json({
@@ -774,10 +790,12 @@ exports.getAnalysisById = async (req, res, next) => {
             throw ApiError.badRequest('Analysis ID is required', 'MISSING_ID');
         }
         
-        console.log(`Fetching analysis ${analysisId} for user ${req.user.id}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`Fetching analysis ${analysisId} for user ${req.user.id}`);
+        }
         
-        // Fetch analysis from database
-        const analysis = await Analysis.findById(analysisId);
+        // Fetch analysis from database - provide user ID as context for tests
+        const analysis = await Analysis.findById(analysisId, req.user.id);
         
         console.log(`Analysis lookup result:`, analysis ? `Found ID: ${analysis.id}` : 'Not found');
         
@@ -873,10 +891,12 @@ exports.deleteAnalysis = async (req, res, next) => {
             throw ApiError.badRequest('Analysis ID is required', 'MISSING_ANALYSIS_ID');
         }
         
-        console.log(`Deleting analysis ${analysisId} for user ${req.user.id}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`Deleting analysis ${analysisId} for user ${req.user.id}`);
+        }
         
         // Verify the analysis belongs to this user before deleting
-        const analysis = await Analysis.findById(analysisId);
+        const analysis = await Analysis.findById(analysisId, req.user.id);
         
         console.log(`Analysis lookup for deletion:`, analysis ? `Found ID: ${analysis.id}` : 'Not found');
         

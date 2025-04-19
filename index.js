@@ -13,7 +13,13 @@ console.log('Starting SymptomSentryAI application...');
 console.log('Starting backend server...');
 const backendProcess = spawn('node', ['server.js'], {
   cwd: path.join(process.cwd(), 'backend'),
-  env: { ...process.env, NODE_ENV: 'development' },
+  env: { 
+    ...process.env, 
+    NODE_ENV: 'development',
+    // Use different port (5000) for App workflow
+    PORT: 5000,
+    BACKEND_PORT: 5000
+  },
   stdio: 'inherit'
 });
 
@@ -36,7 +42,15 @@ setTimeout(() => {
   // Use --experimental-modules flag for ES modules support
   const frontendProcess = spawn('node', ['--experimental-modules', 'server.js'], {
     cwd: path.join(process.cwd(), 'frontend'),
-    env: { ...process.env, NODE_ENV: 'development' },
+    env: { 
+      ...process.env, 
+      NODE_ENV: 'development',
+      // Use port 8000 for frontend in App workflow
+      PORT: 8000, 
+      FRONTEND_PORT: 8000, 
+      // Point to the backend running on port 5000 in App workflow
+      BACKEND_URL: 'http://0.0.0.0:5000'
+    },
     stdio: 'inherit'
   });
 

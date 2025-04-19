@@ -129,8 +129,8 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd frontend && NODE_ENV=development node --experimental-modules server.js"
-waitForPort = 8000
+args = "cd frontend && FRONTEND_PORT=8080 BACKEND_URL=http://0.0.0.0:3000 NODE_ENV=development node --experimental-modules server.js"
+waitForPort = 8080
 
 [[workflows.workflow]]
 name = "App"
@@ -173,8 +173,8 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd backend && node server.js"
-waitForPort = 5000
+args = "cd backend && BACKEND_PORT=3000 node server.js"
+waitForPort = 3000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]

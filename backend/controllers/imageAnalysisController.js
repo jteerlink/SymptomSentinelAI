@@ -210,7 +210,9 @@ exports.analyzeImage = async (req, res, next) => {
             }
             
             // Process the image and run analysis with the enhanced model bridge
-            console.log('🔄 Using enhancedModelBridge for analysis with attention map support...');
+            if (process.env.NODE_ENV !== 'test') {
+                console.log('🔄 Using enhancedModelBridge for analysis with attention map support...');
+            }
             
             // Use the enhanced model bridge with attention map support
             const predictions = await analyzeImage(imageData, type, {
@@ -218,8 +220,10 @@ exports.analyzeImage = async (req, res, next) => {
                 version: 'v1'  // Use a specific model version
             });
             
-            console.log('✅ Enhanced analysis complete');
-            console.log('📊 Predictions generated:', JSON.stringify(predictions));
+            if (process.env.NODE_ENV !== 'test') {
+                console.log('✅ Enhanced analysis complete');
+                console.log('📊 Predictions generated:', JSON.stringify(predictions));
+            }
 
             // Generate response
             const analysisId = uuidv4();
@@ -238,7 +242,9 @@ exports.analyzeImage = async (req, res, next) => {
                 }
             };
 
-            console.log('📤 Sending successful response');
+            if (process.env.NODE_ENV !== 'test') {
+                console.log('📤 Sending successful response');
+            }
             return res.status(200).json(response);
         } catch (error) {
             console.error('❌ Error during image analysis process:', error);
@@ -357,12 +363,17 @@ exports.analyzeImage = async (req, res, next) => {
             });
         }
     } catch (outer_error) {
-        console.error('❌❌ CRITICAL ERROR IN ANALYZE ENDPOINT:', outer_error);
-        console.error('Stack trace:', outer_error.stack);
+        // Only log errors in non-test environments
+        if (process.env.NODE_ENV !== 'test') {
+            console.error('❌❌ CRITICAL ERROR IN ANALYZE ENDPOINT:', outer_error);
+            console.error('Stack trace:', outer_error.stack);
+        }
         
         // Generate a unique error ID for tracking in logs
         const errorId = uuidv4();
-        console.error(`Error ID: ${errorId}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`Error ID: ${errorId}`);
+        }
         
         // Handle specific API errors from our utility
         if (outer_error.isApiError) {
@@ -507,8 +518,11 @@ exports.saveAnalysis = async (req, res, next) => {
                 subscription: subscriptionInfo
             });
         } catch (dbError) {
-            console.error('Database operation error:', dbError);
-            console.error('Stack trace:', dbError.stack);
+            // Only log errors in non-test environments
+            if (process.env.NODE_ENV !== 'test') {
+                console.error('Database operation error:', dbError);
+                console.error('Stack trace:', dbError.stack);
+            }
             
             // Generate a unique error ID for tracking
             const errorId = uuidv4();
@@ -547,13 +561,15 @@ exports.saveAnalysis = async (req, res, next) => {
                 recoveryAction = 'This appears to be a system issue. Please try again later.';
             }
             
-            // Log the categorized error
-            console.error(`[Database Error]`);
-            console.error(`ID: ${errorId}`);
-            console.error(`Code: ${errorCode}`);
-            console.error(`Category: ${errorCategory}`);
-            console.error(`Status: ${errorStatus}`);
-            console.error(`Message: ${errorMessage}`);
+            // Log the categorized error (only in non-test environments)
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`[Database Error]`);
+                console.error(`ID: ${errorId}`);
+                console.error(`Code: ${errorCode}`);
+                console.error(`Category: ${errorCategory}`);
+                console.error(`Status: ${errorStatus}`);
+                console.error(`Message: ${errorMessage}`);
+            }
             
             return res.status(errorStatus).json({
                 error: true,
@@ -570,8 +586,11 @@ exports.saveAnalysis = async (req, res, next) => {
             });
         }
     } catch (error) {
-        console.error('Error saving analysis:', error);
-        console.error('Stack trace:', error.stack);
+        // Only log errors in non-test environments
+        if (process.env.NODE_ENV !== 'test') {
+            console.error('Error saving analysis:', error);
+            console.error('Stack trace:', error.stack);
+        }
         
         // Generate a unique error ID for tracking
         const errorId = uuidv4();
@@ -613,12 +632,14 @@ exports.saveAnalysis = async (req, res, next) => {
             recoveryAction = 'Check that all referenced data exists and try again';
         }
         
-        // Log the categorized error
-        console.error(`[Analysis Save Error]`);
-        console.error(`ID: ${errorId}`);
-        console.error(`Code: ${errorCode}`);
-        console.error(`Category: ${errorCategory}`);
-        console.error(`Message: ${errorMessage}`);
+        // Log the categorized error (only in non-test environments)
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`[Analysis Save Error]`);
+            console.error(`ID: ${errorId}`);
+            console.error(`Code: ${errorCode}`);
+            console.error(`Category: ${errorCategory}`);
+            console.error(`Message: ${errorMessage}`);
+        }
         
         return res.status(errorStatus).json({
             error: true,

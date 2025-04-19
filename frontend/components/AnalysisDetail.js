@@ -5,8 +5,11 @@
  * It is designed to be shown on its own page rather than in a modal.
  */
 
+// Initialize the components namespace if it doesn't exist
+window.SymptomSentryComponents = window.SymptomSentryComponents || {};
+
 // Initialize the component with the analysis ID from the URL
-function initAnalysisDetail(container) {
+window.SymptomSentryComponents.initializeAnalysisDetail = function(container) {
     console.log('[Analysis Detail] Initializing component');
     
     // Extract the analysis ID from the URL
@@ -455,5 +458,11 @@ function renderError(container, message) {
 
 // Export the component to the global namespace
 window.SymptomSentryAnalysisDetail = {
-    init: initAnalysisDetail
+    init: window.SymptomSentryComponents.initializeAnalysisDetail
 };
+
+// Add backward compatibility function
+function initAnalysisDetail(container) {
+    console.log('[Analysis Detail] Using backward compatibility function');
+    return window.SymptomSentryComponents.initializeAnalysisDetail(container);
+}

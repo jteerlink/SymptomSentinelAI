@@ -136,7 +136,10 @@ router.post('/refresh-token', userController.refreshToken);
 
 // Error handling middleware
 router.use((err, req, res, next) => {
-    console.error('API route error:', err);
+    // Only log errors in non-test environments
+    if (process.env.NODE_ENV !== 'test') {
+        console.error('API route error:', err);
+    }
     
     // Default error structure
     const errorResponse = {

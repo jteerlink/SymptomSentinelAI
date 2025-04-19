@@ -8,7 +8,9 @@ const apiRoutes = require('./routes/api');
 
 // Create Express app
 const app = express();
-const PORT = process.env.PORT || 5000;
+// Allow for custom port in different workflows to avoid conflicts
+// BackendServer workflow should use 3000, App workflow can use 5000
+const PORT = process.env.BACKEND_PORT || process.env.PORT || 3000;
 
 // === MIDDLEWARE SETUP - ORDER IS IMPORTANT ===
 

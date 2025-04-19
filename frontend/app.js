@@ -391,8 +391,8 @@ function navigateToAnalysisDetail(analysisId) {
     
     if (detailComponentContainer) {
         // Initialize the detail component
-        if (typeof initAnalysisDetail === 'function') {
-            initAnalysisDetail(detailComponentContainer);
+        if (window.SymptomSentryComponents && window.SymptomSentryComponents.initializeAnalysisDetail) {
+            window.SymptomSentryComponents.initializeAnalysisDetail(detailComponentContainer);
         } else {
             console.error('[App] Analysis Detail component function not found');
             detailComponentContainer.innerHTML = `

@@ -5,9 +5,13 @@
  * 1. Creating necessary test directories
  * 2. Generating test data files (images, etc.)
  * 3. Setting up mock database data
+ * 4. Setting NODE_ENV to 'test'
  * 
  * Run this script before running tests: node setup-tests.js
  */
+
+// Set NODE_ENV to 'test'
+process.env.NODE_ENV = 'test';
 
 const fs = require('fs');
 const path = require('path');

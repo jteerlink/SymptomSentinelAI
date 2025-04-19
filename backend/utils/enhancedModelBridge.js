@@ -32,8 +32,10 @@ async function runPythonScript(scriptName, args = []) {
             return reject(new Error(`Python script not found: ${scriptPath}`));
         }
         
-        console.log(`🐍 Running Python script: ${scriptPath}`);
-        console.log(`🐍 Arguments: ${args.join(', ')}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`🐍 Running Python script: ${scriptPath}`);
+            console.log(`🐍 Arguments: ${args.join(', ')}`);
+        }
         
         // Use Python 3 explicitly
         const pythonProcess = spawn('python3', [scriptPath, ...args]);
@@ -49,14 +51,19 @@ async function runPythonScript(scriptName, args = []) {
         // Collect stderr
         pythonProcess.stderr.on('data', (data) => {
             errorOutput += data.toString();
-            console.error(`🐍 Python stderr: ${data.toString()}`);
+            // Only log in non-test environments
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`🐍 Python stderr: ${data.toString()}`);
+            }
         });
         
         // Handle process completion
         pythonProcess.on('close', (code) => {
             if (code !== 0) {
-                console.error(`🐍 Python script exited with code ${code}`);
-                console.error(`🐍 Error output: ${errorOutput}`);
+                if (process.env.NODE_ENV !== 'test') {
+                    console.error(`🐍 Python script exited with code ${code}`);
+                    console.error(`🐍 Error output: ${errorOutput}`);
+                }
                 return reject(new Error(`Python script exited with code ${code}: ${errorOutput}`));
             }
             
@@ -67,15 +74,21 @@ async function runPythonScript(scriptName, args = []) {
                 if (jsonMatch) {
                     // Try to parse the JSON part
                     const jsonResult = JSON.parse(jsonMatch[0]);
-                    console.log(`🐍 Python script completed successfully`);
+                    if (process.env.NODE_ENV !== 'test') {
+                        console.log(`🐍 Python script completed successfully`);
+                    }
                     resolve(jsonResult);
                 } else {
                     // No JSON found in the output
-                    console.log(`🐍 Python output does not contain valid JSON`);
+                    if (process.env.NODE_ENV !== 'test') {
+                        console.log(`🐍 Python output does not contain valid JSON`);
+                    }
                     resolve({ rawOutput: result });
                 }
             } catch (err) {
-                console.log(`🐍 Python output is not JSON, returning raw output`);
+                if (process.env.NODE_ENV !== 'test') {
+                    console.log(`🐍 Python output is not JSON, returning raw output`);
+                }
                 // If not JSON, return the raw output
                 resolve({ rawOutput: result });
             }
@@ -83,7 +96,9 @@ async function runPythonScript(scriptName, args = []) {
         
         // Handle process error
         pythonProcess.on('error', (error) => {
-            console.error(`🐍 Python process error: ${error.message}`);
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`🐍 Python process error: ${error.message}`);
+            }
             reject(error);
         });
     });
@@ -139,10 +154,14 @@ async function saveTempImage(imageData) {
                 return reject(new Error(`Unsupported image data type: ${typeof imageData}`));
             }
             
-            console.log(`✅ Saved temporary image: ${tempFilePath}`);
+            if (process.env.NODE_ENV !== 'test') {
+                console.log(`✅ Saved temporary image: ${tempFilePath}`);
+            }
             resolve(tempFilePath);
         } catch (error) {
-            console.error(`❌ Error saving temporary image: ${error.message}`);
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`❌ Error saving temporary image: ${error.message}`);
+            }
             reject(error);
         }
     });
@@ -157,10 +176,16 @@ function cleanupTempFile(filePath) {
     try {
         if (fs.existsSync(filePath)) {
             fs.unlinkSync(filePath);
-            console.log(`🧹 Cleaned up temporary file: ${filePath}`);
+            // Only log in non-test environments
+            if (process.env.NODE_ENV !== 'test') {
+                console.log(`🧹 Cleaned up temporary file: ${filePath}`);
+            }
         }
     } catch (error) {
-        console.error(`❌ Error cleaning up temporary file: ${error.message}`);
+        // Only log errors in non-test environments
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`❌ Error cleaning up temporary file: ${error.message}`);
+        }
     }
 }
 
@@ -179,7 +204,9 @@ async function getModelRegistry() {
         modelRegistry = result;
         return result;
     } catch (error) {
-        console.error(`❌ Error getting model registry: ${error.message}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`❌ Error getting model registry: ${error.message}`);
+        }
         // Return a default registry if the Python script fails
         return {
             throat: {
@@ -260,10 +287,14 @@ except Exception as e:
     try {
         fs.writeFileSync(scriptPath, script);
         fs.chmodSync(scriptPath, '755'); // Make executable
-        console.log(`✅ Created Python bridge script: ${scriptPath}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`✅ Created Python bridge script: ${scriptPath}`);
+        }
         return true;
     } catch (error) {
-        console.error(`❌ Error creating Python bridge script: ${error.message}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`❌ Error creating Python bridge script: ${error.message}`);
+        }
         return false;
     }
 }
@@ -366,10 +397,14 @@ except Exception as e:
     try {
         fs.writeFileSync(scriptPath, script);
         fs.chmodSync(scriptPath, '755'); // Make executable
-        console.log(`✅ Created image analysis script: ${scriptPath}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`✅ Created image analysis script: ${scriptPath}`);
+        }
         return true;
     } catch (error) {
-        console.error(`❌ Error creating image analysis script: ${error.message}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`❌ Error creating image analysis script: ${error.message}`);
+        }
         return false;
     }
 }
@@ -387,10 +422,15 @@ async function loadBridge() {
         
         // Get model registry to verify bridge works
         const registry = await getModelRegistry();
-        console.log('✅ Enhanced ML model bridge loaded successfully');
+        // Only log in non-test environments
+        if (process.env.NODE_ENV !== 'test') {
+            console.log('✅ Enhanced ML model bridge loaded successfully');
+        }
         return true;
     } catch (error) {
-        console.error(`❌ Error loading ML model bridge: ${error.message}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`❌ Error loading ML model bridge: ${error.message}`);
+        }
         return false;
     }
 }
@@ -406,8 +446,10 @@ async function loadBridge() {
  * @returns {Promise<Object>} - Analysis results
  */
 async function analyzeImage(imageData, type, options = {}) {
-    console.log(`🔍 Analyzing ${type} image with enhanced ML bridge`);
-    console.log(`Options: ${JSON.stringify(options)}`);
+    if (process.env.NODE_ENV !== 'test') {
+        console.log(`🔍 Analyzing ${type} image with enhanced ML bridge`);
+        console.log(`Options: ${JSON.stringify(options)}`);
+    }
     
     // Initialize bridge if not done yet
     await loadBridge();
@@ -437,21 +479,27 @@ async function analyzeImage(imageData, type, options = {}) {
         
         // Handle raw output case
         if (result.rawOutput) {
-            console.error(`❌ Python returned non-JSON output: ${result.rawOutput}`);
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`❌ Python returned non-JSON output: ${result.rawOutput}`);
+            }
             
             // Try to extract JSON from raw output
             const jsonMatch = result.rawOutput.match(/{[\s\S]*}/);
             if (jsonMatch) {
                 try {
                     const extractedJson = JSON.parse(jsonMatch[0]);
-                    console.log('✅ Successfully extracted JSON from raw output');
+                    if (process.env.NODE_ENV !== 'test') {
+                        console.log('✅ Successfully extracted JSON from raw output');
+                    }
                     
                     // Continue with the extracted JSON if it has results
                     if (extractedJson.results && Array.isArray(extractedJson.results)) {
                         return extractedJson.results;
                     }
                 } catch (e) {
-                    console.error(`❌ Failed to parse extracted JSON: ${e.message}`);
+                    if (process.env.NODE_ENV !== 'test') {
+                        console.error(`❌ Failed to parse extracted JSON: ${e.message}`);
+                    }
                 }
             }
             
@@ -460,20 +508,29 @@ async function analyzeImage(imageData, type, options = {}) {
         
         // Handle error case
         if (result.error) {
-            console.error(`❌ Python analysis error: ${result.error}`);
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`❌ Python analysis error: ${result.error}`);
+            }
             throw new Error(`Python analysis error: ${result.error}`);
         }
         
         // Ensure results field exists and is an array
         if (!result.results || !Array.isArray(result.results)) {
-            console.error(`❌ Invalid results format:`, result);
+            if (process.env.NODE_ENV !== 'test') {
+                console.error(`❌ Invalid results format:`, result);
+            }
             throw new Error('Invalid results format from Python analysis');
         }
         
-        console.log(`✅ Analysis complete with ${result.results.length} conditions`);
+        // Only log in non-test environments
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`✅ Analysis complete with ${result.results.length} conditions`);
+        }
         return result.results;
     } catch (error) {
-        console.error(`❌ Error in analyzeImage: ${error.message}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`❌ Error in analyzeImage: ${error.message}`);
+        }
         
         // Clean up the temporary file in case of error
         if (tempFilePath) {
@@ -481,7 +538,9 @@ async function analyzeImage(imageData, type, options = {}) {
         }
         
         // If Python bridge fails, fall back to a safer approach - get conditions from modelLoader
-        console.log(`⚠️ Falling back to error-reporting due to analysis failure`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.log(`⚠️ Falling back to error-reporting due to analysis failure`);
+        }
         
         // Get the appropriate conditions for this type
         let conditions;
@@ -548,7 +607,9 @@ async function getAvailableModels(type) {
         
         throw new Error(`No models found for type: ${type}`);
     } catch (error) {
-        console.error(`❌ Error getting available models: ${error.message}`);
+        if (process.env.NODE_ENV !== 'test') {
+            console.error(`❌ Error getting available models: ${error.message}`);
+        }
         return {
             defaultVersion: 'v1',
             versions: ['v1', 'v2'],
@@ -562,7 +623,9 @@ async function getAvailableModels(type) {
 
 // Initialize the bridge when this module is loaded
 loadBridge().catch(error => {
-    console.error(`❌ Error initializing ML bridge: ${error.message}`);
+    if (process.env.NODE_ENV !== 'test') {
+        console.error(`❌ Error initializing ML bridge: ${error.message}`);
+    }
 });
 
 module.exports = {

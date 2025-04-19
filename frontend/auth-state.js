@@ -138,8 +138,18 @@ function clearAuthState() {
 function validateTokenWithServer() {
     console.log('[AuthState] Validating token with server');
     
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    // Add Authorization header if we have a token
+    if (_state.token && _state.token !== 'use-cookies') {
+        headers['Authorization'] = `Bearer ${_state.token}`;
+    }
+    
     fetch('/api/validate-token', {
         method: 'GET',
+        headers: headers,
         credentials: 'include' // Include cookies
     })
     .then(response => {
@@ -203,8 +213,18 @@ function refreshAccessToken(refreshToken, isExpired = false) {
     console.log('[AuthState] Attempting to refresh access token');
     
     // First try the validation endpoint which should return a new token if cookies are valid
+    const headers = {
+        'Content-Type': 'application/json'
+    };
+    
+    // Add Authorization header if we have a token (not just for refresh)
+    if (_state.token && _state.token !== 'use-cookies') {
+        headers['Authorization'] = `Bearer ${_state.token}`;
+    }
+    
     fetch('/api/validate-token', {
         method: 'GET',
+        headers: headers,
         credentials: 'include' // Include cookies
     })
     .then(response => {

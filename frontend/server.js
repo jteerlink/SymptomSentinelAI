@@ -9,8 +9,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 8000;
-const BACKEND_URL = 'http://0.0.0.0:5000';
+// Use different ports for different workflows to avoid conflicts
+const PORT = process.env.FRONTEND_PORT || process.env.PORT || 8080;
+// Point to the backend port (which is now customizable)
+const BACKEND_URL = process.env.BACKEND_URL || 'http://0.0.0.0:3000';
 
 // Request logging middleware
 app.use((req, res, next) => {

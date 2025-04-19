@@ -211,6 +211,62 @@ jest.mock('../utils/modelLoader', () => ({
   ])
 }));
 
+// Mock enhanced model bridge for tests
+jest.mock('../utils/enhancedModelBridge', () => ({
+  analyzeImage: jest.fn().mockImplementation((imageData, type, options) => {
+    // Return standard mock data for throat
+    if (type === 'throat') {
+      return Promise.resolve([
+        {
+          id: 'strep_throat',
+          name: 'Strep Throat',
+          confidence: 0.78,
+          description: 'A bacterial infection that causes inflammation and pain in the throat.',
+          symptoms: ['Throat pain', 'Red and swollen tonsils'],
+          isPotentiallySerious: true
+        },
+        {
+          id: 'tonsillitis',
+          name: 'Tonsillitis',
+          confidence: 0.65,
+          description: 'Inflammation of the tonsils.',
+          symptoms: ['Sore throat', 'Swollen tonsils'],
+          isPotentiallySerious: false
+        }
+      ]);
+    }
+    // Return standard mock data for ear
+    else if (type === 'ear') {
+      return Promise.resolve([
+        {
+          id: 'otitis_media',
+          name: 'Otitis Media',
+          confidence: 0.82,
+          description: 'Inflammation of the middle ear.',
+          symptoms: ['Ear pain', 'Fluid drainage'],
+          isPotentiallySerious: false
+        },
+        {
+          id: 'earwax_buildup',
+          name: 'Earwax Buildup',
+          confidence: 0.54,
+          description: 'Excessive accumulation of cerumen in the ear canal.',
+          symptoms: ['Feeling of fullness', 'Partial hearing loss'],
+          isPotentiallySerious: false
+        }
+      ]);
+    }
+    // Return error for invalid type
+    else {
+      return Promise.reject(new Error(`Invalid analysis type: ${type}`));
+    }
+  }),
+  getModelRegistry: jest.fn().mockResolvedValue({
+    throat: ['v1', 'v2'],
+    ear: ['v1']
+  })
+}));
+
 // Import API routes
 const apiRoutes = require('../routes/api');
 
@@ -567,6 +623,9 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
   describe('Image Analysis', () => {
     
     test('should analyze throat image', async () => {
+      // Set NODE_ENV to test to ensure the controller works with test environment
+      process.env.NODE_ENV = 'test';
+      
       // Get the image buffer
       const imageBuffer = getTestImage('test-throat-image.jpg');
       

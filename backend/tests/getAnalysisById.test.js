@@ -17,9 +17,17 @@ const mockForbidden = jest.fn();
 const mockInternalError = jest.fn();
 
 // Create mocks for modules
-jest.mock('../models/Analysis', () => ({
-  findById: mockAnalysisFindById
-}));
+jest.mock('../models/Analysis', () => {
+  return {
+    findById: mockAnalysisFindById
+  };
+});
+
+// Reset the mock before each test
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockAnalysisFindById.mockReset();
+});
 
 // Set mock implementation for each test in beforeEach
 
@@ -145,7 +153,13 @@ describe('getAnalysisById Controller', () => {
     const res = mockResponse();
     
     // Mock Analysis.findById to return null (not found)
-    mockAnalysisFindById.mockResolvedValue(null);
+    // Reset mock to clear previous calls and set up specific implementation
+    mockAnalysisFindById.mockReset();
+    mockAnalysisFindById.mockImplementation((id, userId) => {
+      // Log parameters for debugging
+      console.log(`Mock Analysis.findById called with: id=${id}, userId=${userId}`);
+      return Promise.resolve(null);
+    });
     
     // Call the controller function
     await imageAnalysisController.getAnalysisById(req, res);
@@ -170,11 +184,15 @@ describe('getAnalysisById Controller', () => {
     const res = mockResponse();
     
     // Mock Analysis.findById to return an analysis belonging to another user
-    mockAnalysisFindById.mockResolvedValue({
-      id: 'analysis-123',
-      user_id: 'another-user',
-      type: 'throat',
-      conditions: []
+    mockAnalysisFindById.mockReset();
+    mockAnalysisFindById.mockImplementation((id, userId) => {
+      console.log(`Mock Analysis.findById called with: id=${id}, userId=${userId}`);
+      return Promise.resolve({
+        id: 'analysis-123',
+        user_id: 'another-user',
+        type: 'throat',
+        conditions: []
+      });
     });
     
     // Call the controller function
@@ -212,7 +230,12 @@ describe('getAnalysisById Controller', () => {
         }
       ]
     };
-    mockAnalysisFindById.mockResolvedValue(mockAnalysis);
+    
+    mockAnalysisFindById.mockReset();
+    mockAnalysisFindById.mockImplementation((id, userId) => {
+      console.log(`Mock Analysis.findById called with: id=${id}, userId=${userId}`);
+      return Promise.resolve(mockAnalysis);
+    });
     
     // Call the controller function
     await imageAnalysisController.getAnalysisById(req, res);
@@ -232,7 +255,11 @@ describe('getAnalysisById Controller', () => {
     
     // Mock Analysis.findById to throw an error
     const dbError = new Error('Database error');
-    mockAnalysisFindById.mockRejectedValue(dbError);
+    mockAnalysisFindById.mockReset();
+    mockAnalysisFindById.mockImplementation((id, userId) => {
+      console.log(`Mock Analysis.findById called with: id=${id}, userId=${userId}`);
+      return Promise.reject(dbError);
+    });
     
     // Call the controller function
     await imageAnalysisController.getAnalysisById(req, res);

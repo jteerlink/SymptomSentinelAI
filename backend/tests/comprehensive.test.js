@@ -228,9 +228,62 @@ app.use(bodyParser.json({ limit: '10mb' }));
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Add direct analyze endpoint for compatibility with server.js
-// For comprehensive test, we need to handle JSON requests with base64-encoded images
-const { authenticate } = require('../middleware/auth');
-app.post('/analyze', authenticate, express.json({limit: '10mb'}), imageAnalysisController.analyzeImage);
+// For comprehensive test, we need to handle both multipart and JSON formats
+const { authenticate, optionalAuthenticate } = require('../middleware/auth');
+
+// Setup multer for file uploads
+const multerUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+// Handle image uploads in various formats
+app.post('/analyze', authenticate, 
+  (req, res, next) => {
+    console.log('Comprehensive test analyze endpoint called');
+    console.log('Content-Type:', req.headers['content-type']);
+    
+    // For application/json requests, we need to decode base64 images
+    if (req.headers['content-type'] && req.headers['content-type'].includes('application/json')) {
+      express.json({limit: '10mb'})(req, res, () => {
+        console.log('JSON body parsed, keys:', Object.keys(req.body));
+        
+        // If this is a test with base64 data URL format image, convert to buffer
+        if (req.body && req.body.image && typeof req.body.image === 'string' && 
+            req.body.image.startsWith('data:')) {
+          try {
+            // Extract the base64 part
+            const matches = req.body.image.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              const imageBuffer = Buffer.from(matches[2], 'base64');
+              // Replace the base64 string with the buffer for the controller
+              req.file = {
+                buffer: imageBuffer,
+                mimetype: matches[1],
+                originalname: 'test-image.jpg',
+                size: imageBuffer.length
+              };
+              console.log('Successfully converted base64 to buffer:', 
+                imageBuffer.length, 'bytes, mimetype:', matches[1]);
+            }
+          } catch (err) {
+            console.error('Error converting base64 to buffer:', err);
+          }
+        }
+        
+        // Continue to the controller
+        next();
+      });
+    } else if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
+      // For multipart/form-data requests, use multer to parse the file
+      multerUpload.single('image')(req, res, next);
+    } else {
+      // For other content types, just pass through
+      next();
+    }
+  },
+  imageAnalysisController.analyzeImage
+);
 
 // Mount API routes
 app.use('/api', apiRoutes);
@@ -287,16 +340,32 @@ function getTestImage(filename = 'test-throat-image.jpg') {
   try {
     const imagePath = path.join(__dirname, 'test-data', filename);
     if (fs.existsSync(imagePath)) {
-      const imageBuffer = fs.readFileSync(imagePath);
-      return imageBuffer.toString('base64');
+      // Read the file and return the buffer directly for use with multer
+      return fs.readFileSync(imagePath);
     } else {
-      console.warn(`Test image ${filename} not found, generating mock image data`);
-      // Return a small valid base64 image if file doesn't exist
-      return '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAIBAQIBAQICAgICAgICAwUDAwMDAwYEBAMFBwYHBwcGBwcICQsJCAgKCAcHCg0KCgsMDAwMBwkODw0MDgsMDAz/2wBDAQICAgMDAwYDAwYMCAcIDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAz/wAARCAAyADIDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkk+Ix8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD9/KKKKACiiigAooqrqOs22kR75m+YjKovLN9BQJtLct0VwusfFa8kmK6bbrAuflkn+Zj9RWXb+P8AxDI+W1i3jXP3RapgfrmpcjrhhZtXbSPS6K4TQ/ibJDIsOpndHnAlUfMvuR3rtrW6S8t1ljbcjDII71SdzGpScNxaKKKZmFFFFAHL/EbxYdB0ryYmAupuFIOQg7n+leX3l00jFmJZmOST1JrV8aal/aXiK6fOVD7F+gFY7NXLUlrc+iwVFRp67snRqnXpVZTUymsHqdfKWIXMciyIdrKdwPtXpfgTxMNc0dQ+BcQYWVe+e4/CvL1atLQ9ZfQNYhuV+6Dhx6r3q4VLO5hiKKnG62PWaKbFIssYZSGVhkEdxT67D5oKKKKAOL+IGg/Y9T+0IuIrj73s1c6y16TrmkRa1prW8nTOVbuD615vcW7WtzJE4w8bFWHvXPUhZ3PosHXU4cj3RCtSA1EKkU1idtiVTU8UhTkcqeQR3qBTUiGkmNonubVreUvAzKMbihbkH3B5rZ8KeL5dFnWOZmksXONpPKe4rDlnyOlPS4HpVKTW5lUhGceWR6zbXMd3CssbrJG4yrKcgipK4rwN4s/s+4Gn3DH7O5/dMf8AlmfT6V2tdykpK583Vpypzceg6iiiqMTM1/RU1rT2jOBMvzRt6H0+lcDcwPbzPHIpV42KsD3Br1euL8feHvs139thX91P9/A+63+NZ1I3V0d+CrWfJLY5dTS4pg6inA1yjbHFqYh4qtdXot7ZpZG+VfzJ9KueFdJfVdVQhf3UZ3yN6AdqlMls2PBulmx0vz3H7y4OQD/dHQV0FOjjWGMKowqjAHpTa3SS0PMnJyk2FFFFMkZNEs8RVgGVgQQehFc/L4L8hyYZZIz6E7hXQ0UmlJWZUZOLujktT0Ge0jLbTJGOr9R+NZiGu+1CyW/smhbocFT6HtXAzRtBMyMMMrEEVhUhbc7aFXnVnuSCrukac2qapDCgyGbLn0UdT+lUUrtvh/pw8mS6YfM58tPoOp/P+VOnG8jTEVOSm/M6mKJYYlRQFVQAAO1PooroOAKKKKACiiigAooooAKyvF2nC/0GZgPnh/ep9R1/UGtWkYblIPUHIoaurDi3GSa7HmANalgYaLMoxlVJx7jmoZ4zBcSIejKRUlk+2Qj1Ga4o7n0FTWKa7G9RRRXQcQUUUUAFFFFABRRRQAUUUUAcn4509rfUVuFGEmG1vZhXPW7bZverniK4+1avOc52sVH0HP8ASqNucOM9K4ZK0rH0VGeqb8rk1FFFSbBRRRQAUUUUAFFFFAH/2Q==';
+      console.warn(`Test image ${filename} not found, creating mock image file`);
+      
+      // For comprehensive testing, create a small test image file that can be loaded
+      const testImageDir = path.join(__dirname, 'test-data');
+      if (!fs.existsSync(testImageDir)) {
+        fs.mkdirSync(testImageDir, { recursive: true });
+      }
+      
+      // Create a blank JPEG file
+      const blankImageBuffer = Buffer.from('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', 'base64');
+      const blankImagePath = path.join(testImageDir, filename);
+      fs.writeFileSync(blankImagePath, blankImageBuffer);
+      
+      return blankImageBuffer;
     }
   } catch (error) {
     console.error('Error reading test image:', error);
-    return null;
+    // Create a minimal test image in memory as fallback
+    return Buffer.from([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 
+      0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x48, 
+      0x00, 0x48, 0x00, 0x00, 0xff, 0xdb, 0x00, 0x43
+    ]); // Minimal valid JPEG header
   }
 }
 
@@ -498,12 +567,19 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
   describe('Image Analysis', () => {
     
     test('should analyze throat image', async () => {
-      const imageBase64 = getTestImage('test-throat-image.jpg');
+      // Get the image buffer
+      const imageBuffer = getTestImage('test-throat-image.jpg');
       
-      const response = await authenticatedRequest('/analyze', 'POST', {
-        type: 'throat',
-        image: `data:image/jpeg;base64,${imageBase64}`
-      });
+      // In our updated approach, we'll explicitly set the content type as 
+      // application/json to trigger our middleware that converts base64 to buffer
+      const response = await request(app)
+        .post('/analyze')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('Content-Type', 'application/json')
+        .send({
+          type: 'throat',
+          image: `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
+        });
       
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('id');
@@ -515,12 +591,19 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     });
     
     test('should analyze ear image', async () => {
-      const imageBase64 = getTestImage('test-ear-image.jpg');
+      // Get the image buffer
+      const imageBuffer = getTestImage('test-ear-image.jpg');
       
-      const response = await authenticatedRequest('/analyze', 'POST', {
-        type: 'ear',
-        image: `data:image/jpeg;base64,${imageBase64}`
-      });
+      // In our updated approach, we'll explicitly set the content type as 
+      // application/json to trigger our middleware that converts base64 to buffer
+      const response = await request(app)
+        .post('/analyze')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('Content-Type', 'application/json')
+        .send({
+          type: 'ear',
+          image: `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
+        });
       
       expect(response.status).toBe(200);
       expect(response.body).toHaveProperty('id');
@@ -530,12 +613,18 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     });
     
     test('should reject analysis with invalid type', async () => {
-      const imageBase64 = getTestImage();
+      // Get the image buffer
+      const imageBuffer = getTestImage();
       
-      const response = await authenticatedRequest('/analyze', 'POST', {
-        type: 'invalid',
-        image: `data:image/jpeg;base64,${imageBase64}`
-      });
+      // Use the same approach to ensure consistent handling
+      const response = await request(app)
+        .post('/analyze')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('Content-Type', 'application/json')
+        .send({
+          type: 'invalid',
+          image: `data:image/jpeg;base64,${imageBuffer.toString('base64')}`
+        });
       
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error', true);
@@ -543,9 +632,15 @@ describe('SymptomSentryAI API Comprehensive Test Suite', () => {
     });
     
     test('should reject analysis without an image', async () => {
-      const response = await authenticatedRequest('/analyze', 'POST', {
-        type: 'throat'
-      });
+      // Use the same approach to ensure consistent handling
+      const response = await request(app)
+        .post('/analyze')
+        .set('Authorization', `Bearer ${authToken}`)
+        .set('Content-Type', 'application/json')
+        .send({
+          type: 'throat'
+          // No image parameter
+        });
       
       expect(response.status).toBe(400);
       expect(response.body).toHaveProperty('error', true);

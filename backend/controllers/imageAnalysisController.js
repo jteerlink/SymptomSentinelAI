@@ -183,7 +183,15 @@ exports.analyzeImage = async (req, res, next) => {
             imageData = image;
             dataSource = 'raw_base64';
         }
-        // Case 4: Handle other formats
+        // Case 4: Handle Buffer objects from multer or file uploads
+        else if (Buffer.isBuffer(image)) {
+            log('✅ Detected Buffer image data');
+            log(`📊 Buffer length: ${image.length} bytes`);
+            // Use the buffer directly - no conversion needed
+            imageData = image;
+            dataSource = 'buffer';
+        }
+        // Case 5: Handle other formats
         else if (image) {
             log(`⚠️ Image data provided in unidentified format: ${typeof image}`);
             log('Attempting to process as-is');
@@ -370,10 +378,10 @@ exports.analyzeImage = async (req, res, next) => {
                 category: errorCategory,
                 recovery_action: errorRecoveryAction,
                 details: process.env.NODE_ENV === 'development' ? {
-                    error_message: error.message,
-                    stage: error.stage || 'unknown',
-                    problem: error.problem || 'unknown',
-                    data_source: dataSource,
+                    error_message: error && error.message ? error.message : 'Unknown error',
+                    stage: error && error.stage ? error.stage : 'unknown',
+                    problem: error && error.problem ? error.problem : 'unknown',
+                    data_source: dataSource || 'unknown',
                     timestamp: new Date().toISOString()
                 } : undefined
             });
@@ -795,28 +803,42 @@ exports.getAnalysisById = async (req, res, next) => {
         }
         
         // Fetch analysis from database - provide user ID as context for tests
-        const analysis = await Analysis.findById(analysisId, req.user.id);
+        log(`Calling Analysis.findById with: analysisId=${analysisId}, userId=${req.user.id}`);
         
-        console.log(`Analysis lookup result:`, analysis ? `Found ID: ${analysis.id}` : 'Not found');
+        try {
+            // Make sure we're passing parameters consistently for tests
+            // This is the expected call format for the test
+            const analysis = await Analysis.findById(analysisId, req.user.id);
+            
+            log(`Analysis lookup result:`, analysis ? `Found ID: ${analysis.id}` : 'Not found');
         
-        if (!analysis) {
-            throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
+            if (!analysis) {
+                throw ApiError.notFound('Analysis not found', 'ANALYSIS_NOT_FOUND');
+            }
+            
+            // Check if this analysis belongs to the authenticated user
+            if (analysis.user_id !== req.user.id) {
+                console.log(`Analysis user mismatch: belongs to ${analysis.user_id}, but requested by ${req.user.id}`);
+                throw ApiError.forbidden('You do not have permission to view this analysis', 'FORBIDDEN');
+            }
+            
+            console.log(`Found analysis ${analysisId} for user ${req.user.id}`);
+            
+            return res.status(200).json({
+                analysis: analysis
+            });
+        } catch (err) {
+            if (err.isApiError) {
+                throw err;
+            }
+            throw ApiError.internalError('Error retrieving analysis', 'DATABASE_ERROR', err);
         }
-        
-        // Check if this analysis belongs to the authenticated user
-        if (analysis.user_id !== req.user.id) {
-            console.log(`Analysis user mismatch: belongs to ${analysis.user_id}, but requested by ${req.user.id}`);
-            throw ApiError.forbidden('You do not have permission to view this analysis', 'FORBIDDEN');
-        }
-        
-        console.log(`Found analysis ${analysisId} for user ${req.user.id}`);
-        
-        return res.status(200).json({
-            analysis: analysis
-        });
     } catch (error) {
         console.error('Error fetching analysis:', error);
-        console.error('Stack trace:', error.stack);
+        // Only try to access stack if it exists
+        if (error && error.stack) {
+            console.error('Stack trace:', error.stack);
+        }
         
         // Generate a unique error ID for tracking
         const errorId = uuidv4();
@@ -828,22 +850,34 @@ exports.getAnalysisById = async (req, res, next) => {
         let errorCategory = 'database';
         let recoveryAction = 'Please try again later';
         
-        // Handle specific error types
-        if (error.isApiError) {
-            errorCode = error.code || 'API_ERROR';
-            errorStatus = error.status || 500;
-            errorMessage = error.message;
-            
-            if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
-                errorCategory = 'authentication';
-                recoveryAction = 'Please log in and try again';
-            } else if (error.code === 'FORBIDDEN') {
-                errorCategory = 'permissions';
-                recoveryAction = 'Your account does not have permission to view this data';
-            } else if (error.code === 'ANALYSIS_NOT_FOUND') {
-                errorCategory = 'not_found';
-                recoveryAction = 'The requested analysis could not be found';
+        try {
+            // Handle specific error types safely
+            if (error && error.isApiError) {
+                errorCode = error.code || 'API_ERROR';
+                errorStatus = error.status || 500;
+                errorMessage = error.message || 'Unknown error occurred';
+                
+                if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
+                    errorCategory = 'authentication';
+                    recoveryAction = 'Please log in and try again';
+                } else if (error.code === 'FORBIDDEN') {
+                    errorCategory = 'permissions';
+                    recoveryAction = 'Your account does not have permission to view this data';
+                } else if (error.code === 'ANALYSIS_NOT_FOUND') {
+                    errorCategory = 'not_found';
+                    recoveryAction = 'The requested analysis could not be found';
+                }
+            } else if (error) {
+                // Handle regular Error objects
+                errorMessage = error.message || 'Unknown error occurred';
+                console.error('Non-API error occurred:', error.message);
+            } else {
+                // Handle case where error is undefined or null
+                console.error('Undefined error occurred in getAnalysisById');
             }
+        } catch (errorHandlingError) {
+            // In case the error handling itself causes an error
+            console.error('Error while processing error in getAnalysisById:', errorHandlingError);
         }
         
         // Log the categorized error
@@ -854,6 +888,23 @@ exports.getAnalysisById = async (req, res, next) => {
         console.error(`Status: ${errorStatus}`);
         console.error(`Message: ${errorMessage}`);
         
+        let details = undefined;
+        if (process.env.NODE_ENV === 'development') {
+            try {
+                details = {
+                    error_message: error && error.message ? error.message : 'Unknown error',
+                    error_code: error && error.code ? error.code : 'UNKNOWN_ERROR',
+                    timestamp: new Date().toISOString()
+                };
+            } catch (err) {
+                console.error('Error creating details object:', err);
+                details = {
+                    error_message: 'Error creating details object',
+                    timestamp: new Date().toISOString()
+                };
+            }
+        }
+        
         return res.status(errorStatus).json({
             error: true,
             message: errorMessage,
@@ -861,11 +912,7 @@ exports.getAnalysisById = async (req, res, next) => {
             category: errorCategory,
             recovery_action: recoveryAction,
             error_id: errorId,
-            details: process.env.NODE_ENV === 'development' ? {
-                error_message: error.message,
-                error_code: error.code,
-                timestamp: new Date().toISOString()
-            } : undefined
+            details: details
         });
     }
 };
@@ -921,7 +968,9 @@ exports.deleteAnalysis = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error deleting analysis:', error);
-        console.error('Stack trace:', error.stack);
+        if (error && error.stack) {
+            console.error('Stack trace:', error.stack);
+        }
         
         // Generate a unique error ID for tracking
         const errorId = uuidv4();
@@ -933,11 +982,11 @@ exports.deleteAnalysis = async (req, res, next) => {
         let errorCategory = 'database';
         let recoveryAction = 'Please try again later';
         
-        // Handle specific error types
-        if (error.isApiError) {
+        // Handle specific error types (with undefined checks)
+        if (error && error.isApiError) {
             errorCode = error.code || 'API_ERROR';
             errorStatus = error.status || 500;
-            errorMessage = error.message;
+            errorMessage = error.message || 'Unknown API error';
             
             if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
                 errorCategory = 'authentication';
@@ -949,12 +998,19 @@ exports.deleteAnalysis = async (req, res, next) => {
                 errorCategory = 'not_found';
                 recoveryAction = 'The analysis may have already been deleted';
             }
-        } else if (error.code === 'ER_ROW_NOT_FOUND') {
+        } else if (error && error.code === 'ER_ROW_NOT_FOUND') {
             errorCode = 'ANALYSIS_NOT_FOUND';
             errorStatus = 404;
             errorMessage = 'Analysis not found';
             errorCategory = 'not_found';
             recoveryAction = 'The requested analysis does not exist or may have already been deleted';
+        } else if (!error) {
+            // Handle undefined error
+            errorCode = 'UNKNOWN_ERROR';
+            errorStatus = 500;
+            errorMessage = 'An unknown error occurred';
+            errorCategory = 'system';
+            recoveryAction = 'Please try again later';
         }
         
         // Log the categorized error
@@ -1011,7 +1067,9 @@ exports.clearAnalyses = async (req, res, next) => {
         });
     } catch (error) {
         console.error('Error clearing analyses:', error);
-        console.error('Stack trace:', error.stack);
+        if (error && error.stack) {
+            console.error('Stack trace:', error.stack);
+        }
         
         // Generate a unique error ID for tracking
         const errorId = uuidv4();
@@ -1023,11 +1081,11 @@ exports.clearAnalyses = async (req, res, next) => {
         let errorCategory = 'database';
         let recoveryAction = 'Please try again later';
         
-        // Handle specific error types
-        if (error.isApiError) {
+        // Handle specific error types with safe error handling
+        if (error && error.isApiError) {
             errorCode = error.code || 'API_ERROR';
             errorStatus = error.status || 500;
-            errorMessage = error.message;
+            errorMessage = error.message || 'Unknown API error';
             
             if (error.code === 'UNAUTHORIZED' || error.code === 'AUTH_REQUIRED') {
                 errorCategory = 'authentication';
@@ -1036,11 +1094,18 @@ exports.clearAnalyses = async (req, res, next) => {
                 errorCategory = 'permissions';
                 recoveryAction = 'Your account does not have permission to clear analyses';
             }
-        } else if (error.code === 'ER_NO_SUCH_TABLE') {
+        } else if (error && error.code === 'ER_NO_SUCH_TABLE') {
             errorCode = 'DATABASE_ERROR';
             errorMessage = 'Database table not found';
             errorCategory = 'system';
             recoveryAction = 'This appears to be a system issue. Please try again later.';
+        } else if (!error) {
+            // Handle undefined error
+            errorCode = 'UNKNOWN_ERROR';
+            errorStatus = 500;
+            errorMessage = 'An unknown error occurred';
+            errorCategory = 'system';
+            recoveryAction = 'Please try again later';
         }
         
         // Log the categorized error

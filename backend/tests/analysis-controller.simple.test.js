@@ -1,11 +1,11 @@
 /**
- * Test for getAnalysisById Controller Function
+ * Simple tests for the imageAnalysisController getAnalysisById function
  */
 
 // Set test environment
 process.env.NODE_ENV = 'test';
 
-// Create mock for Analysis model
+// Create mocks
 const mockAnalysis = {
   findById: jest.fn()
 };
@@ -19,35 +19,38 @@ const mockModels = {
 // Mock the db/models/index module
 jest.mock('../db/models/index', () => mockModels);
 
-// Import the controller after mocking dependencies
-const imageAnalysisController = require('../controllers/imageAnalysisController');
+// Import the controller
+const controller = require('../controllers/imageAnalysisController');
 
-describe('getAnalysisById Controller', () => {
+describe('getAnalysisById', () => {
   beforeEach(() => {
-    // Reset all mocks before each test
-    jest.resetAllMocks();
-    
+    jest.clearAllMocks();
     // Suppress console logs in tests
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'error').mockImplementation(() => {});
   });
   
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
   test('should return 401 if user is not authenticated', async () => {
-    // Setup
+    // Setup request with no user
     const req = {
       params: { id: 'test-id' },
       user: null
     };
     
+    // Setup mock response
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis()
     };
     
-    // Execute
-    await imageAnalysisController.getAnalysisById(req, res);
+    // Call the controller method
+    await controller.getAnalysisById(req, res);
     
-    // Assert
+    // Verify response
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: true,
@@ -56,21 +59,22 @@ describe('getAnalysisById Controller', () => {
   });
   
   test('should return 400 if analysis ID is missing', async () => {
-    // Setup
+    // Setup request with no ID
     const req = {
       params: {},
       user: { id: 'user-123' }
     };
     
+    // Setup mock response
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis()
     };
     
-    // Execute
-    await imageAnalysisController.getAnalysisById(req, res);
+    // Call the controller method
+    await controller.getAnalysisById(req, res);
     
-    // Assert
+    // Verify response
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: true,
@@ -79,25 +83,28 @@ describe('getAnalysisById Controller', () => {
   });
   
   test('should return 404 if analysis is not found', async () => {
-    // Setup
+    // Setup request
     const req = {
       params: { id: 'analysis-123' },
       user: { id: 'user-123' }
     };
     
+    // Setup mock response
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis()
     };
     
-    // Mock findById to return null (not found)
+    // Setup mock to return null (not found)
     mockAnalysis.findById.mockResolvedValue(null);
     
-    // Execute
-    await imageAnalysisController.getAnalysisById(req, res);
+    // Call the controller method
+    await controller.getAnalysisById(req, res);
     
-    // Assert
-    expect(mockAnalysis.findById).toHaveBeenCalled();
+    // Verify the right parameters were passed to findById
+    expect(mockAnalysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    
+    // Verify response
     expect(res.status).toHaveBeenCalledWith(404);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: true,
@@ -106,30 +113,33 @@ describe('getAnalysisById Controller', () => {
   });
   
   test('should return 403 if analysis belongs to another user', async () => {
-    // Setup
+    // Setup request
     const req = {
       params: { id: 'analysis-123' },
       user: { id: 'user-123' }
     };
     
+    // Setup mock response
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis()
     };
     
-    // Mock findById to return an analysis belonging to another user
+    // Setup mock to return analysis owned by a different user
     mockAnalysis.findById.mockResolvedValue({
       id: 'analysis-123',
-      user_id: 'another-user',
+      user_id: 'another-user', // Different from the requesting user
       type: 'throat',
       conditions: []
     });
     
-    // Execute
-    await imageAnalysisController.getAnalysisById(req, res);
+    // Call the controller method
+    await controller.getAnalysisById(req, res);
     
-    // Assert
-    expect(mockAnalysis.findById).toHaveBeenCalled();
+    // Verify the right parameters were passed to findById
+    expect(mockAnalysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    
+    // Verify response
     expect(res.status).toHaveBeenCalledWith(403);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: true,
@@ -138,21 +148,22 @@ describe('getAnalysisById Controller', () => {
   });
   
   test('should return analysis if found and authorized', async () => {
-    // Setup
+    // Setup request
     const req = {
       params: { id: 'analysis-123' },
       user: { id: 'user-123' }
     };
     
+    // Setup mock response
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis()
     };
     
-    // Create mock analysis result
+    // Create mock analysis
     const analysisResult = {
       id: 'analysis-123',
-      user_id: 'user-123', 
+      user_id: 'user-123', // Same as the requesting user
       type: 'throat',
       conditions: [
         {
@@ -163,14 +174,16 @@ describe('getAnalysisById Controller', () => {
       ]
     };
     
-    // Mock findById to return the analysis
+    // Setup mock to return a valid analysis
     mockAnalysis.findById.mockResolvedValue(analysisResult);
     
-    // Execute
-    await imageAnalysisController.getAnalysisById(req, res);
+    // Call the controller method
+    await controller.getAnalysisById(req, res);
     
-    // Assert
-    expect(mockAnalysis.findById).toHaveBeenCalled();
+    // Verify the right parameters were passed to findById
+    expect(mockAnalysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    
+    // Verify response
     expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledWith({
       analysis: analysisResult
@@ -178,26 +191,29 @@ describe('getAnalysisById Controller', () => {
   });
   
   test('should handle database errors gracefully', async () => {
-    // Setup
+    // Setup request
     const req = {
       params: { id: 'analysis-123' },
       user: { id: 'user-123' }
     };
     
+    // Setup mock response
     const res = {
       status: jest.fn().mockReturnThis(),
       json: jest.fn().mockReturnThis()
     };
     
-    // Mock findById to throw an error
+    // Setup mock to throw an error
     const dbError = new Error('Database error');
     mockAnalysis.findById.mockRejectedValue(dbError);
     
-    // Execute
-    await imageAnalysisController.getAnalysisById(req, res);
+    // Call the controller method
+    await controller.getAnalysisById(req, res);
     
-    // Assert
-    expect(mockAnalysis.findById).toHaveBeenCalled();
+    // Verify the right parameters were passed to findById
+    expect(mockAnalysis.findById).toHaveBeenCalledWith('analysis-123', 'user-123');
+    
+    // Verify response
     expect(res.status).toHaveBeenCalledWith(500);
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
       error: true,

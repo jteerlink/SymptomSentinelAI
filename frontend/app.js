@@ -7,6 +7,7 @@ window.SymptomSentryApp = window.SymptomSentryApp || {};
 const navLinks = document.querySelectorAll('.nav-link');
 const pages = document.querySelectorAll('.page');
 const startAnalysisBtn = document.getElementById('start-analysis-btn');
+const landingSignInBtn = document.getElementById('landing-sign-in-btn');
 
 // Initialize components when the DOM is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -449,6 +450,15 @@ function setupEventListeners() {
         signInRegisterNavLink.addEventListener('click', (e) => {
             e.preventDefault();
             console.log('Sign In / Register nav link clicked from navbar');
+            window.SymptomSentryApp.handleRegistration();
+        });
+    }
+    
+    // Landing page Sign In / Register button handler
+    if (landingSignInBtn) {
+        landingSignInBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            console.log('Sign In / Register button clicked from landing page');
             window.SymptomSentryApp.handleRegistration();
         });
     }

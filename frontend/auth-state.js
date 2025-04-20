@@ -24,6 +24,25 @@ function initAuthState() {
     
     // Ensure no user is automatically signed in on app startup
     console.log('[AuthState] No auto-login: users will start in logged-out state');
+    
+    // Check for the landing page sign-in button
+    const landingSignInBtn = document.getElementById('landing-sign-in-btn');
+    
+    // Check if user has valid authentication (this doesn't auto-login, just checks existing state)
+    if (window.SymptomSentryUtils && typeof window.SymptomSentryUtils.isAuthenticated === 'function') {
+        const isLoggedIn = window.SymptomSentryUtils.isAuthenticated();
+        
+        // If logged in, hide the landing sign-in button
+        if (isLoggedIn && landingSignInBtn) {
+            landingSignInBtn.style.display = 'none';
+            console.log('[AuthState] Landing sign-in button hidden for authenticated user');
+        } else if (landingSignInBtn) {
+            landingSignInBtn.style.display = 'block';
+            console.log('[AuthState] Landing sign-in button shown for unauthenticated user');
+        }
+    }
+    
+    // Reset auth state to ensure clean state on page load
     clearAuthState();
     
     /* Auto-login functionality has been disabled per user request
@@ -340,6 +359,18 @@ function setupTokenRefresh() {
 // Notify all state change listeners
 function notifyStateChange() {
     console.log('[AuthState] Notifying state change listeners');
+    
+    // Handle landing sign-in button visibility directly
+    const landingSignInBtn = document.getElementById('landing-sign-in-btn');
+    if (landingSignInBtn) {
+        if (_state.isAuthenticated) {
+            landingSignInBtn.style.display = 'none';
+            console.log('[AuthState] Landing sign-in button hidden for authenticated user');
+        } else {
+            landingSignInBtn.style.display = 'block';
+            console.log('[AuthState] Landing sign-in button shown for unauthenticated user');
+        }
+    }
     
     // Create an event with the current state
     const authEvent = new CustomEvent('authStateChanged', {

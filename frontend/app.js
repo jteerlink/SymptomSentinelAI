@@ -13,6 +13,15 @@ const landingSignInBtn = document.getElementById('landing-sign-in-btn');
 document.addEventListener('DOMContentLoaded', () => {
     console.log('SymptomSentryAI Web App Initialized');
     
+    // Initially hide the landing sign-in button if user is authenticated
+    if (window.SymptomSentryUtils && typeof window.SymptomSentryUtils.isAuthenticated === 'function') {
+        const isLoggedIn = window.SymptomSentryUtils.isAuthenticated();
+        if (isLoggedIn && landingSignInBtn) {
+            landingSignInBtn.style.display = 'none';
+            console.log('[App] Landing sign-in button initially hidden for authenticated user');
+        }
+    }
+    
     // We'll only create the debug button if we're in debug mode
     const isDebugMode = false; // Set to true only during development/testing
     
@@ -55,11 +64,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 );
             }
             
+            // Hide landing page sign-in button when authenticated
+            if (landingSignInBtn) {
+                landingSignInBtn.style.display = 'none';
+                console.log('[App] Landing sign-in button hidden for authenticated user');
+            }
+            
             // All component updates are handled directly in the auth-state.js notifyStateChange function
             // for consistency across the application, using the standardized updateAuthState methods
         } else {
             // Handle not authenticated state
             resetUIForUnauthenticatedState();
+            
+            // Show landing page sign-in button when not authenticated
+            if (landingSignInBtn) {
+                landingSignInBtn.style.display = 'block';
+                console.log('[App] Landing sign-in button shown for unauthenticated user');
+            }
             
             // All component updates are handled directly in the auth-state.js notifyStateChange function
             // for consistency across the application, using the standardized updateAuthState methods

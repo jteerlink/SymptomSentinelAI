@@ -47,16 +47,26 @@ exports.analyzeImage = async (req, res, next) => {
         // Extract user from request (set by auth middleware)
         const userId = req.user ? req.user.id : null;
         
+        // Declare user at a higher scope so it's accessible in all blocks
+        let user = null;
+        
         // For test environment, skip the user database check
         if (process.env.NODE_ENV === 'test') {
             log('Test environment detected, using mock data');
+            // Create a mock user for test environment
+            user = {
+                id: 'test-user-id',
+                email: 'test@example.com',
+                subscription: 'premium',
+                analysis_count: 0
+            };
         } else {
             // Fetch user from database to check subscription status in non-test environment
             if (!userId) {
                 throw ApiError.unauthorized('Authentication required for analysis', 'AUTH_REQUIRED');
             }
             
-            const user = await User.getById(userId);
+            user = await User.getById(userId);
             if (!user) {
                 console.error('❌ User not found:', userId);
                 throw ApiError.unauthorized('User account not found');

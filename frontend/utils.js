@@ -27,10 +27,24 @@ window.SymptomSentryUtils.updateProfileUI = function(email, name = null, user = 
         };
     }
     
+    // Toggle visibility of profile and sign-in nav items
+    const profileNavItem = document.getElementById('profile-nav-item');
+    const signInNavItem = document.getElementById('sign-in-nav-item');
+    
+    if (email) {
+        // User is logged in, show profile and hide sign-in
+        if (profileNavItem) profileNavItem.style.display = 'block';
+        if (signInNavItem) signInNavItem.style.display = 'none';
+    } else {
+        // User is logged out, hide profile and show sign-in
+        if (profileNavItem) profileNavItem.style.display = 'none';
+        if (signInNavItem) signInNavItem.style.display = 'block';
+    }
+    
     // Update the navigation menu Account link
     const accountNavLink = document.getElementById('account-nav-link');
-    if (accountNavLink) {
-        accountNavLink.textContent = 'Manage Account';
+    if (accountNavLink && email) {
+        accountNavLink.textContent = 'My Account';
         // Make sure it navigates to the profile page when clicked
         accountNavLink.setAttribute('data-page', 'profile');
     }

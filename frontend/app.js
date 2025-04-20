@@ -92,10 +92,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Helper function to reset UI for unauthenticated state
 function resetUIForUnauthenticatedState() {
-    // Update the navigation menu Account link
+    // Toggle visibility of profile and sign-in nav items
+    const profileNavItem = document.getElementById('profile-nav-item');
+    const signInNavItem = document.getElementById('sign-in-nav-item');
+    
+    if (profileNavItem) profileNavItem.style.display = 'none';
+    if (signInNavItem) signInNavItem.style.display = 'block';
+    
+    // Update the navigation menu Account link text (though it should be hidden)
     const accountNavLink = document.getElementById('account-nav-link');
     if (accountNavLink) {
-        accountNavLink.textContent = 'Sign In / Register';
+        accountNavLink.textContent = 'My Account';
     }
     
     // Update the profile page
@@ -248,6 +255,15 @@ function resetUIForUnauthenticatedState() {
     
     // Setup other event listeners
     setupEventListeners();
+    
+    // Set up the Sign In / Register nav link to open the auth dialog
+    const signInRegisterNavLink = document.getElementById('sign-in-register-nav-link');
+    if (signInRegisterNavLink) {
+        signInRegisterNavLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            window.SymptomSentryApp.handleRegistration();
+        });
+    }
     
     // Make app logo link to analyze page
     const appLogoLink = document.getElementById('app-logo-link');

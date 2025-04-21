@@ -146,7 +146,7 @@ task = "packager.installForAll"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "node index.js"
-waitForPort = 5000
+waitForPort = 8000
 
 [[workflows.workflow]]
 name = "BridgeTest"

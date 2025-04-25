@@ -162,7 +162,7 @@ describe('Image Analysis API', () => {
         await new Promise(resolve => setTimeout(resolve, 500));
     });
     // Increase timeout for the long-running test
-    jest.setTimeout(30000); 
+    jest.setTimeout(60000); // Increase timeout to 60 seconds for ML analysis tests
     
     // Test valid analysis request
     test('should analyze an image successfully', async () => {

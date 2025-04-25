@@ -505,9 +505,9 @@ async function analyzeImage(imageData, type, options = {}) {
             args.push('--return-attention');
         }
         
-        // Use binary classification if specified
-        if (options.useBinaryClassification) {
-            args.push('--binary');
+        // Use multiclass classification if specified, otherwise use binary (default)
+        if (options.useMulticlassClassification) {
+            args.push('--multiclass');
         }
         
         // Run the Python analysis script

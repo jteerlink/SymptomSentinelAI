@@ -21,7 +21,7 @@ parser.add_argument('image_path', type=str, help='Path to the image file')
 parser.add_argument('--type', type=str, default='throat', help='Analysis type (throat or ear)')
 parser.add_argument('--version', type=str, help='Model version to use')
 parser.add_argument('--return-attention', action='store_true', help='Return attention map')
-parser.add_argument('--binary', action='store_true', help='Use binary classification (normal/infected)')
+parser.add_argument('--multiclass', action='store_true', help='Use multiclass classification (instead of binary)')
 args = parser.parse_args()
 
 def save_attention_map(attention_map, output_path):
@@ -104,50 +104,8 @@ try:
     with open(args.image_path, 'rb') as f:
         image_data = f.read()
     
-    # Choose the appropriate analysis function based on binary flag
-    if args.binary:
-        # Import binary classifier
-        from binary_classifier import analyze_image_binary
-        
-        # Analyze the image with binary classification
-        if args.return_attention:
-            try:
-                # Analyze with attention
-                results, attention_map = analyze_image_binary(
-                    image_data, 
-                    args.type, 
-                    version=args.version,
-                    return_attention=True
-                )
-                
-                # Save attention map to a file near the original image
-                attention_path = None
-                if attention_map is not None:
-                    attention_path = args.image_path + '.attention.png'
-                    save_attention_map(attention_map, attention_path)
-                
-                # Add attention map path to results if available
-                if attention_path:
-                    for result in results:
-                        result['attention_map'] = attention_path
-            except Exception as e:
-                # Log the error but continue with the results without attention map
-                print(f"Error generating attention map with binary classifier: {str(e)}", file=sys.stderr)
-                # Get results without attention
-                results = analyze_image_binary(
-                    image_data, 
-                    args.type, 
-                    version=args.version,
-                    return_attention=False
-                )
-        else:
-            # Analyze without attention
-            results = analyze_image_binary(
-                image_data, 
-                args.type, 
-                version=args.version
-            )
-    else:
+    # Choose the appropriate analysis function based on multiclass flag
+    if args.multiclass:
         # Import the enhanced image analyzer for multiclass classification
         from enhanced_image_analyzer import analyze_image as enhanced_analyze_image
         
@@ -189,32 +147,74 @@ try:
                 args.type, 
                 version=args.version
             )
+    else:
+        # Import binary classifier - this is now the default
+        from binary_classifier import analyze_image_binary
+        
+        # Analyze the image with binary classification
+        if args.return_attention:
+            try:
+                # Analyze with attention
+                results, attention_map = analyze_image_binary(
+                    image_data, 
+                    args.type, 
+                    version=args.version,
+                    return_attention=True
+                )
+                
+                # Save attention map to a file near the original image
+                attention_path = None
+                if attention_map is not None:
+                    attention_path = args.image_path + '.attention.png'
+                    save_attention_map(attention_map, attention_path)
+                
+                # Add attention map path to results if available
+                if attention_path:
+                    for result in results:
+                        result['attention_map'] = attention_path
+            except Exception as e:
+                # Log the error but continue with the results without attention map
+                print(f"Error generating attention map with binary classifier: {str(e)}", file=sys.stderr)
+                # Get results without attention
+                results = analyze_image_binary(
+                    image_data, 
+                    args.type, 
+                    version=args.version,
+                    return_attention=False
+                )
+        else:
+            # Analyze without attention
+            results = analyze_image_binary(
+                image_data, 
+                args.type, 
+                version=args.version
+            )
     
     # Output the results as JSON
     print(json.dumps({
         "results": results,
         "model_type": args.type,
         "model_version": args.version or "default",
-        "classification_mode": "binary" if args.binary else "multiclass"
+        "classification_mode": "multiclass" if args.multiclass else "binary"
     }))
 except Exception as e:
-    # In case of error, return default values
-    conditions = THROAT_CONDITIONS if args.type == 'throat' else EAR_CONDITIONS
+    # In case of error, use binary fallback
+    from binary_classifier import BINARY_CONDITIONS
     
     # Output error and fallback results
     print(json.dumps({
         "error": str(e),
         "results": [
             {
-                "id": condition["id"],
-                "name": condition["name"],
-                "confidence": 0.75 - (i * 0.1),
-                "description": condition.get("description", "No description available"),
+                "id": "infected",
+                "name": "Abnormal/Infected",
+                "description": "Abnormalities detected that may indicate infection or other medical conditions.",
+                "confidence": 0.5,
+                "recommendationText": "Low confidence prediction due to error.",
                 "error_note": "This is a fallback result due to an error"
             }
-            for i, condition in enumerate(conditions[:2])
         ],
         "model_type": args.type,
         "model_version": "error_fallback",
-        "classification_mode": "error_fallback"
+        "classification_mode": "binary"
     }))

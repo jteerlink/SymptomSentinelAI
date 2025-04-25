@@ -17,7 +17,7 @@ Usage:
     
     # Binary classification with attention map
     binary_result, attention_map = analyze_image_binary(image_data, 'throat', 
-                                                       return_attention=True)
+                                                      return_attention=True)
 """
 
 try:
@@ -63,8 +63,8 @@ BINARY_CONDITIONS = {
 
 
 def analyze_image_binary(img_data, analysis_type, version=None, model_type=None,
-                       return_attention=False, confidence_threshold=0.15, 
-                       infection_threshold=0.3):
+                      return_attention=False, confidence_threshold=0.15, 
+                      infection_threshold=0.3):
     """
     Perform binary classification (normal/infected) on a medical image
     
@@ -102,9 +102,6 @@ def analyze_image_binary(img_data, analysis_type, version=None, model_type=None,
     max_confidence = 0
     has_serious_condition = False
     
-    # Store multiclass details for reference
-    multiclass_details = []
-    
     for condition in conditions:
         confidence = condition.get('confidence', 0)
         if confidence > max_confidence:
@@ -112,13 +109,6 @@ def analyze_image_binary(img_data, analysis_type, version=None, model_type=None,
         
         if condition.get('isPotentiallySerious', False) and confidence > infection_threshold:
             has_serious_condition = True
-            
-        # Save the multiclass details for reference
-        multiclass_details.append({
-            "id": condition.get('id', 'unknown'),
-            "name": condition.get('name', 'Unknown'),
-            "confidence": confidence
-        })
     
     # Determine binary classification based on confidence scores
     is_infected = has_serious_condition or max_confidence > infection_threshold
@@ -134,9 +124,6 @@ def analyze_image_binary(img_data, analysis_type, version=None, model_type=None,
         binary_result['recommendationText'] = f"Moderate confidence prediction for {binary_result['name']}."
     else:
         binary_result['recommendationText'] = f"Low confidence prediction for {binary_result['name']}."
-    
-    # Include original multiclass details for reference/debugging
-    binary_result['multiclass_details'] = multiclass_details
     
     # Return result with attention map if requested
     if return_attention:
@@ -159,9 +146,6 @@ def get_binary_classification_from_multiclass(conditions, infection_threshold=0.
     max_confidence = 0
     has_serious_condition = False
     
-    # Store multiclass details for reference
-    multiclass_details = []
-    
     for condition in conditions:
         confidence = condition.get('confidence', 0)
         if confidence > max_confidence:
@@ -169,13 +153,6 @@ def get_binary_classification_from_multiclass(conditions, infection_threshold=0.
         
         if condition.get('isPotentiallySerious', False) and confidence > infection_threshold:
             has_serious_condition = True
-            
-        # Save the multiclass details for reference
-        multiclass_details.append({
-            "id": condition.get('id', 'unknown'),
-            "name": condition.get('name', 'Unknown'),
-            "confidence": confidence
-        })
     
     # Determine binary classification based on confidence scores
     is_infected = has_serious_condition or max_confidence > infection_threshold
@@ -191,8 +168,5 @@ def get_binary_classification_from_multiclass(conditions, infection_threshold=0.
         binary_result['recommendationText'] = f"Moderate confidence prediction for {binary_result['name']}."
     else:
         binary_result['recommendationText'] = f"Low confidence prediction for {binary_result['name']}."
-    
-    # Include original multiclass details for reference/debugging
-    binary_result['multiclass_details'] = multiclass_details
     
     return [binary_result]

@@ -1082,19 +1082,50 @@ function setupUploadEventListeners(container) {
         // Create a custom loading overlay
         const loadingOverlay = document.createElement('div');
         loadingOverlay.className = 'analysis-loading-overlay';
+        
+        // Enhanced medical-themed loading animation
         loadingOverlay.innerHTML = `
             <div class="analysis-loading-content">
-                <div class="heartbeat-loader"></div>
+                <div class="medical-loading-animation">
+                    <div class="medical-spinner-container">
+                        <div class="medical-spinner">
+                            <div class="medical-spinner-inner">
+                                <div class="medical-spinner-circle"></div>
+                                <div class="medical-spinner-icon">
+                                    <svg viewBox="0 0 24 24" width="36" height="36">
+                                        <!-- Medical cross icon -->
+                                        <path fill="var(--primary-color)" d="M19 3h-4V1h-6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14h-4v-4H6v-2h4V7h4v4h4v2h-4v4z"/>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="medical-dna-animation">
+                            <div class="dna-strand">
+                                <div class="dna-helix dna-helix-1"></div>
+                                <div class="dna-helix dna-helix-2"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="analysis-loading-text">
-                    <span class="analyzing-text">Analyzing</span>
+                    <span class="analyzing-text">AI Analysis in Progress</span>
                     <span class="dot-animation">.</span>
                     <span class="dot-animation">.</span>
                     <span class="dot-animation">.</span>
                 </div>
                 <div class="analysis-steps slide-transition">
-                    <span class="badge bg-primary processing-step">Processing Image</span>
-                    <span class="badge bg-info detection-step">Detecting Patterns</span>
-                    <span class="badge bg-success diagnosis-step">Generating Results</span>
+                    <span class="badge bg-primary processing-step">
+                        <i class="fas fa-microscope"></i> Processing Image
+                    </span>
+                    <span class="badge bg-info detection-step">
+                        <i class="fas fa-search"></i> Detecting Patterns
+                    </span>
+                    <span class="badge bg-success diagnosis-step">
+                        <i class="fas fa-clipboard-check"></i> Generating Results
+                    </span>
+                </div>
+                <div class="analysis-description">
+                    <p class="small text-muted mt-3">Our advanced AI is analyzing your image using medical pattern recognition technology.</p>
                 </div>
             </div>
         `;

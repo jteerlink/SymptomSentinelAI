@@ -183,7 +183,7 @@ main {
 }
 
 .scan-option-icon:after {
-    content: 'Click to Select';
+    content: '';
     position: absolute;
     bottom: -5px;
     left: 50%;
@@ -195,7 +195,7 @@ main {
 }
 
 .scan-option-card:hover:not(.selected) .scan-option-icon:after {
-    opacity: 1;
+    opacity: 0;
 }
 
 .scan-option-card:hover .scan-option-icon {

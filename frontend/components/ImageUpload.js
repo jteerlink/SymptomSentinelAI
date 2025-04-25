@@ -169,15 +169,26 @@ function renderUploadUI(container) {
             </div>
             
             <div class="preview-container mt-4" style="display: none;" id="previewContainer">
-                <h5>Preview:</h5>
-                <img src="#" alt="Preview" class="preview-image" id="previewImage">
-                <div class="mt-3">
-                    <button class="btn btn-danger" id="removeButton">
-                        <i class="fas fa-trash"></i> Remove
-                    </button>
-                    <button class="btn btn-success" id="analyzeButton">
-                        <i class="fas fa-microscope"></i> Analyze Image
-                    </button>
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">Image Preview</h5>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#imagePreviewCollapse" aria-expanded="false" aria-controls="imagePreviewCollapse" id="togglePreviewBtn">
+                            <i class="fas fa-expand"></i> Show Image
+                        </button>
+                    </div>
+                    <div class="collapse" id="imagePreviewCollapse">
+                        <div class="card-body">
+                            <img src="#" alt="Preview" class="preview-image" id="previewImage">
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button class="btn btn-danger" id="removeButton">
+                            <i class="fas fa-trash"></i> Remove
+                        </button>
+                        <button class="btn btn-success" id="analyzeButton">
+                            <i class="fas fa-microscope"></i> Analyze Image
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -864,6 +875,27 @@ function setupUploadEventListeners(container) {
             // Show the preview container
             previewContainer.style.display = 'block';
             dropArea.style.display = 'none';
+            
+            // Get the toggle button and update its event handler
+            const togglePreviewBtn = container.querySelector('#togglePreviewBtn');
+            if (togglePreviewBtn) {
+                // Remove previous event listeners first to avoid duplicates
+                const newToggleBtn = togglePreviewBtn.cloneNode(true);
+                togglePreviewBtn.parentNode.replaceChild(newToggleBtn, togglePreviewBtn);
+                
+                newToggleBtn.addEventListener('click', function() {
+                    const isExpanded = newToggleBtn.getAttribute('aria-expanded') === 'true';
+                    
+                    // Update the button text and icon based on state
+                    if (isExpanded) {
+                        // Collapsing
+                        newToggleBtn.innerHTML = '<i class="fas fa-expand"></i> Show Image';
+                    } else {
+                        // Expanding
+                        newToggleBtn.innerHTML = '<i class="fas fa-compress"></i> Hide Image';
+                    }
+                });
+            }
         };
         
         reader.readAsDataURL(file);

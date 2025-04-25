@@ -170,16 +170,11 @@ function renderUploadUI(container) {
             
             <div class="preview-container mt-4" style="display: none;" id="previewContainer">
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
+                    <div class="card-header">
                         <h5 class="mb-0">Image Preview</h5>
-                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#imagePreviewCollapse" aria-expanded="false" aria-controls="imagePreviewCollapse" id="togglePreviewBtn">
-                            <i class="fas fa-expand"></i> Show Image
-                        </button>
                     </div>
-                    <div class="collapse" id="imagePreviewCollapse">
-                        <div class="card-body">
-                            <img src="#" alt="Preview" class="preview-image" id="previewImage">
-                        </div>
+                    <div class="card-body">
+                        <img src="#" alt="Preview" class="preview-image" id="previewImage">
                     </div>
                     <div class="card-footer">
                         <button class="btn btn-danger" id="removeButton">
@@ -341,15 +336,12 @@ function setupUploadEventListeners(container) {
         // Update selected type
         selectedAnalysisType = type;
         
-        // Update UI to show selection
-        throatOption.classList.remove('selected');
-        earOption.classList.remove('selected');
-        
         // Get tip sections
         const throatTips = container.querySelector('#throatTips');
         const earTips = container.querySelector('#earTips');
         
         if (type === 'throat') {
+            // Initially show the selection then hide after a brief delay
             throatOption.classList.add('selected');
             throatInstructions.style.display = 'block';
             earInstructions.style.display = 'none';
@@ -357,7 +349,13 @@ function setupUploadEventListeners(container) {
             // Show throat tips and hide ear tips
             if (throatTips) throatTips.style.display = 'block';
             if (earTips) earTips.style.display = 'none';
+            
+            // After a short delay, remove the selected class (blue box)
+            setTimeout(() => {
+                throatOption.classList.remove('selected');
+            }, 1000);
         } else {
+            // Initially show the selection then hide after a brief delay
             earOption.classList.add('selected');
             throatInstructions.style.display = 'none';
             earInstructions.style.display = 'block';
@@ -365,6 +363,11 @@ function setupUploadEventListeners(container) {
             // Show ear tips and hide throat tips
             if (throatTips) throatTips.style.display = 'none';
             if (earTips) earTips.style.display = 'block';
+            
+            // After a short delay, remove the selected class (blue box)
+            setTimeout(() => {
+                earOption.classList.remove('selected');
+            }, 1000);
         }
         
         // Show instructions and drop area
@@ -791,6 +794,64 @@ function setupUploadEventListeners(container) {
             
             // Hide loading state
             hideAnalysisLoading();
+            
+            // Add the collapsible functionality to the preview AFTER analysis completes
+            const previewCard = previewContainer.querySelector('.card');
+            const cardHeader = previewCard.querySelector('.card-header');
+            
+            // Only add if it doesn't already exist
+            if (!previewCard.querySelector('#togglePreviewBtn')) {
+                // Create toggle button
+                const toggleBtn = document.createElement('button');
+                toggleBtn.className = 'btn btn-sm btn-outline-secondary';
+                toggleBtn.setAttribute('type', 'button');
+                toggleBtn.setAttribute('data-bs-toggle', 'collapse');
+                toggleBtn.setAttribute('data-bs-target', '#imagePreviewCollapse');
+                toggleBtn.setAttribute('aria-expanded', 'true');
+                toggleBtn.setAttribute('aria-controls', 'imagePreviewCollapse');
+                toggleBtn.setAttribute('id', 'togglePreviewBtn');
+                toggleBtn.innerHTML = '<i class="fas fa-compress"></i> Hide Image';
+                
+                // Update card header to be a flex container
+                cardHeader.className = 'd-flex justify-content-between align-items-center';
+                
+                // Wrap existing content in a div
+                const title = cardHeader.querySelector('h5');
+                const titleWrapper = document.createElement('div');
+                titleWrapper.appendChild(title.cloneNode(true));
+                cardHeader.innerHTML = '';
+                cardHeader.appendChild(titleWrapper);
+                cardHeader.appendChild(toggleBtn);
+                
+                // Create collapse wrapper
+                const cardBody = previewCard.querySelector('.card-body');
+                const collapseDiv = document.createElement('div');
+                collapseDiv.className = 'collapse show';
+                collapseDiv.id = 'imagePreviewCollapse';
+                
+                // Move card body inside collapse wrapper
+                const newCardBody = cardBody.cloneNode(true);
+                previewCard.removeChild(cardBody);
+                collapseDiv.appendChild(newCardBody);
+                
+                // Insert collapse div before card footer
+                const cardFooter = previewCard.querySelector('.card-footer');
+                previewCard.insertBefore(collapseDiv, cardFooter);
+                
+                // Add event listener to toggle button
+                toggleBtn.addEventListener('click', function() {
+                    const isExpanded = toggleBtn.getAttribute('aria-expanded') === 'true';
+                    
+                    // Update the button text and icon based on state
+                    if (isExpanded) {
+                        // Collapsing
+                        toggleBtn.innerHTML = '<i class="fas fa-expand"></i> Show Image';
+                    } else {
+                        // Expanding
+                        toggleBtn.innerHTML = '<i class="fas fa-compress"></i> Hide Image';
+                    }
+                });
+            }
         } catch (error) {
             console.error('[Analysis] Error:', error);
             
@@ -875,27 +936,6 @@ function setupUploadEventListeners(container) {
             // Show the preview container
             previewContainer.style.display = 'block';
             dropArea.style.display = 'none';
-            
-            // Get the toggle button and update its event handler
-            const togglePreviewBtn = container.querySelector('#togglePreviewBtn');
-            if (togglePreviewBtn) {
-                // Remove previous event listeners first to avoid duplicates
-                const newToggleBtn = togglePreviewBtn.cloneNode(true);
-                togglePreviewBtn.parentNode.replaceChild(newToggleBtn, togglePreviewBtn);
-                
-                newToggleBtn.addEventListener('click', function() {
-                    const isExpanded = newToggleBtn.getAttribute('aria-expanded') === 'true';
-                    
-                    // Update the button text and icon based on state
-                    if (isExpanded) {
-                        // Collapsing
-                        newToggleBtn.innerHTML = '<i class="fas fa-expand"></i> Show Image';
-                    } else {
-                        // Expanding
-                        newToggleBtn.innerHTML = '<i class="fas fa-compress"></i> Hide Image';
-                    }
-                });
-            }
         };
         
         reader.readAsDataURL(file);

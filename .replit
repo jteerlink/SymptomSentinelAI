@@ -38,15 +38,15 @@ args = "FrontendServer"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "App"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "BridgeTest"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "BackendServer"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "App"
 
 [[workflows.workflow]]
 name = "Test"
@@ -134,21 +134,6 @@ args = "cd frontend && FRONTEND_PORT=8080 BACKEND_URL=http://0.0.0.0:3000 NODE_E
 waitForPort = 8080
 
 [[workflows.workflow]]
-name = "App"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "node index.js"
-waitForPort = 8000
-
-[[workflows.workflow]]
 name = "BridgeTest"
 author = "agent"
 
@@ -176,6 +161,15 @@ task = "packager.installForAll"
 task = "shell.exec"
 args = "cd backend && BACKEND_PORT=3000 node server.js"
 waitForPort = 3000
+
+[[workflows.workflow]]
+name = "App"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node index.js"
+waitForPort = 8000
 
 [deployment]
 run = ["sh", "-c", "cd backend && npm install express cors body-parser uuid @tensorflow/tfjs-node && node server.js"]

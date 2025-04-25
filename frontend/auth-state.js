@@ -529,12 +529,23 @@ window.SymptomSentryAuth.register = async function(name, email, password) {
             credentials: 'include' // Include cookies in the request
         });
         
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.message || 'Registration failed');
+        // Get the response text first
+        const responseText = await response.text();
+        let data;
+        
+        try {
+            // Parse the JSON response text
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('[AuthState] Failed to parse server response:', parseError);
+            console.log('[AuthState] Raw response:', responseText);
+            throw new Error('Server response format error. Please try again.');
         }
         
-        const data = await response.json();
+        // Check if the response was not OK (HTTP error)
+        if (!response.ok) {
+            throw new Error(data.message || 'Registration failed');
+        }
         
         if (!data.user || !data.accessToken) {
             throw new Error('Invalid server response');

@@ -34,10 +34,6 @@ args = "RunAllTests"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "FrontendServer"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
 args = "BridgeTest"
 
 [[workflows.workflow.tasks]]
@@ -119,21 +115,6 @@ task = "shell.exec"
 args = "node run-all-tests.js"
 
 [[workflows.workflow]]
-name = "FrontendServer"
-author = "agent"
-
-[workflows.workflow.metadata]
-agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd frontend && FRONTEND_PORT=8080 BACKEND_URL=http://0.0.0.0:3000 NODE_ENV=development node --experimental-modules server.js"
-waitForPort = 8080
-
-[[workflows.workflow]]
 name = "BridgeTest"
 author = "agent"
 
@@ -153,9 +134,6 @@ author = "agent"
 
 [workflows.workflow.metadata]
 agentRequireRestartOnSave = false
-
-[[workflows.workflow.tasks]]
-task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
@@ -182,6 +160,10 @@ externalPort = 5000
 [[ports]]
 localPort = 8000
 externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 6000
 
 [[ports]]
 localPort = 34497
@@ -218,10 +200,6 @@ externalPort = 3003
 [[ports]]
 localPort = 39375
 externalPort = 3000
-
-[[ports]]
-localPort = 41637
-externalPort = 6000
 
 [[ports]]
 localPort = 42977

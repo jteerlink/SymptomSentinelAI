@@ -190,7 +190,13 @@ describe('Image Analysis API', () => {
         expect(firstCondition).toHaveProperty('name');
         expect(firstCondition).toHaveProperty('confidence');
         expect(firstCondition).toHaveProperty('description');
-        expect(firstCondition).toHaveProperty('symptoms');
+        
+        // Check for either symptoms or multiclass_details (binary classification might have one or the other)
+        const hasSymptoms = firstCondition.hasOwnProperty('symptoms');
+        const hasMulticlassDetails = firstCondition.hasOwnProperty('multiclass_details');
+        expect(hasSymptoms || hasMulticlassDetails).toBeTruthy();
+        
+        // isPotentiallySerious should always be present
         expect(firstCondition).toHaveProperty('isPotentiallySerious');
     });
 

@@ -333,49 +333,81 @@ parser.add_argument('image_path', type=str, help='Path to the image file')
 parser.add_argument('--type', type=str, default='throat', help='Analysis type (throat or ear)')
 parser.add_argument('--version', type=str, help='Model version to use')
 parser.add_argument('--return-attention', action='store_true', help='Return attention map')
+parser.add_argument('--binary', action='store_true', help='Use binary classification (normal/infected)')
 args = parser.parse_args()
 
 try:
-    # Import the enhanced image analyzer
-    from enhanced_image_analyzer import analyze_image, save_attention_map
-    from medical_image_analyzer import THROAT_CONDITIONS, EAR_CONDITIONS
-    
     # Read the image file
     with open(args.image_path, 'rb') as f:
         image_data = f.read()
-    
-    # Analyze the image
-    if args.return_attention:
-        results, attention_map = analyze_image(
-            image_data, 
-            args.type, 
-            version=args.version if args.version else None,
-            return_attention=True
-        )
         
-        # Save attention map to a file near the original image
-        if attention_map is not None:
-            attention_path = args.image_path + '.attention.png'
-            save_attention_map(attention_map, attention_path)
+    # Choose which analyzer to use based on binary flag
+    if args.binary:
+        # Import the binary classifier
+        from binary_classifier import analyze_image_binary
+        
+        # Analyze the image with binary classification
+        if args.return_attention:
+            results, attention_map = analyze_image_binary(
+                image_data, 
+                args.type, 
+                version=args.version if args.version else None,
+                return_attention=True
+            )
             
-            # Add attention map path to results
-            for result in results:
-                result['attention_map'] = attention_path
+            # Save attention map to a file near the original image
+            from enhanced_image_analyzer import save_attention_map
+            if attention_map is not None:
+                attention_path = args.image_path + '.attention.png'
+                save_attention_map(attention_map, attention_path)
+                
+                # Add attention map path to results
+                for result in results:
+                    result['attention_map'] = attention_path
+        else:
+            results = analyze_image_binary(
+                image_data, 
+                args.type, 
+                version=args.version if args.version else None
+            )
     else:
-        results = analyze_image(
-            image_data, 
-            args.type, 
-            version=args.version if args.version else None
-        )
+        # Import the enhanced image analyzer for multiclass classification
+        from enhanced_image_analyzer import analyze_image, save_attention_map
+        
+        # Analyze the image with multiclass classification
+        if args.return_attention:
+            results, attention_map = analyze_image(
+                image_data, 
+                args.type, 
+                version=args.version if args.version else None,
+                return_attention=True
+            )
+            
+            # Save attention map to a file near the original image
+            if attention_map is not None:
+                attention_path = args.image_path + '.attention.png'
+                save_attention_map(attention_map, attention_path)
+                
+                # Add attention map path to results
+                for result in results:
+                    result['attention_map'] = attention_path
+        else:
+            results = analyze_image(
+                image_data, 
+                args.type, 
+                version=args.version if args.version else None
+            )
     
     # Output the results as JSON
     print(json.dumps({
         "results": results,
         "model_type": args.type,
-        "model_version": args.version if args.version else "default"
+        "model_version": args.version if args.version else "default",
+        "classification_mode": "binary" if args.binary else "multiclass"
     }))
 except Exception as e:
     # In case of error, return default values or error
+    from medical_image_analyzer import THROAT_CONDITIONS, EAR_CONDITIONS
     conditions = THROAT_CONDITIONS if args.type == 'throat' else EAR_CONDITIONS
     
     # Output error and fallback results
@@ -390,7 +422,8 @@ except Exception as e:
             }
         ],
         "model_type": args.type,
-        "model_version": "error_fallback"
+        "model_version": "error_fallback",
+        "classification_mode": "error_fallback"
     }))
 `;
     
@@ -443,6 +476,7 @@ async function loadBridge() {
  * @param {Object} options - Options for analysis
  * @param {string} options.version - Specific model version to use
  * @param {boolean} options.returnAttention - Whether to return attention map
+ * @param {boolean} options.useBinaryClassification - Whether to use binary classification (normal/infected)
  * @returns {Promise<Object>} - Analysis results
  */
 async function analyzeImage(imageData, type, options = {}) {
@@ -469,6 +503,11 @@ async function analyzeImage(imageData, type, options = {}) {
         
         if (options.returnAttention) {
             args.push('--return-attention');
+        }
+        
+        // Use binary classification if specified
+        if (options.useBinaryClassification) {
+            args.push('--binary');
         }
         
         // Run the Python analysis script

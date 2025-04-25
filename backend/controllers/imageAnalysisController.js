@@ -263,10 +263,11 @@ exports.analyzeImage = async (req, res, next) => {
                 log('🔄 Using enhancedModelBridge for analysis with attention map support...');
             }
             
-            // Use the enhanced model bridge with attention map support
+            // Use the enhanced model bridge with attention map support and binary classification
             const predictions = await analyzeImage(imageData, type, {
                 returnAttention: true, // Enable attention map visualization
-                version: 'v1'  // Use a specific model version
+                version: 'v1',  // Use a specific model version
+                useBinaryClassification: true // Use binary classification (normal/infected)
             });
             
             if (process.env.NODE_ENV !== 'test') {

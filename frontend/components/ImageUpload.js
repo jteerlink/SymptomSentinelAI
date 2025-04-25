@@ -807,10 +807,10 @@ function setupUploadEventListeners(container) {
                 toggleBtn.setAttribute('type', 'button');
                 toggleBtn.setAttribute('data-bs-toggle', 'collapse');
                 toggleBtn.setAttribute('data-bs-target', '#imagePreviewCollapse');
-                toggleBtn.setAttribute('aria-expanded', 'true');
+                toggleBtn.setAttribute('aria-expanded', 'false');
                 toggleBtn.setAttribute('aria-controls', 'imagePreviewCollapse');
                 toggleBtn.setAttribute('id', 'togglePreviewBtn');
-                toggleBtn.innerHTML = '<i class="fas fa-compress"></i> Hide Image';
+                toggleBtn.innerHTML = '<i class="fas fa-expand"></i> Show Image';
                 
                 // Update card header to be a flex container
                 cardHeader.className = 'd-flex justify-content-between align-items-center';
@@ -826,7 +826,7 @@ function setupUploadEventListeners(container) {
                 // Create collapse wrapper
                 const cardBody = previewCard.querySelector('.card-body');
                 const collapseDiv = document.createElement('div');
-                collapseDiv.className = 'collapse show';
+                collapseDiv.className = 'collapse'; // Removed 'show' class to keep it collapsed initially
                 collapseDiv.id = 'imagePreviewCollapse';
                 
                 // Move card body inside collapse wrapper

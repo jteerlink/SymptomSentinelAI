@@ -795,7 +795,7 @@ function setupUploadEventListeners(container) {
             // Hide loading state
             hideAnalysisLoading();
             
-            // Add the collapsible functionality to the preview AFTER analysis completes
+            // 1. First, collapse the image preview with a toggle button
             const previewCard = previewContainer.querySelector('.card');
             const cardHeader = previewCard.querySelector('.card-header');
             
@@ -851,6 +851,103 @@ function setupUploadEventListeners(container) {
                         toggleBtn.innerHTML = '<i class="fas fa-compress"></i> Hide Image';
                     }
                 });
+            }
+            
+            // 2. Now, collapse the entire scan type selection and upload area
+            // Find the scan container elements
+            const scanTypeSelection = container.querySelector('.scan-type-selection');
+            const analysisTypeInfo = container.querySelector('#analysis-type-info');
+            const dropArea = container.querySelector('.drop-area');
+            
+            // Create a collapsible wrapper for the entire selection area
+            if (!container.querySelector('#uploadAreaCollapseWrapper')) {
+                // Create wrapper container
+                const uploadAreaWrapper = document.createElement('div');
+                uploadAreaWrapper.id = 'uploadAreaCollapseWrapper';
+                uploadAreaWrapper.className = 'mb-4';
+                
+                // Create header with toggle button
+                const uploadAreaHeader = document.createElement('div');
+                uploadAreaHeader.className = 'upload-area-header d-flex justify-content-between align-items-center p-2 bg-light rounded-top';
+                
+                const headerTitle = document.createElement('h5');
+                headerTitle.className = 'm-0';
+                headerTitle.innerText = 'Image Scan Options';
+                
+                const uploadAreaToggleBtn = document.createElement('button');
+                uploadAreaToggleBtn.className = 'btn btn-sm btn-outline-secondary';
+                uploadAreaToggleBtn.setAttribute('type', 'button');
+                uploadAreaToggleBtn.setAttribute('data-bs-toggle', 'collapse');
+                uploadAreaToggleBtn.setAttribute('data-bs-target', '#uploadAreaCollapse');
+                uploadAreaToggleBtn.setAttribute('aria-expanded', 'false');
+                uploadAreaToggleBtn.setAttribute('aria-controls', 'uploadAreaCollapse');
+                uploadAreaToggleBtn.setAttribute('id', 'uploadAreaToggleBtn');
+                uploadAreaToggleBtn.innerHTML = '<i class="fas fa-expand"></i> Show Options';
+                
+                uploadAreaHeader.appendChild(headerTitle);
+                uploadAreaHeader.appendChild(uploadAreaToggleBtn);
+                
+                // Create collapsible content container
+                const uploadAreaCollapse = document.createElement('div');
+                uploadAreaCollapse.className = 'collapse upload-area-collapse';
+                uploadAreaCollapse.id = 'uploadAreaCollapse';
+                
+                // Move all scan-related content into the collapse container
+                const uploadContent = document.createElement('div');
+                uploadContent.className = 'p-3 border border-top-0 rounded-bottom';
+                
+                // Clone all the elements we want to move
+                // First, get original elements to know where to insert our wrapper
+                const parentNode = scanTypeSelection.parentNode;
+                const insertBeforeNode = scanTypeSelection;
+                
+                // Now wrap these elements
+                uploadContent.appendChild(scanTypeSelection.cloneNode(true));
+                if (analysisTypeInfo) {
+                    uploadContent.appendChild(analysisTypeInfo.cloneNode(true));
+                }
+                if (dropArea) {
+                    uploadContent.appendChild(dropArea.cloneNode(true));
+                }
+                
+                // Remove originals
+                if (scanTypeSelection.parentNode) {
+                    scanTypeSelection.parentNode.removeChild(scanTypeSelection);
+                }
+                if (analysisTypeInfo && analysisTypeInfo.parentNode) {
+                    analysisTypeInfo.parentNode.removeChild(analysisTypeInfo);
+                }
+                if (dropArea && dropArea.parentNode) {
+                    dropArea.parentNode.removeChild(dropArea);
+                }
+                
+                // Add content to collapse container
+                uploadAreaCollapse.appendChild(uploadContent);
+                
+                // Assemble the wrapper
+                uploadAreaWrapper.appendChild(uploadAreaHeader);
+                uploadAreaWrapper.appendChild(uploadAreaCollapse);
+                
+                // Insert the wrapper in the original position
+                parentNode.insertBefore(uploadAreaWrapper, insertBeforeNode);
+                
+                // Add event listener to toggle button
+                uploadAreaToggleBtn.addEventListener('click', function() {
+                    const isExpanded = uploadAreaToggleBtn.getAttribute('aria-expanded') === 'true';
+                    
+                    // Update the button text and icon based on state
+                    if (isExpanded) {
+                        // Collapsing
+                        uploadAreaToggleBtn.innerHTML = '<i class="fas fa-expand"></i> Show Options';
+                    } else {
+                        // Expanding
+                        uploadAreaToggleBtn.innerHTML = '<i class="fas fa-compress"></i> Hide Options';
+                    }
+                });
+                
+                // Re-attach event listeners to the cloned elements
+                // We'll need to re-initialize the upload area functionality
+                setupUploadEventListeners(container);
             }
         } catch (error) {
             console.error('[Analysis] Error:', error);

@@ -577,6 +577,9 @@ window.SymptomSentryApp.handleRegistration = function() {
                             </div>
                             <div class="tab-pane fade" id="register" role="tabpanel" aria-labelledby="register-tab">
                                 <form id="register-form" class="mt-3">
+                                    <!-- Error message container -->
+                                    <div id="register-error-message" class="alert alert-danger mb-3" style="display: none;"></div>
+                                    
                                     <div class="row">
                                         <div class="col-md-6 mb-3">
                                             <label for="register-first-name" class="form-label">First Name</label>
@@ -821,8 +824,15 @@ window.SymptomSentryApp.handleRegistration = function() {
                         errorMessage = error.message || 'Registration failed, please try again';
                     }
                     
-                    // Show error message to user
-                    window.SymptomSentryUtils.showNotification(`Registration failed: ${errorMessage}`, 'danger');
+                    // Show error message directly in the form instead of using notification
+                    const errorDiv = document.getElementById('register-error-message');
+                    if (errorDiv) {
+                        errorDiv.textContent = `Registration failed: ${errorMessage}`;
+                        errorDiv.style.display = 'block';
+                    } else {
+                        // Fallback to notification if error div doesn't exist
+                        window.SymptomSentryUtils.showNotification(`Registration failed: ${errorMessage}`, 'danger');
+                    }
                 }
             } else {
                 // Fallback to legacy registration if auth state manager is not available
@@ -899,8 +909,15 @@ window.SymptomSentryApp.handleRegistration = function() {
                 errorMessage = error.message || 'Registration failed, please try again';
             }
             
-            // Show error message to user
-            window.SymptomSentryUtils.showNotification(`Registration failed: ${errorMessage}`, 'danger');
+            // Show error message in the form instead of notification
+            const errorDiv = document.getElementById('register-error-message');
+            if (errorDiv) {
+                errorDiv.textContent = `Registration failed: ${errorMessage}`;
+                errorDiv.style.display = 'block';
+            } else {
+                // Fallback to notification only if error div doesn't exist
+                window.SymptomSentryUtils.showNotification(`Registration failed: ${errorMessage}`, 'danger');
+            }
         } finally {
             // Reset button state
             submitButton.disabled = false;

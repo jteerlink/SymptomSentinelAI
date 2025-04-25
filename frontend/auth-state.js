@@ -585,6 +585,9 @@ window.SymptomSentryAuth.register = async function(name, email, password) {
         return data.user;
     } catch (error) {
         console.error('[AuthState] Registration error:', error);
+        
+        // Don't display error here, let the calling function handle the error display
+        // This prevents duplicate error notifications
         throw error;
     }
 };

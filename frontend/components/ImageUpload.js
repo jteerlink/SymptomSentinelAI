@@ -896,40 +896,55 @@ function setupUploadEventListeners(container) {
                 const uploadContent = document.createElement('div');
                 uploadContent.className = 'p-3 border border-top-0 rounded-bottom';
                 
-                // Clone all the elements we want to move
-                // First, get original elements to know where to insert our wrapper
-                const parentNode = scanTypeSelection.parentNode;
-                const insertBeforeNode = scanTypeSelection;
-                
-                // Now wrap these elements
-                uploadContent.appendChild(scanTypeSelection.cloneNode(true));
-                if (analysisTypeInfo) {
-                    uploadContent.appendChild(analysisTypeInfo.cloneNode(true));
+                // A safer approach for DOM manipulation
+                if (scanTypeSelection && scanTypeSelection.parentNode) {
+                    // Get the parent node and the reference node for insertion
+                    const parentNode = scanTypeSelection.parentNode;
+                    
+                    // Make deep clones of all the elements we need
+                    const scanTypeSelectionClone = scanTypeSelection.cloneNode(true);
+                    
+                    // First, add our new wrapper to the container directly
+                    // We'll use insertAdjacentElement which is safer
+                    container.querySelector('.upload-container').appendChild(uploadAreaWrapper);
+                    
+                    // Append header
+                    uploadAreaWrapper.appendChild(uploadAreaHeader);
+                    uploadAreaWrapper.appendChild(uploadAreaCollapse);
+                    
+                    // Append content container
+                    uploadAreaCollapse.appendChild(uploadContent);
+                    
+                    // Add the cloned elements to the content container
+                    uploadContent.appendChild(scanTypeSelectionClone);
+                    
+                    if (analysisTypeInfo) {
+                        const analysisTypeInfoClone = analysisTypeInfo.cloneNode(true);
+                        uploadContent.appendChild(analysisTypeInfoClone);
+                    }
+                    
+                    if (dropArea) {
+                        const dropAreaClone = dropArea.cloneNode(true);
+                        uploadContent.appendChild(dropAreaClone);
+                    }
+                    
+                    // Remove originals AFTER we've successfully built the new structure
+                    try {
+                        if (scanTypeSelection.parentNode) {
+                            scanTypeSelection.parentNode.removeChild(scanTypeSelection);
+                        }
+                        if (analysisTypeInfo && analysisTypeInfo.parentNode) {
+                            analysisTypeInfo.parentNode.removeChild(analysisTypeInfo);
+                        }
+                        if (dropArea && dropArea.parentNode) {
+                            dropArea.parentNode.removeChild(dropArea);
+                        }
+                    } catch (err) {
+                        console.error("[ImageUpload] Error removing original elements:", err);
+                        // We can continue even if we can't remove originals
+                        // They'll just be duplicated but everything will still work
+                    }
                 }
-                if (dropArea) {
-                    uploadContent.appendChild(dropArea.cloneNode(true));
-                }
-                
-                // Remove originals
-                if (scanTypeSelection.parentNode) {
-                    scanTypeSelection.parentNode.removeChild(scanTypeSelection);
-                }
-                if (analysisTypeInfo && analysisTypeInfo.parentNode) {
-                    analysisTypeInfo.parentNode.removeChild(analysisTypeInfo);
-                }
-                if (dropArea && dropArea.parentNode) {
-                    dropArea.parentNode.removeChild(dropArea);
-                }
-                
-                // Add content to collapse container
-                uploadAreaCollapse.appendChild(uploadContent);
-                
-                // Assemble the wrapper
-                uploadAreaWrapper.appendChild(uploadAreaHeader);
-                uploadAreaWrapper.appendChild(uploadAreaCollapse);
-                
-                // Insert the wrapper in the original position
-                parentNode.insertBefore(uploadAreaWrapper, insertBeforeNode);
                 
                 // Add event listener to toggle button
                 uploadAreaToggleBtn.addEventListener('click', function() {

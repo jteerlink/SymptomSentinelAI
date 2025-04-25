@@ -524,7 +524,9 @@ exports.saveAnalysis = async (req, res, next) => {
         
         console.log('Live environment, saving to database');
         // For non-test environments, create analysis record in database
-        const id = analysisData.id || undefined;
+        // Always generate a new UUID to avoid duplicate key errors
+        const id = uuidv4();
+        console.log(`Generated new analysis ID: ${id}`);
         
         try {
             // Not incrementing analysis count for saves anymore

@@ -183,7 +183,20 @@ function validateTokenWithServer() {
             try {
                 const responseText = await response.text();
                 console.log('[AuthState] Raw validation response:', responseText);
-                return JSON.parse(responseText);
+                
+                // Add extra safety check in case the response is empty
+                if (!responseText.trim()) {
+                    console.error('[AuthState] Empty token validation response received');
+                    throw new Error('Token validation failed: Empty response');
+                }
+                
+                try {
+                    return JSON.parse(responseText);
+                } catch (jsonError) {
+                    console.error('[AuthState] JSON parse error:', jsonError);
+                    console.error('[AuthState] Raw response causing error:', responseText);
+                    throw new Error('Token validation failed: Invalid JSON response format');
+                }
             } catch (parseError) {
                 console.error('[AuthState] Error parsing validation response:', parseError);
                 throw new Error('Token validation failed: Invalid response format');
@@ -275,7 +288,21 @@ function refreshAccessToken(refreshToken, isExpired = false) {
             try {
                 const responseText = await response.text();
                 console.log('[AuthState] Raw refresh response:', responseText);
-                const data = JSON.parse(responseText);
+                
+                // Add extra safety check in case the response is empty
+                if (!responseText.trim()) {
+                    console.error('[AuthState] Empty token refresh response received');
+                    return false;
+                }
+                
+                let data;
+                try {
+                    data = JSON.parse(responseText);
+                } catch (jsonError) {
+                    console.error('[AuthState] JSON parse error in refresh:', jsonError);
+                    console.error('[AuthState] Raw response causing error:', responseText);
+                    return false;
+                }
                 
                 if (data.valid && data.accessToken) {
                     console.log('[AuthState] Token refreshed via validation endpoint');
@@ -327,7 +354,20 @@ function refreshAccessToken(refreshToken, isExpired = false) {
                 try {
                     const responseText = await response.text();
                     console.log('[AuthState] Raw refresh-token response:', responseText);
-                    return JSON.parse(responseText);
+                    
+                    // Add extra safety check in case the response is empty
+                    if (!responseText.trim()) {
+                        console.error('[AuthState] Empty token refresh-token response received');
+                        throw new Error('Token refresh failed: Empty response');
+                    }
+                    
+                    try {
+                        return JSON.parse(responseText);
+                    } catch (jsonError) {
+                        console.error('[AuthState] JSON parse error in refresh-token:', jsonError);
+                        console.error('[AuthState] Raw response causing error:', responseText);
+                        throw new Error('Token refresh failed: Invalid JSON response format');
+                    }
                 } catch (parseError) {
                     console.error('[AuthState] Error parsing refresh-token response:', parseError);
                     throw new Error('Token refresh failed: Invalid response format');
@@ -546,7 +586,18 @@ window.SymptomSentryAuth.login = async function(email, password) {
         try {
             const responseText = await response.text();
             console.log('[AuthState] Raw login response:', responseText);
-            data = JSON.parse(responseText);
+            // Add extra safety check in case the response is empty or not valid JSON
+            if (!responseText.trim()) {
+                console.error('[AuthState] Empty login response received');
+                throw new Error('Login failed: Empty server response');
+            }
+            try {
+                data = JSON.parse(responseText);
+            } catch (jsonError) {
+                console.error('[AuthState] JSON parse error:', jsonError);
+                console.error('[AuthState] Raw response causing error:', responseText);
+                throw new Error('Login failed: Invalid JSON response format');
+            }
         } catch (parseError) {
             console.error('[AuthState] Error parsing login response:', parseError);
             throw new Error('Login failed: Invalid server response format');
@@ -622,13 +673,19 @@ window.SymptomSentryAuth.register = async function(name, email, password) {
         const responseText = await response.text();
         let data;
         
+        // Add extra safety check in case the response is empty or not valid JSON
+        if (!responseText.trim()) {
+            console.error('[AuthState] Empty registration response received');
+            throw new Error('Registration failed: Empty server response');
+        }
+        
         try {
             // Parse the JSON response text
             data = JSON.parse(responseText);
         } catch (parseError) {
             console.error('[AuthState] Failed to parse server response:', parseError);
-            console.log('[AuthState] Raw response:', responseText);
-            throw new Error('Server response format error. Please try again.');
+            console.error('[AuthState] Raw response causing error:', responseText);
+            throw new Error('Registration failed: Invalid JSON response format');
         }
         
         // Check if the response was not OK (HTTP error)

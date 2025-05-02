@@ -331,10 +331,34 @@ function showNotification(message, type) {
  * @returns {boolean} True if authenticated, false otherwise
  */
 window.SymptomSentryUtils.isAuthenticated = function() {
+    // First check for HTTP-only cookie auth flag
+    const usingSecureCookies = localStorage.getItem('usingSecureCookies');
+    const tokenExpiresAt = localStorage.getItem('tokenExpiresAt');
+    
+    if (usingSecureCookies === 'true') {
+        // We're using secure cookies - check expiration if available
+        if (tokenExpiresAt) {
+            const now = new Date();
+            const expiresAt = new Date(tokenExpiresAt);
+            
+            if (now > expiresAt) {
+                console.log('[Auth Helper] isAuthenticated check - Cookie-based token may be expired');
+                // Cookie might be expired, but we'll rely on server validation
+                // Don't return false yet - we'll also check legacy token storage
+            } else {
+                console.log('[Auth Helper] isAuthenticated check - Using secure cookies for authentication');
+                return true;
+            }
+        } else {
+            console.log('[Auth Helper] isAuthenticated check - Using secure cookies (no expiration info)');
+            return true;
+        }
+    }
+    
+    // Legacy check for localStorage token
     const token = localStorage.getItem('authToken');
     const tokenExpires = localStorage.getItem('tokenExpires');
     
-    // First check for localStorage token
     if (token) {
         // Check if token is expired
         if (tokenExpires) {
@@ -420,7 +444,17 @@ window.SymptomSentryUtils.isAuthenticated = function() {
  * @returns {string|null} The auth token or null if not authenticated
  */
 window.SymptomSentryUtils.getAuthToken = function() {
-    // Check if we have a valid localStorage token
+    // First check if we're using HTTP-only cookies
+    const usingSecureCookies = localStorage.getItem('usingSecureCookies');
+    
+    if (usingSecureCookies === 'true') {
+        // We're using HTTP-only cookies, so there's no token to return
+        // Instead return a special marker that tells the code to rely on cookies
+        console.log('[Auth Helper] getAuthToken - Using HTTP-only cookie authentication');
+        return 'use-cookies';
+    }
+    
+    // Legacy: Check if we have a valid localStorage token
     const token = localStorage.getItem('authToken');
     const tokenExpires = localStorage.getItem('tokenExpires');
     
@@ -454,10 +488,12 @@ window.SymptomSentryUtils.getAuthToken = function() {
 window.SymptomSentryUtils.clearAuthData = function() {
     console.log('[Auth] Clearing all authentication data');
     
-    // Clear tokens
+    // Clear tokens and cookie flags
     localStorage.removeItem('authToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpires');
+    localStorage.removeItem('usingSecureCookies');
+    localStorage.removeItem('tokenExpiresAt');
     
     // Clear analysis data
     localStorage.removeItem('hasPerformedAnalysis');

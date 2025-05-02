@@ -110,23 +110,21 @@ function updateAuthState(isAuthenticated, user = null, token = null, refreshToke
     _state.refreshToken = refreshToken;
     _state.tokenExpires = tokenExpires;
     
-    // Store in localStorage if authenticated
-    if (isAuthenticated && token) {
-        localStorage.setItem('authToken', token);
+    // With HTTP-only cookies, we don't need to store tokens in localStorage
+    // We only store a marker so the app knows authentication has happened
+    if (isAuthenticated) {
+        // Store a flag that we're using cookies for authentication
+        localStorage.setItem('usingSecureCookies', 'true');
         
-        if (refreshToken) {
-            localStorage.setItem('refreshToken', refreshToken);
-        }
-        
+        // For reference only in frontend - not used for actual auth
         if (tokenExpires) {
-            localStorage.setItem('tokenExpires', tokenExpires);
+            localStorage.setItem('tokenExpiresAt', tokenExpires);
         }
     } 
     // Clear localStorage if not authenticated
     else if (!isAuthenticated) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('tokenExpires');
+        localStorage.removeItem('usingSecureCookies');
+        localStorage.removeItem('tokenExpiresAt');
         
         // Clear additional user data
         localStorage.removeItem('userProfile');

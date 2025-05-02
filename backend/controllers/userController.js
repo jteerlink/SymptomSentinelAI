@@ -1,6 +1,6 @@
 // Import required modules
 const { User } = require('../db/models');
-const { generateTokens, JWT_EXPIRATION, JWT_REFRESH_EXPIRATION } = require('../middleware/auth');
+const { generateTokens, setAuthCookies, clearAuthCookies, JWT_EXPIRATION, JWT_REFRESH_EXPIRATION } = require('../middleware/auth');
 const { validatePassword } = require('../utils/passwordValidator');
 
 /**
@@ -84,16 +84,9 @@ exports.register = async (req, res, next) => {
         console.log('🔑 Generating authentication tokens...');
         const { accessToken, refreshToken } = generateTokens(newUser);
         
-        // Set cookies for authentication
-        res.cookie('authToken', accessToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
-        });
-        
-        res.cookie('refreshToken', refreshToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
-        });
+        // Set HTTP-only cookies for authentication
+        console.log('🔒 Setting HTTP-only cookies for authentication');
+        setAuthCookies(res, accessToken, refreshToken);
         
         // Prepare response object
         const responseObject = {
@@ -195,16 +188,9 @@ exports.login = async (req, res, next) => {
         // Generate tokens
         const { accessToken, refreshToken } = generateTokens(user);
         
-        // Set cookies for authentication
-        res.cookie('authToken', accessToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
-        });
-        
-        res.cookie('refreshToken', refreshToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
-        });
+        // Set HTTP-only cookies for authentication
+        console.log('🔒 Setting HTTP-only cookies for authentication');
+        setAuthCookies(res, accessToken, refreshToken);
 
         // Prepare response object
         const responseObject = {
@@ -358,16 +344,9 @@ exports.updatePassword = async (req, res, next) => {
         const user = await User.getById(userId);
         const { accessToken, refreshToken } = generateTokens(user);
         
-        // Set cookies for the new tokens
-        res.cookie('authToken', accessToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
-        });
-        
-        res.cookie('refreshToken', refreshToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
-        });
+        // Set HTTP-only cookies for authentication
+        console.log('🔒 Setting HTTP-only cookies for authentication');
+        setAuthCookies(res, accessToken, refreshToken);
         
         console.log('🔑 Password updated, new auth cookies set for user:', user.id);
         
@@ -609,16 +588,8 @@ exports.refreshToken = async (req, res, next) => {
             });
         }
         
-        // Set new cookies for refreshed tokens
-        res.cookie('authToken', result.accessToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: COOKIE_MAX_AGE
-        });
-        
-        res.cookie('refreshToken', result.refreshToken, {
-            ...COOKIE_OPTIONS,
-            maxAge: REFRESH_COOKIE_MAX_AGE
-        });
+        // Set HTTP-only cookies for refreshed tokens
+        setAuthCookies(res, result.accessToken, result.refreshToken);
         
         console.log('[Token Refresh] Auth cookies refreshed successfully');
         
@@ -647,18 +618,8 @@ exports.logout = async (req, res, next) => {
         // or add it to a blocklist to prevent it from being used again
         
         // For our implementation, we'll rely on clearing client-side tokens
-        // Here we'll set an empty auth cookie with immediate expiration
-        res.cookie('authToken', '', {
-            ...COOKIE_OPTIONS,
-            maxAge: 0, // Expire immediately
-            expires: new Date(0), // Expire immediately
-        });
-        
-        res.cookie('refreshToken', '', {
-            ...COOKIE_OPTIONS,
-            maxAge: 0, // Expire immediately
-            expires: new Date(0), // Expire immediately
-        });
+        // Clear HTTP-only cookies
+        clearAuthCookies(res);
         
         console.log('[Logout] Logout successful for user:', req.user.id);
         

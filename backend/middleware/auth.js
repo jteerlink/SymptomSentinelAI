@@ -7,6 +7,7 @@
 
 const jwt = require('jsonwebtoken');
 const { User } = require('../db/models/index');
+const ms = require('ms'); // For parsing time strings
 
 // JWT secret key (would be in env variables in production)
 const JWT_SECRET = process.env.JWT_SECRET || 'symptom-sentry-ai-secret-key';
@@ -41,17 +42,25 @@ const authenticate = async (req, res, next) => {
     // Check for token in multiple sources
     let token;
     
-    // 1. Try to get token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-      console.log('Found token in Authorization header');
+    // 1. Try to get token from HTTP-only cookie (preferred method)
+    // Check for both new 'accessToken' and legacy 'authToken' cookies
+    if (req.cookies) {
+      if (req.cookies.accessToken) {
+        token = req.cookies.accessToken;
+        console.log('Found token in HTTP-only accessToken cookie');
+      } else if (req.cookies.authToken) {
+        token = req.cookies.authToken;
+        console.log('Found token in HTTP-only authToken cookie (legacy)');
+      }
     }
     
-    // 2. If no token in header, check cookie
-    if (!token && req.cookies && req.cookies.authToken) {
-      token = req.cookies.authToken;
-      console.log('Found token in cookies');
+    // 2. Try to get token from Authorization header (for backward compatibility)
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+        console.log('Found token in Authorization header');
+      }
     }
     
     // If no token found anywhere, return authentication error
@@ -136,17 +145,25 @@ const optionalAuthenticate = async (req, res, next) => {
     // Check for token in multiple sources
     let token;
     
-    // 1. Try to get token from Authorization header
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      token = authHeader.split(' ')[1];
-      console.log('Found token in Authorization header (optional auth)');
+    // 1. Try to get token from HTTP-only cookie (preferred method)
+    // Check for both new 'accessToken' and legacy 'authToken' cookies
+    if (req.cookies) {
+      if (req.cookies.accessToken) {
+        token = req.cookies.accessToken;
+        console.log('Found token in HTTP-only accessToken cookie (optional auth)');
+      } else if (req.cookies.authToken) {
+        token = req.cookies.authToken;
+        console.log('Found token in HTTP-only authToken cookie (legacy, optional auth)');
+      }
     }
     
-    // 2. If no token in header, check cookie
-    if (!token && req.cookies && req.cookies.authToken) {
-      token = req.cookies.authToken;
-      console.log('Found token in cookies (optional auth)');
+    // 2. Try to get token from Authorization header (for backward compatibility)
+    if (!token && req.headers.authorization) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.split(' ')[1];
+        console.log('Found token in Authorization header (optional auth)');
+      }
     }
     
     // If no token found anywhere, continue without authentication
@@ -210,6 +227,57 @@ const generateTokens = (user) => {
     accessToken,
     refreshToken
   };
+};
+
+/**
+ * Set HTTP-only cookies with token information
+ * @param {Object} res - Express response object
+ * @param {string} accessToken - JWT access token
+ * @param {string} refreshToken - JWT refresh token
+ */
+const setAuthCookies = (res, accessToken, refreshToken) => {
+  // Get expiration times from token configs
+  const accessExpires = new Date(Date.now() + ms(JWT_EXPIRATION));
+  const refreshExpires = new Date(Date.now() + ms(JWT_REFRESH_EXPIRATION));
+  
+  // Set HTTP-only cookies for both tokens
+  res.cookie('accessToken', accessToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    expires: accessExpires
+  });
+  
+  res.cookie('refreshToken', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/api/refresh-token', // Restrict to refresh endpoint
+    expires: refreshExpires
+  });
+  
+  // Set a non-HTTP-only cookie with expiration time for UI feedback
+  res.cookie('tokenExpires', accessExpires.toISOString(), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    expires: accessExpires
+  });
+};
+
+/**
+ * Clear authentication cookies
+ * @param {Object} res - Express response object
+ */
+const clearAuthCookies = (res) => {
+  // Clear new cookies
+  res.clearCookie('accessToken');
+  res.clearCookie('refreshToken', { path: '/api/refresh-token' });
+  res.clearCookie('tokenExpires');
+  
+  // Also clear legacy cookies for complete cleanup
+  res.clearCookie('authToken');
+  res.clearCookie('refreshToken'); // Also clear without path (legacy format)
 };
 
 /**
@@ -300,6 +368,11 @@ const refreshToken = async (req, res) => {
       });
     }
     
+    // Set HTTP-only cookies with the new tokens
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+    
+    console.log('[Token Refresh] Auth cookies updated successfully');
+    
     return res.json({
       error: false,
       accessToken: result.accessToken,
@@ -320,6 +393,8 @@ module.exports = {
   generateTokens,
   refreshToken,
   refreshAccessToken,
+  setAuthCookies,
+  clearAuthCookies,
   JWT_EXPIRATION,
   JWT_REFRESH_EXPIRATION
 };

@@ -4,6 +4,9 @@ const cors = require('cors');
 const path = require('path');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
+const session = require('express-session');
+const rateLimit = require('express-rate-limit');
 const apiRoutes = require('./routes/api');
 
 // Create Express app
@@ -46,7 +49,33 @@ app.use(bodyParser.urlencoded({
 }));
 
 // 4a. Cookie parser middleware - needed for authentication cookies
-app.use(cookieParser());
+app.use(cookieParser(process.env.COOKIE_SECRET || 'symptom-sentry-cookie-secret'));
+
+// 4b. Session configuration
+app.use(session({
+  secret: process.env.SESSION_SECRET || 'symptom-sentry-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
+  }
+}));
+
+// 4c. CSRF Protection
+const csrfProtection = csrf({ cookie: true });
+// We'll apply this selectively to routes that need it
+
+// 4d. Rate limiting for auth endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 requests per windowMs per IP
+  message: {
+    error: true,
+    message: 'Too many login attempts. Please try again after 15 minutes.'
+  }
+});
 
 // 5. Request body logging for debugging API requests
 app.use((req, res, next) => {

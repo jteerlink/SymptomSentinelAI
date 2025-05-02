@@ -187,14 +187,24 @@ function validateTokenWithServer() {
                 tokenExpires = expiresAt.toISOString();
             }
             
+            // Check if we're using HTTP-only cookies
+            const usingCookies = !data.accessToken && !_state.token;
+            
             // Update auth state with user info and token
+            // If we don't have a token in the response or state, it means we're using HTTP-only cookies
             updateAuthState(
                 true,
                 data.user,
-                data.accessToken || _state.token,
+                data.accessToken || _state.token || 'use-cookies',
                 data.refreshToken || _state.refreshToken,
                 tokenExpires
             );
+            
+            // Store a flag indicating we're using secure cookies if no token is returned
+            if (usingCookies) {
+                localStorage.setItem('usingSecureCookies', 'true');
+                console.log('[AuthState] Using secure HTTP-only cookies for authentication');
+            }
             
             // Update UI with user info
             if (window.SymptomSentryUtils && window.SymptomSentryUtils.updateProfileUI) {
@@ -254,14 +264,23 @@ function refreshAccessToken(refreshToken, isExpired = false) {
                     const newExpiresAt = new Date();
                     newExpiresAt.setHours(newExpiresAt.getHours() + 1);
                     
+                    // Check if we're using HTTP-only cookies
+                    const usingCookies = !data.accessToken;
+                    
                     // Update auth state
                     updateAuthState(
                         true,
                         data.user,
-                        data.accessToken,
+                        data.accessToken || 'use-cookies',
                         data.refreshToken || _state.refreshToken,
                         newExpiresAt.toISOString()
                     );
+                    
+                    // Store a flag indicating we're using secure cookies if no token is returned
+                    if (usingCookies) {
+                        localStorage.setItem('usingSecureCookies', 'true');
+                        console.log('[AuthState] Using secure HTTP-only cookies for authentication');
+                    }
                     
                     return true; // Successfully refreshed
                 }
@@ -290,14 +309,23 @@ function refreshAccessToken(refreshToken, isExpired = false) {
                     const newExpiresAt = new Date();
                     newExpiresAt.setHours(newExpiresAt.getHours() + 1);
                     
+                    // Check if we're using HTTP-only cookies
+                    const usingCookies = !data.accessToken;
+                    
                     // Update auth state
                     updateAuthState(
                         true,
                         data.user || _state.user,
-                        data.accessToken,
+                        data.accessToken || 'use-cookies',
                         data.refreshToken || _state.refreshToken,
                         newExpiresAt.toISOString()
                     );
+                    
+                    // Store a flag indicating we're using secure cookies if no token is returned
+                    if (usingCookies) {
+                        localStorage.setItem('usingSecureCookies', 'true');
+                        console.log('[AuthState] Using secure HTTP-only cookies for authentication');
+                    }
                     
                     return true;
                 }
@@ -471,9 +499,13 @@ window.SymptomSentryAuth.login = async function(email, password) {
         
         const data = await response.json();
         
-        if (!data.user || !data.accessToken) {
-            throw new Error('Invalid server response');
+        // Check for valid user information
+        if (!data.user) {
+            throw new Error('Invalid server response - no user data');
         }
+        
+        // Check if we're using HTTP-only cookies instead of tokens
+        const usingSecureCookies = !data.accessToken;
         
         // Calculate token expiration (1 hour from now)
         const expiresAt = new Date();

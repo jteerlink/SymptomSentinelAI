@@ -484,6 +484,12 @@ window.SymptomSentryAuth.getUser = function() {
 
 // Get authentication token
 window.SymptomSentryAuth.getToken = function() {
+    // If we're using HTTP-only cookies, we don't need to return the actual token
+    // because the cookies will be sent automatically with requests
+    if (_state.token === 'use-cookies' || localStorage.getItem('usingSecureCookies') === 'true') {
+        console.log('[AuthState] Using HTTP-only cookies for authentication, no token needed');
+        return null;
+    }
     return _state.token;
 };
 

@@ -178,9 +178,16 @@ function validateTokenWithServer() {
         headers: headers,
         credentials: 'include' // Include cookies
     })
-    .then(response => {
+    .then(async response => {
         if (response.ok) {
-            return response.json();
+            try {
+                const responseText = await response.text();
+                console.log('[AuthState] Raw validation response:', responseText);
+                return JSON.parse(responseText);
+            } catch (parseError) {
+                console.error('[AuthState] Error parsing validation response:', parseError);
+                throw new Error('Token validation failed: Invalid response format');
+            }
         }
         throw new Error('Token validation failed');
     })
@@ -263,9 +270,13 @@ function refreshAccessToken(refreshToken, isExpired = false) {
         headers: headers,
         credentials: 'include' // Include cookies
     })
-    .then(response => {
+    .then(async response => {
         if (response.ok) {
-            return response.json().then(data => {
+            try {
+                const responseText = await response.text();
+                console.log('[AuthState] Raw refresh response:', responseText);
+                const data = JSON.parse(responseText);
+                
                 if (data.valid && data.accessToken) {
                     console.log('[AuthState] Token refreshed via validation endpoint');
                     
@@ -294,7 +305,10 @@ function refreshAccessToken(refreshToken, isExpired = false) {
                     return true; // Successfully refreshed
                 }
                 return false; // Validation succeeded but no new token
-            });
+            } catch (parseError) {
+                console.error('[AuthState] Error parsing refresh response:', parseError);
+                return false;
+            }
         }
         return false; // Validation failed
     })
@@ -309,7 +323,16 @@ function refreshAccessToken(refreshToken, isExpired = false) {
                 body: JSON.stringify({ refreshToken }),
                 credentials: 'include'
             })
-            .then(response => response.json())
+            .then(async response => {
+                try {
+                    const responseText = await response.text();
+                    console.log('[AuthState] Raw refresh-token response:', responseText);
+                    return JSON.parse(responseText);
+                } catch (parseError) {
+                    console.error('[AuthState] Error parsing refresh-token response:', parseError);
+                    throw new Error('Token refresh failed: Invalid response format');
+                }
+            })
             .then(data => {
                 if (data.accessToken) {
                     console.log('[AuthState] Token refreshed successfully via refresh endpoint');
@@ -508,11 +531,26 @@ window.SymptomSentryAuth.login = async function(email, password) {
         });
         
         if (!response.ok) {
-            const errorData = await response.json();
+            let errorData;
+            try {
+                const errorText = await response.text();
+                errorData = JSON.parse(errorText);
+            } catch (parseError) {
+                console.error('[AuthState] Error parsing error response:', parseError);
+                throw new Error('Login failed: Server error');
+            }
             throw new Error(errorData.message || 'Login failed');
         }
         
-        const data = await response.json();
+        let data;
+        try {
+            const responseText = await response.text();
+            console.log('[AuthState] Raw login response:', responseText);
+            data = JSON.parse(responseText);
+        } catch (parseError) {
+            console.error('[AuthState] Error parsing login response:', parseError);
+            throw new Error('Login failed: Invalid server response format');
+        }
         
         // Check for valid user information
         if (!data.user) {

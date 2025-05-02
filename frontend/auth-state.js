@@ -18,12 +18,21 @@ const _state = {
     authStateListeners: []
 };
 
-// Initialize auth state from local storage
+// Initialize auth state from local storage or cookies
 function initAuthState() {
     console.log('[AuthState] Initializing authentication state');
     
-    // Ensure no user is automatically signed in on app startup
-    console.log('[AuthState] No auto-login: users will start in logged-out state');
+    // Check if we're using secure HTTP-only cookies
+    const usingSecureCookies = localStorage.getItem('usingSecureCookies') === 'true';
+    
+    if (usingSecureCookies) {
+        console.log('[AuthState] Secure cookie authentication detected');
+        // Validate cookies against server
+        validateTokenWithServer();
+    } else {
+        // Ensure no user is automatically signed in on app startup
+        console.log('[AuthState] No auto-login: users will start in logged-out state');
+    }
     
     // Check for the landing page sign-in button
     const landingSignInBtn = document.getElementById('landing-sign-in-btn');
@@ -511,14 +520,20 @@ window.SymptomSentryAuth.login = async function(email, password) {
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
         
-        // Update auth state
+        // Update auth state with cookie support
         updateAuthState(
             true,
             data.user,
-            data.accessToken,
+            data.accessToken || 'use-cookies', // Use special token value for cookie auth
             data.refreshToken || null,
             expiresAt.toISOString()
         );
+        
+        // Store a flag indicating we're using secure cookies if no token is returned
+        if (usingSecureCookies) {
+            localStorage.setItem('usingSecureCookies', 'true');
+            console.log('[AuthState] Using secure HTTP-only cookies for authentication during login');
+        }
         
         // Update UI
         if (window.SymptomSentryUtils && window.SymptomSentryUtils.updateProfileUI) {
@@ -577,22 +592,32 @@ window.SymptomSentryAuth.register = async function(name, email, password) {
             throw new Error(data.message || 'Registration failed');
         }
         
-        if (!data.user || !data.accessToken) {
-            throw new Error('Invalid server response');
+        // Check for valid user information
+        if (!data.user) {
+            throw new Error('Invalid server response - no user data');
         }
+        
+        // Check if we're using HTTP-only cookies instead of tokens
+        const usingSecureCookies = !data.accessToken;
         
         // Calculate token expiration (1 hour from now)
         const expiresAt = new Date();
         expiresAt.setHours(expiresAt.getHours() + 1);
         
-        // Update auth state
+        // Update auth state with cookie support
         updateAuthState(
             true,
             data.user,
-            data.accessToken,
+            data.accessToken || 'use-cookies', // Use special token value for cookie auth
             data.refreshToken || null,
             expiresAt.toISOString()
         );
+        
+        // Store a flag indicating we're using secure cookies if no token is returned
+        if (usingSecureCookies) {
+            localStorage.setItem('usingSecureCookies', 'true');
+            console.log('[AuthState] Using secure HTTP-only cookies for authentication during registration');
+        }
         
         // Update UI
         if (window.SymptomSentryUtils && window.SymptomSentryUtils.updateProfileUI) {
